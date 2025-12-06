@@ -1,11 +1,19 @@
 #!/bin/sh
 # entrypoint.sh
 
-set -e
+# No usar set -e para permitir manejo de errores
+set +e
 
-# Run Django migrations (this handles schema creation automatically)
+# Run Django migrations
 echo "Running Django migrations..."
 python manage.py migrate --noinput
+MIGRATE_EXIT=$?
+
+if [ $MIGRATE_EXIT -ne 0 ]; then
+    echo "Migration failed with exit code $MIGRATE_EXIT"
+    echo "This might be due to a corrupted transaction state."
+    echo "Trying to continue anyway..."
+fi
 
 # Create superuser (non-blocking)
 echo "Attempting to create or update superuser..."
