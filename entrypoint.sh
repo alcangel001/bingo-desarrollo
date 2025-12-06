@@ -3,11 +3,7 @@
 
 set -e
 
-# Fix database schema first
-echo "Fixing database schema..."
-python manage.py fix_database_schema || echo "Schema fix failed, but continuing..."
-
-# Run Django migrations
+# Run Django migrations (this handles schema creation automatically)
 echo "Running Django migrations..."
 python manage.py migrate --noinput
 
@@ -19,7 +15,7 @@ python manage.py createsu || echo "Superuser creation failed, but continuing..."
 echo "Collecting static files..."
 python manage.py collectstatic --noinput || echo "Static files collection failed, but continuing..."
 
-echo "Django migrations complete."
+echo "Django setup complete."
 
 # Start the Daphne server
 echo "Starting Daphne server..."
