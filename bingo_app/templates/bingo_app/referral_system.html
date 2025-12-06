@@ -1,0 +1,305 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Sistema de Referidos - Bingo y Rifa JyM{% endblock %}
+
+{% block content %}
+<style>
+/* Override del fondo para referidos */
+body {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+.referral-container {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin: 20px auto;
+    padding: 30px;
+}
+
+.referral-container * {
+    color: #212529 !important;
+}
+
+.referral-card {
+    border: 2px solid #28a745;
+    border-radius: 10px;
+    transition: transform 0.3s ease;
+}
+
+.referral-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+}
+</style>
+
+<div class="container mt-4">
+    <div class="referral-container">
+        <div class="text-center mb-5">
+            <h1 class="display-4 text-success">
+                <i class="fas fa-users"></i> Sistema de Referidos
+            </h1>
+            <p class="lead text-muted">
+                Invita amigos y gana créditos juntos
+            </p>
+        </div>
+
+        <!-- Tu Código de Referido -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card referral-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-gift"></i> Tu Código de Referido
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Código:</h5>
+                                <div class="input-group mb-3">
+                                    <input type="text" 
+                                           class="form-control form-control-lg text-center font-weight-bold" 
+                                           value="{{ referral_code }}" 
+                                           readonly 
+                                           id="referralCode">
+                                    <button class="btn btn-outline-secondary" onclick="copyReferralCode()">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <p class="text-muted">Comparte este código con tus amigos</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Enlace Directo:</h5>
+                                <div class="input-group mb-3">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           value="{{ referral_link }}" 
+                                           readonly 
+                                           id="referralLink">
+                                    <button class="btn btn-outline-secondary" onclick="copyReferralLink()">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <p class="text-muted">Enlace completo para compartir</p>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <h4 class="text-success">
+                                <i class="fas fa-dollar-sign"></i> Gana ${{ referral_bonus }} por cada amigo que invites
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cómo Funciona -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="text-primary mb-4">
+                    <i class="fas fa-question-circle"></i> ¿Cómo Funciona?
+                </h2>
+                
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-primary text-center">
+                            <div class="card-body">
+                                <i class="fas fa-share-alt fa-3x text-primary mb-3"></i>
+                                <h5>1. Comparte</h5>
+                                <p class="card-text">Comparte tu código o enlace con amigos</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-warning text-center">
+                            <div class="card-body">
+                                <i class="fas fa-user-plus fa-3x text-warning mb-3"></i>
+                                <h5>2. Se Registran</h5>
+                                <p class="card-text">Tu amigo se registra usando tu código</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-success text-center">
+                            <div class="card-body">
+                                <i class="fas fa-gift fa-3x text-success mb-3"></i>
+                                <h5>3. Ambos Ganan</h5>
+                                <p class="card-text">Ambos reciben ${{ referral_bonus }} en créditos</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-info text-center">
+                            <div class="card-body">
+                                <i class="fas fa-trophy fa-3x text-info mb-3"></i>
+                                <h5>4. ¡A Jugar!</h5>
+                                <p class="card-text">Usa tus créditos para jugar bingo y rifas</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tus Referidos -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="text-primary mb-4">
+                    <i class="fas fa-list"></i> Tus Referidos
+                </h2>
+                
+                {% if referrals %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="table-success">
+                                <tr>
+                                    <th>Usuario</th>
+                                    <th>Fecha de Registro</th>
+                                    <th>Bonus Otorgado</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for referral in referrals %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-user text-primary"></i>
+                                        {{ referral.referred_user.username }}
+                                    </td>
+                                    <td>{{ referral.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge bg-success">
+                                            ${{ referral.bonus_amount }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if referral.is_paid %}
+                                            <span class="badge bg-success">Pagado</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <h5 class="text-success">
+                            Total de Referidos: <span id="totalReferrals">{{ referrals.count }}</span>
+                        </h5>
+                        <h5 class="text-success">
+                            Total Ganado: $<span id="totalEarned">0.00</span>
+                        </h5>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> Aún no tienes referidos</h5>
+                        <p class="mb-0">¡Comparte tu código con amigos para empezar a ganar!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Botones de Compartir -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="text-primary mb-4">
+                    <i class="fas fa-share"></i> Compartir en Redes Sociales
+                </h2>
+                
+                <div class="text-center">
+                    <button class="btn btn-primary btn-lg me-3" onclick="shareOnWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </button>
+                    <button class="btn btn-info btn-lg me-3" onclick="shareOnFacebook()">
+                        <i class="fab fa-facebook"></i> Facebook
+                    </button>
+                    <button class="btn btn-success btn-lg me-3" onclick="shareOnTelegram()">
+                        <i class="fab fa-telegram"></i> Telegram
+                    </button>
+                    <button class="btn btn-secondary btn-lg" onclick="shareViaEmail()">
+                        <i class="fas fa-envelope"></i> Email
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="text-center">
+            <a href="{% url 'lobby' %}" class="btn btn-primary btn-lg me-3">
+                <i class="fas fa-play"></i> Empezar a Jugar
+            </a>
+            <a href="{% url 'launch_promotions' %}" class="btn btn-outline-success btn-lg me-3">
+                <i class="fas fa-gift"></i> Ver Promociones
+            </a>
+            <a href="{% url 'profile' %}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-user"></i> Mi Perfil
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Calcular total ganado
+document.addEventListener('DOMContentLoaded', function() {
+    const totalReferrals = parseInt(document.getElementById('totalReferrals').textContent) || 0;
+    const bonusAmount = {{ referral_bonus }};
+    const totalEarned = totalReferrals * bonusAmount;
+    document.getElementById('totalEarned').textContent = totalEarned.toFixed(2);
+});
+
+function copyReferralCode() {
+    const referralCode = document.getElementById('referralCode').value;
+    navigator.clipboard.writeText(referralCode).then(function() {
+        Swal.fire({
+            icon: 'success',
+            title: '¡Copiado!',
+            text: 'Código de referido copiado al portapapeles',
+            timer: 2000
+        });
+    });
+}
+
+function copyReferralLink() {
+    const referralLink = document.getElementById('referralLink').value;
+    navigator.clipboard.writeText(referralLink).then(function() {
+        Swal.fire({
+            icon: 'success',
+            title: '¡Copiado!',
+            text: 'Enlace de referido copiado al portapapeles',
+            timer: 2000
+        });
+    });
+}
+
+function shareOnWhatsApp() {
+    const text = `¡Únete a Bingo y Rifa JyM! 🎮🎫\n\nUsa mi código de referido: {{ referral_code }}\n\nGana ${{ referral_bonus }} créditos gratis al registrarte.\n\nEnlace: {{ referral_link }}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+}
+
+function shareOnFacebook() {
+    const text = `¡Únete a Bingo y Rifa JyM! Usa mi código: {{ referral_code }} y gana ${{ referral_bonus }} créditos gratis.`;
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('{{ referral_link }}')}&quote=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+}
+
+function shareOnTelegram() {
+    const text = `¡Únete a Bingo y Rifa JyM! 🎮🎫\n\nUsa mi código: {{ referral_code }}\nGana ${{ referral_bonus }} créditos gratis.\n\n{{ referral_link }}`;
+    const url = `https://t.me/share/url?url=${encodeURIComponent('{{ referral_link }}')}&text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+}
+
+function shareViaEmail() {
+    const subject = '¡Únete a Bingo y Rifa JyM!';
+    const body = `¡Hola!\n\nTe invito a unirte a Bingo y Rifa JyM, una plataforma increíble donde puedes jugar bingo y rifas en línea.\n\nUsa mi código de referido: {{ referral_code }}\n\nAl registrarte con mi código, ambos ganaremos ${{ referral_bonus }} en créditos gratis.\n\n¡Regístrate aquí: {{ referral_link }}\n\n¡Nos vemos en el juego!`;
+    const url = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(url);
+}
+</script>
+{% endblock %}

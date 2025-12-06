@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprimir Cartones de Bingo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Adjust as needed */
+            gap: 20px;
+            page-break-inside: avoid; /* Avoid breaking cards across pages */
+        }
+        .bingo-card {
+            border: 2px solid #333;
+            padding: 10px;
+            background-color: #fff;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            text-align: center;
+            page-break-inside: avoid;
+            margin-bottom: 20px; /* Space between cards */
+        }
+        .bingo-card h3 {
+            margin-top: 0;
+            color: #0056b3;
+        }
+        .bingo-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+        .bingo-cell {
+            border: 1px solid #eee;
+            padding: 8px 0;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 40px; /* Ensure cells are square-ish */
+        }
+        .bingo-header {
+            background-color: #007bff;
+            color: white;
+            font-size: 1.3em;
+            padding: 5px 0;
+        }
+        .free-space {
+            background-color: #f0f0f0;
+            color: #555;
+        }
+
+        /* Print-specific styles */
+        @media print {
+            body {
+                background-color: #fff;
+                padding: 0;
+            }
+            .card-container {
+                grid-template-columns: repeat(2, 1fr); /* Two cards per row for printing */
+                gap: 10px;
+            }
+            .bingo-card {
+                border: 1px solid #000;
+                box-shadow: none;
+                margin-bottom: 10px;
+            }
+            .bingo-cell {
+                font-size: 1em;
+                height: 30px;
+            }
+            .bingo-header {
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Cartones de Bingo para Imprimir</h1>
+    <p>Total de cartones seleccionados: {{ cards|length }}</p>
+
+    <div class="card-container">
+        {% for card in cards %}
+            <div class="bingo-card">
+                <h3>Cartón ID: {{ card.unique_id }}</h3>
+                <div class="bingo-grid">
+                    <div class="bingo-cell bingo-header">B</div>
+                    <div class="bingo-cell bingo-header">I</div>
+                    <div class="bingo-cell bingo-header">N</div>
+                    <div class="bingo-cell bingo-header">G</div>
+                    <div class="bingo-cell bingo-header">O</div>
+                    {% for row in card.card_data %}
+                        {% for cell in row %}
+                            <div class="bingo-cell {% if cell == 0 %}free-space{% endif %}">
+                                {% if cell == 0 %}FREE{% else %}{{ cell }}{% endif %}
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        // Automatically trigger print dialog when page loads
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+{% extends 'bingo_app/base.html' %}
+
+{% block title %}Gestionar Anuncios{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Gestionar Anuncios y Promociones</h1>
+    <hr>
+
+    <!-- Formulario para crear/editar anuncios -->
+    <div class="card mb-4">
+        <div class="card-header">Crear Nuevo Anuncio</div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary">Guardar Anuncio</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de anuncios existentes -->
+    <div class="card">
+        <div class="card-header">Anuncios Actuales</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Orden</th>
+                            <th>Tipo</th>
+                            <th>Mensaje/Contenido</th>
+                            <th>Activo</th>
+                            <th>Expira</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for announcement in announcements %}
+                        <tr>
+                            <td>{{ announcement.order }}</td>
+                            <td><span class="badge bg-info">{{ announcement.get_announcement_type_display }}</span></td>
+                            <td>
+                                {{ announcement.message }}
+                                {% if announcement.image %}
+                                    <br><img src="{{ announcement.image.url }}" alt="Imagen del anuncio" style="max-width: 100px; max-height: 50px;">
+                                {% endif %}
+                                {% if announcement.video_url %}
+                                    <br><a href="{{ announcement.video_url }}" target="_blank">Ver Video</a>
+                                {% endif %}
+                            </td>
+                            <td>{{ announcement.is_active|yesno:"Sí,No" }}</td>
+                            <td>{{ announcement.expires_at|date:"Y-m-d H:i"|default:"No expira" }}</td>
+                            <td>
+                                <a href="{% url 'edit_announcement' announcement.id %}" class="btn btn-sm btn-warning">Editar</a>
+                                <a href="{% url 'delete_announcement' announcement.id %}" class="btn btn-sm btn-danger">Eliminar</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No hay anuncios creados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.getElementById('id_announcement_type');
+        const externalLinkRow = document.querySelector('#id_external_link').closest('p');
+        const relatedGameRow = document.querySelector('#id_related_game').closest('p');
+        const relatedRaffleRow = document.querySelector('#id_related_raffle').closest('p');
+        const imageRow = document.querySelector('#id_image').closest('p');
+        const videoUrlRow = document.querySelector('#id_video_url').closest('p');
+
+        function toggleFields() {
+            const selectedType = typeSelect.value;
+
+            // Ocultar todos los campos condicionales
+            externalLinkRow.style.display = 'none';
+            relatedGameRow.style.display = 'none';
+            relatedRaffleRow.style.display = 'none';
+            imageRow.style.display = 'none';
+            videoUrlRow.style.display = 'none';
+
+            // Mostrar campos basados en la selección
+            if (selectedType === 'PROMOTION') {
+                relatedGameRow.style.display = 'block';
+                relatedRaffleRow.style.display = 'block';
+                imageRow.style.display = 'block';
+                videoUrlRow.style.display = 'block';
+            } else if (selectedType === 'EXTERNAL') {
+                externalLinkRow.style.display = 'block';
+                imageRow.style.display = 'block';
+                videoUrlRow.style.display = 'block';
+            } else { // GENERAL
+                imageRow.style.display = 'block';
+                videoUrlRow.style.display = 'block';
+            }
+        }
+
+        // Ejecutar al cargar la página y al cambiar la selección
+        toggleFields();
+        typeSelect.addEventListener('change', toggleFields);
+    });
+</script>
+{% endblock %}

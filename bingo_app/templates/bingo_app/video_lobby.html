@@ -1,0 +1,696 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Videollamadas - Lobby{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-video"></i> Salas de Videollamada</h2>
+        <div>
+            <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+                <i class="fas fa-plus"></i> Crear Sala Privada
+            </button>
+            <a href="{% url 'create_videocall' %}" class="btn btn-primary">
+                <i class="fas fa-cog"></i> Configuración Avanzada
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Panel principal de selección de salas -->
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-users"></i> Unirse a una Videollamada</h4>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Selector de salas -->
+                    <div class="mb-4">
+                        <label class="form-label h5"><i class="fas fa-door-open"></i> Seleccionar Sala:</label>
+                        <select class="form-select form-select-lg" id="video-room-select">
+                            <option value="">-- Selecciona una sala --</option>
+                            {% for group in groups %}
+                                {% if group.is_public or user == group.created_by or user in group.participants.all %}
+                                <option value="{{ group.id }}" 
+                                        data-channel="{{ group.agora_channel_name }}" 
+                                        data-name="{{ group.name }}"
+                                        data-public="{{ group.is_public }}"
+                                        data-has-password="{% if group.password %}true{% else %}false{% endif %}"
+                                        data-creator="{{ group.created_by.username }}"
+                                        data-participants="{{ group.participants.count }}">
+                                    {% if group.is_public %}🌐{% else %}🔒{% endif %} {{ group.name }} - {% if group.is_public %}Pública{% else %}Privada{% endif %} 
+                                    {% if user == group.created_by %}(Tuya){% endif %}
+                                    ({{ group.participants.count }} participantes)
+                                </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Información de la sala seleccionada -->
+                    <div id="room-info" class="alert alert-info" style="display: none;">
+                        <h6><i class="fas fa-info-circle"></i> Información de la Sala:</h6>
+                        <div id="room-details"></div>
+                    </div>
+
+                    <!-- Botón para unirse -->
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success btn-lg" id="join-selected-room" disabled>
+                            <i class="fas fa-sign-in-alt"></i> Unirse a la Sala
+                        </button>
+                    </div>
+
+                    <!-- Botón para crear sala rápida -->
+                    <div class="mt-3">
+                        <button class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+                            <i class="fas fa-plus-circle"></i> Crear Nueva Sala Privada
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de salas disponibles (modo compacto) -->
+    {% if groups %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h5><i class="fas fa-list"></i> Salas Disponibles</h5>
+            <div class="row">
+                {% for group in groups %}
+                <div class="col-md-6 col-lg-4 mb-3" id="room-{{ group.id }}">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-0">
+                                    {% if group.is_public %}
+                                        <i class="fas fa-globe text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-lock text-warning"></i>
+                                    {% endif %}
+                                    {{ group.name }}
+                                    {% if user == group.created_by %}
+                                        <span class="badge bg-primary">Tuya</span>
+                                    {% endif %}
+                                </h6>
+                                {% if user == group.created_by %}
+                                <button class="btn btn-danger btn-sm delete-room-btn" 
+                                        data-room-id="{{ group.id }}" 
+                                        data-room-name="{{ group.name }}"
+                                        title="Eliminar sala">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            
+                            <p class="card-text text-muted small mb-2">
+                                <i class="fas fa-user"></i> Por: {{ group.created_by.username }}<br>
+                                <i class="fas fa-users"></i> {{ group.participants.count }} participantes<br>
+                                {% if not group.is_public and group.password %}
+                                    <i class="fas fa-key"></i> Con contraseña
+                                {% endif %}
+                                <i class="fas fa-clock"></i> {{ group.created_at|timesince }} atrás
+                            </p>
+                            
+                            <div class="d-grid">
+                                <button class="btn btn-outline-primary btn-sm select-room-btn" 
+                                        data-room-id="{{ group.id }}">
+                                    <i class="fas fa-hand-pointer"></i> Seleccionar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <h5><i class="fas fa-info-circle"></i> No hay salas disponibles</h5>
+                <p>¡Sé el primero en crear una sala de videollamada!</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal para crear sala privada -->
+<div class="modal fade" id="createRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Crear Sala Privada</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-private-room-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de la Sala</label>
+                        <input type="text" class="form-control" id="room-name" placeholder="Ej: Mi Familia" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Vincular a un Juego de Bingo (Opcional)</label>
+                        <select class="form-select" id="room-game" name="game_id">
+                            <option value="">-- Ningún Juego --</option>
+                            {% for game in games %}
+                                <option value="{{ game.id }}">{{ game.name }} (Organizado por: {{ game.organizer.username }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña (opcional)</label>
+                        <input type="password" class="form-control" id="room-password" placeholder="Dejar vacío para sin contraseña">
+                    </div>
+                    <div class="alert alert-info">
+                        <small><i class="fas fa-info-circle"></i> Solo tú y quienes tengan la contraseña podrán unirse a esta sala.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="create-room-btn">
+                    <i class="fas fa-check"></i> Crear Sala
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        transition: transform 0.2s;
+        border: 1px solid #dee2e6;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .delete-room-btn {
+        opacity: 0.7;
+        transition: opacity 0.3s;
+    }
+    .delete-room-btn:hover {
+        opacity: 1;
+    }
+    
+    /* Arreglar colores de texto */
+    .card-title {
+        color: #212529 !important;
+    }
+    
+    .card-text {
+        color: #6c757d !important;
+    }
+    
+    .card-text strong {
+        color: #495057 !important;
+    }
+    
+    .card-body {
+        background-color: #ffffff;
+    }
+    
+    /* Mejorar contraste en badges */
+    .badge.bg-primary {
+        background-color: #0d6efd !important;
+        color: white !important;
+    }
+    
+    .badge.bg-success {
+        background-color: #198754 !important;
+        color: white !important;
+    }
+    
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000 !important;
+    }
+    
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+        color: white !important;
+    }
+    
+    .badge.bg-info {
+        background-color: #0dcaf0 !important;
+        color: #000 !important;
+    }
+    
+    /* Mejorar el selector de salas */
+    .form-select {
+        border: 2px solid #dee2e6;
+        color: #212529;
+    }
+    
+    .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    /* Mejorar los botones */
+    .btn-outline-primary {
+        color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+    
+    /* Mejorar el panel de información */
+    .alert-info {
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+    }
+    
+    .alert-info h6 {
+        color: #055160 !important;
+    }
+    
+    /* Mejorar el modal */
+    .modal-content {
+        border: 1px solid #dee2e6;
+    }
+    
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .modal-title {
+        color: #212529 !important;
+    }
+    
+    /* Mejorar los inputs del modal */
+    .form-control {
+        border: 1px solid #ced4da;
+        color: #212529;
+    }
+    
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .form-label {
+        color: #212529 !important;
+        font-weight: 600;
+    }
+    
+    /* Mejorar los iconos */
+    .text-success {
+        color: #198754 !important;
+    }
+    
+    .text-warning {
+        color: #ffc107 !important;
+    }
+    
+    .text-muted {
+        color: #6c757d !important;
+    }
+    
+    /* Mejorar el header principal */
+    .card-header.bg-primary {
+        background: linear-gradient(135deg, #0d6efd, #6610f2) !important;
+        color: white !important;
+    }
+    
+    .card-header.bg-primary h4 {
+        color: white !important;
+    }
+    
+    /* Mejorar los mensajes de alerta */
+    .alert {
+        border: 1px solid transparent;
+    }
+    
+    .alert-success {
+        background-color: #d1e7dd;
+        border-color: #badbcc;
+        color: #0f5132;
+    }
+    
+    .alert-danger {
+        background-color: #f8d7da;
+        border-color: #f5c2c7;
+        color: #842029;
+    }
+    
+    .alert-warning {
+        background-color: #fff3cd;
+        border-color: #ffecb5;
+        color: #664d03;
+    }
+    
+    /* Mejorar el contraste general */
+    body {
+        background-color: #f8f9fa;
+    }
+    
+    .container {
+        background-color: transparent;
+    }
+    
+    /* Mejorar los botones de eliminar */
+    .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+        color: white;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ==================== Elementos del DOM ====================
+    const videoRoomSelect = document.getElementById('video-room-select');
+    const joinSelectedRoomBtn = document.getElementById('join-selected-room');
+    const roomInfo = document.getElementById('room-info');
+    const roomDetails = document.getElementById('room-details');
+    const createRoomBtn = document.getElementById('create-room-btn');
+    const roomNameInput = document.getElementById('room-name');
+    const roomPasswordInput = document.getElementById('room-password');
+    
+    // ==================== Funciones de UI ====================
+    function showMessage(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        // Auto-cerrar después de 3 segundos
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // ==================== Funciones de selección de sala ====================
+    function updateRoomInfo() {
+        const selectedOption = videoRoomSelect.options[videoRoomSelect.selectedIndex];
+        
+        if (selectedOption.value) {
+            const roomName = selectedOption.dataset.name;
+            const isPublic = selectedOption.dataset.public === 'true';
+            const hasPassword = selectedOption.dataset.hasPassword === 'true';
+            const creator = selectedOption.dataset.creator;
+            const participants = selectedOption.dataset.participants;
+            
+            roomDetails.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Nombre:</strong> ${roomName}<br>
+                        <strong>Tipo:</strong> ${isPublic ? '🌐 Pública' : '🔒 Privada'}<br>
+                        <strong>Acceso:</strong> ${hasPassword ? '🔑 Con contraseña' : '🔓 Sin contraseña'}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Creador:</strong> ${creator}<br>
+                        <strong>Participantes:</strong> ${participants}<br>
+                        <strong>Estado:</strong> ${participants > 0 ? '🟢 Activa' : '⚪ Esperando'}
+                    </div>
+                </div>
+            `;
+            
+            roomInfo.style.display = 'block';
+            joinSelectedRoomBtn.disabled = false;
+            joinSelectedRoomBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Unirse a la Sala';
+        } else {
+            roomInfo.style.display = 'none';
+            joinSelectedRoomBtn.disabled = true;
+            joinSelectedRoomBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Selecciona una sala';
+        }
+    }
+    
+    // ==================== Funciones de creación de sala ====================
+    async function createPrivateRoom() {
+        const name = roomNameInput.value.trim();
+        const password = roomPasswordInput.value.trim();
+        const gameId = document.getElementById('room-game').value;
+        
+        if (!name) {
+            showMessage('El nombre de la sala es requerido', 'warning');
+            return;
+        }
+        
+        try {
+            createRoomBtn.disabled = true;
+            createRoomBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando...';
+            
+            const response = await fetch('/api/videocallgroups/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    name: name,
+                    is_public: false,
+                    password: password,
+                    game_id: gameId || null
+                })
+            });
+            
+            if (response.ok) {
+                const newRoom = await response.json();
+                
+                // Cerrar modal y limpiar formulario
+                bootstrap.Modal.getInstance(document.getElementById('createRoomModal')).hide();
+                roomNameInput.value = '';
+                roomPasswordInput.value = '';
+                
+                // Redirigir directamente a la sala creada
+                window.location.href = `/video/room/${newRoom.id}/`;
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al crear la sala');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showMessage(error.message || 'Error al crear la sala', 'danger');
+        } finally {
+            createRoomBtn.disabled = false;
+            createRoomBtn.innerHTML = '<i class="fas fa-check"></i> Crear Sala';
+        }
+    }
+    
+    // ==================== Funciones de eliminación de sala ====================
+    async function deleteRoom(roomId) {
+        const roomCard = document.getElementById(`room-${roomId}`);
+        if (roomCard) {
+            roomCard.style.opacity = '0.5';
+            roomCard.style.pointerEvents = 'none';
+        }
+        
+        try {
+            const response = await fetch(`/api/video-groups/${roomId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
+            
+            if (response.ok) {
+                // Remover la tarjeta con animación
+                if (roomCard) {
+                    roomCard.style.transition = 'all 0.3s ease-out';
+                    roomCard.style.transform = 'scale(0)';
+                    setTimeout(() => {
+                        roomCard.remove();
+                    }, 300);
+                }
+                
+                showMessage('Sala eliminada correctamente', 'success');
+                
+                // Si era la sala seleccionada, limpiar selección
+                if (videoRoomSelect.value === roomId.toString()) {
+                    videoRoomSelect.value = '';
+                    updateRoomInfo();
+                }
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al eliminar la sala');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showMessage(error.message || 'Error al eliminar la sala', 'danger');
+            
+            // Restaurar la tarjeta
+            if (roomCard) {
+                roomCard.style.opacity = '1';
+                roomCard.style.pointerEvents = 'auto';
+            }
+        }
+    }
+    
+    // ==================== Event Listeners ====================
+    
+    // Cambio en el selector de salas
+    videoRoomSelect.addEventListener('change', updateRoomInfo);
+    
+    // Botón para unirse a sala seleccionada
+    joinSelectedRoomBtn.addEventListener('click', async () => {
+        const selectedOption = videoRoomSelect.options[videoRoomSelect.selectedIndex];
+        if (selectedOption.value) {
+            const roomId = selectedOption.value;
+            const roomName = selectedOption.dataset.name;
+            const hasPassword = selectedOption.dataset.hasPassword === 'true';
+            
+            // Si la sala requiere contraseña, validarla primero
+            if (hasPassword) {
+                const { value: password } = await Swal.fire({
+                    title: '🔒 Sala Privada',
+                    html: `<p class="mb-3">La sala <strong>${roomName}</strong> requiere contraseña para acceder.</p>`,
+                    input: 'password',
+                    inputLabel: 'Introduce la contraseña',
+                    inputPlaceholder: 'Contraseña',
+                    inputAttributes: {
+                        autocapitalize: 'off',
+                        autocorrect: 'off'
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: 'Unirse',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#E74C3C',
+                    cancelButtonColor: '#6c757d',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Debes ingresar una contraseña';
+                        }
+                    }
+                });
+                
+                if (!password) {
+                    return; // Usuario canceló
+                }
+                
+                // Validar contraseña con el servidor
+                try {
+                    const verifyResponse = await fetch(`/api/video-groups/${roomId}/verify-password/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ password: password })
+                    });
+                    
+                    const verifyData = await verifyResponse.json();
+                    
+                    if (!verifyData.valid) {
+                        await Swal.fire({
+                            icon: 'error',
+                            title: 'Contraseña incorrecta',
+                            text: verifyData.error || 'La contraseña ingresada no es correcta',
+                            confirmButtonColor: '#E74C3C'
+                        });
+                        return;
+                    }
+                    
+                    // Contraseña correcta, redirigir con la contraseña en la URL o session
+                    // Como alternativa, podemos guardar la contraseña en sessionStorage para que la vista la verifique
+                    sessionStorage.setItem(`room_${roomId}_password`, password);
+                } catch (error) {
+                    console.error('Error verificando contraseña:', error);
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'No se pudo verificar la contraseña. Intenta nuevamente.',
+                        confirmButtonColor: '#E74C3C'
+                    });
+                    return;
+                }
+            }
+            
+            // Redirigir a la sala
+            window.location.href = `/video/room/${roomId}/`;
+        }
+    });
+    
+    // Botón para crear sala
+    createRoomBtn.addEventListener('click', createPrivateRoom);
+    
+    // Botones para seleccionar sala desde las tarjetas
+    document.querySelectorAll('.select-room-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const roomId = this.dataset.roomId;
+            videoRoomSelect.value = roomId;
+            updateRoomInfo();
+            
+            // Scroll suave hacia el selector
+            document.querySelector('.card.shadow-lg').scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        });
+    });
+    
+    // Botones para eliminar salas
+    document.querySelectorAll('.delete-room-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const roomId = this.dataset.roomId;
+            const roomName = this.dataset.roomName;
+            
+            if (confirm(`¿Estás seguro de que quieres eliminar la sala "${roomName}"?\n\nEsta acción no se puede deshacer y todos los participantes serán desconectados.`)) {
+                deleteRoom(roomId);
+            }
+        });
+    });
+    
+    // Enter para crear sala
+    roomNameInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            createPrivateRoom();
+        }
+    });
+    
+    roomPasswordInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            createPrivateRoom();
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,484 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}{{ group.name }} - Videollamada{% endblock %}
+
+{% block extra_head %}
+<script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.19.0.js"></script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #161f2c !important;
+    }
+    
+    .container-fluid {
+        background: transparent !important;
+    }
+    
+    #video-container {
+        background: #000;
+        border-radius: 15px;
+        padding: 20px;
+        min-height: 500px;
+        position: relative;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    
+    #local-player {
+        width: 200px;
+        height: 150px;
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        border: 3px solid #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        z-index: 10;
+        background: #000;
+    }
+    
+    #remote-players {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 15px;
+        min-height: 400px;
+    }
+    
+    .remote-player {
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+        aspect-ratio: 16/9;
+    }
+    
+    .player-info {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        z-index: 5;
+    }
+    
+    #controls {
+        position: sticky;
+        bottom: 20px;
+        background: rgba(255,255,255,0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 50px;
+        padding: 15px 30px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        z-index: 100;
+    }
+    
+    .control-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .control-btn:hover {
+        transform: scale(1.1);
+    }
+    
+    .control-btn.active {
+        background: #198754 !important;
+        color: white;
+    }
+    
+    .control-btn.inactive {
+        background: #dc3545 !important;
+        color: white;
+    }
+    
+    #btn-leave {
+        background: #dc3545;
+        color: white;
+        width: 70px;
+        height: 70px;
+    }
+    
+    #btn-camera, #btn-mic {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .participant-list {
+        background: #2C3E50;
+        border-radius: 15px;
+        padding: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+        color: #ECF0F1;
+    }
+    
+    .participant-item {
+        padding: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #ECF0F1;
+    }
+    
+    .participant-item:last-child {
+        border-bottom: none;
+    }
+    
+    .bg-light {
+        background-color: #34495e !important;
+        color: #ECF0F1 !important;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #28a745;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-9">
+            <!-- Información de la sala -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3><i class="fas fa-video"></i> {{ group.name }}</h3>
+                <div>
+                    {% if group.game %}
+                        <span class="badge bg-info">
+                            <i class="fas fa-gamepad"></i> {{ group.game.name }}
+                        </span>
+                    {% endif %}
+                    {% if not group.is_public %}
+                        <span class="badge bg-warning">
+                            <i class="fas fa-lock"></i> Privada
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Contenedor de video -->
+            <div id="video-container">
+                <div id="loading" class="loading-overlay">
+                    <div class="text-center">
+                        <div class="spinner-border text-light mb-3" role="status"></div>
+                        <p>Conectando a la videollamada...</p>
+                    </div>
+                </div>
+                
+                <div id="remote-players"></div>
+                <div id="local-player">
+                    <div class="player-info">Tú ({{ user.username }})</div>
+                </div>
+            </div>
+
+            <!-- Controles -->
+            <div class="text-center mt-4">
+                <div id="controls">
+                    <button id="btn-camera" class="control-btn active" title="Cámara">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button id="btn-mic" class="control-btn active" title="Micrófono">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button id="btn-leave" class="control-btn" title="Salir">
+                        <i class="fas fa-phone-slash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel lateral de participantes -->
+        <div class="col-md-3">
+            <div class="participant-list">
+                <h5 class="mb-3">
+                    <i class="fas fa-users"></i> Participantes 
+                    <span class="badge bg-primary" id="participant-count">{{ group.participants.count }}</span>
+                </h5>
+                <div id="participants">
+                    {% for participant in group.participants.all %}
+                    <div class="participant-item">
+                        <div class="status-indicator"></div>
+                        <span>{{ participant.username }}</span>
+                        {% if participant == group.created_by %}
+                            <span class="badge bg-success">Creador</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mt-3 p-3 bg-light rounded">
+                <h6><i class="fas fa-info-circle"></i> Información</h6>
+                <p class="mb-1 small"><strong>Canal:</strong> {{ channel_name }}</p>
+                <p class="mb-1 small"><strong>Creada por:</strong> {{ group.created_by.username }}</p>
+                <p class="mb-0 small"><strong>Creada:</strong> {{ group.created_at|date:"d/m/Y H:i" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Configuración de Agora
+    const APP_ID = "{{ AGORA_APP_ID }}";
+    const CHANNEL_NAME = "{{ channel_name }}";
+    const USER_ID = {{ user.id }};
+    
+    let client;
+    let localAudioTrack;
+    let localVideoTrack;
+    let isAudioMuted = false;
+    let isVideoMuted = false;
+
+    // Inicializar cliente de Agora
+    client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+
+    // Función para obtener token
+    async function getAgoraToken() {
+        try {
+            const response = await fetch(`/api/get-agora-token/?channelName=${CHANNEL_NAME}`);
+            const data = await response.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            return data.token;
+        } catch (error) {
+            console.error('Error getting token:', error);
+            alert('Error al obtener token de Agora: ' + error.message);
+            return null;
+        }
+    }
+
+    // Función para unirse al canal
+    async function joinChannel() {
+        try {
+            document.getElementById('loading').style.display = 'flex';
+            
+            // Obtener token
+            const token = await getAgoraToken();
+            if (!token) {
+                throw new Error('No se pudo obtener el token');
+            }
+
+            // Unirse al canal
+            await client.join(APP_ID, CHANNEL_NAME, token, USER_ID);
+            console.log('Joined channel successfully');
+
+            // Crear tracks locales
+            [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+
+            // Reproducir video local
+            localVideoTrack.play("local-player");
+
+            // Publicar tracks
+            await client.publish([localAudioTrack, localVideoTrack]);
+            console.log('Published local tracks');
+
+            document.getElementById('loading').style.display = 'none';
+        } catch (error) {
+            console.error('Error joining channel:', error);
+            document.getElementById('loading').innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <p>Error al conectar: ${error.message}</p>
+                    <button class="btn btn-light" onclick="location.href='{% url "video_lobby" %}'">
+                        Volver al Lobby
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    // Manejar usuarios remotos
+    client.on("user-published", async (user, mediaType) => {
+        await client.subscribe(user, mediaType);
+        console.log("subscribe success");
+
+        if (mediaType === "video") {
+            const playerContainer = document.createElement("div");
+            playerContainer.id = `player-${user.uid}`;
+            playerContainer.className = "remote-player";
+            playerContainer.innerHTML = `<div class="player-info">Usuario ${user.uid}</div>`;
+            
+            document.getElementById("remote-players").appendChild(playerContainer);
+            user.videoTrack.play(`player-${user.uid}`);
+        }
+
+        if (mediaType === "audio") {
+            user.audioTrack.play();
+        }
+    });
+
+    client.on("user-unpublished", (user) => {
+        const playerContainer = document.getElementById(`player-${user.uid}`);
+        if (playerContainer) {
+            playerContainer.remove();
+        }
+    });
+
+    // Controles
+    document.getElementById('btn-camera').addEventListener('click', async function() {
+        if (localVideoTrack) {
+            if (isVideoMuted) {
+                await localVideoTrack.setEnabled(true);
+                this.classList.remove('inactive');
+                this.classList.add('active');
+                this.innerHTML = '<i class="fas fa-video"></i>';
+                isVideoMuted = false;
+            } else {
+                await localVideoTrack.setEnabled(false);
+                this.classList.remove('active');
+                this.classList.add('inactive');
+                this.innerHTML = '<i class="fas fa-video-slash"></i>';
+                isVideoMuted = true;
+            }
+        }
+    });
+
+    document.getElementById('btn-mic').addEventListener('click', async function() {
+        if (localAudioTrack) {
+            if (isAudioMuted) {
+                await localAudioTrack.setEnabled(true);
+                this.classList.remove('inactive');
+                this.classList.add('active');
+                this.innerHTML = '<i class="fas fa-microphone"></i>';
+                isAudioMuted = false;
+            } else {
+                await localAudioTrack.setEnabled(false);
+                this.classList.remove('active');
+                this.classList.add('inactive');
+                this.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+                isAudioMuted = true;
+            }
+        }
+    });
+
+    document.getElementById('btn-leave').addEventListener('click', async function() {
+        if (confirm('¿Estás seguro de que quieres salir de la videollamada?')) {
+            // Detener tracks locales
+            if (localAudioTrack) {
+                localAudioTrack.stop();
+                localAudioTrack.close();
+            }
+            if (localVideoTrack) {
+                localVideoTrack.stop();
+                localVideoTrack.close();
+            }
+
+            // Salir del canal
+            await client.leave();
+            
+            // Redirigir al lobby
+            window.location.href = '{% url "video_lobby" %}';
+        }
+    });
+    
+    // Función para cambiar de juego manteniendo la videollamada activa
+    function switchGameContext(gameId) {
+        fetch(`/video/switch-game/${gameId}/{{ group.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Actualizar la información del juego en la interfaz
+                const gameInfoBadge = document.querySelector('.badge.bg-info');
+                if (gameInfoBadge) {
+                    gameInfoBadge.innerHTML = `<i class="fas fa-gamepad"></i> ${data.game_name}`;
+                }
+                
+                // Mostrar mensaje de éxito
+                Swal.fire({
+                    title: '¡Juego cambiado!',
+                    text: `Ahora estás en el juego: ${data.game_name}`,
+                    icon: 'success',
+                    confirmButtonText: 'Continuar'
+                });
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: data.error || 'No se pudo cambiar de juego',
+                    icon: 'error',
+                    confirmButtonText: 'Entendido'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                title: 'Error',
+                text: 'Ocurrió un error al cambiar de juego',
+                icon: 'error',
+                confirmButtonText: 'Entendido'
+            });
+        });
+    }
+
+    // NO limpiar automáticamente al cambiar de página
+    // Solo desconectar cuando el usuario explícitamente presione el botón de salir
+    // Esto permite que la videollamada persista aunque se navegue entre páginas
+    window.addEventListener('beforeunload', async (e) => {
+        // Solo limpiar si la ventana se está cerrando completamente
+        // No limpiar si solo se está navegando a otra página
+        if (e.persisted === false) {
+            // Solo limpiar si es el popup de videollamada y se está cerrando
+            if (window.opener && !window.opener.closed) {
+                // Es un popup y la ventana principal sigue abierta, no limpiar
+                return;
+            }
+            // Si la ventana principal se está cerrando, limpiar
+            if (localAudioTrack) {
+                localAudioTrack.stop();
+                localAudioTrack.close();
+            }
+            if (localVideoTrack) {
+                localVideoTrack.stop();
+                localVideoTrack.close();
+            }
+            await client.leave();
+        }
+    });
+
+    // Iniciar videollamada al cargar la página
+    joinChannel();
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprimir Cartón de Bingo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700&display=swap');
+
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        .card-container {
+            border: 3px solid #000;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px auto;
+            max-width: 400px;
+            display: inline-block;
+        }
+        h1 {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 2px solid #000;
+            width: 20%;
+            height: 60px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        th {
+            background-color: #ccc;
+            font-size: 2rem;
+        }
+        .free-space {
+            background-color: #f0f0f0;
+            font-size: 1rem;
+            line-height: 1.2;
+        }
+        .print-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            body {
+                padding: 0;
+            }
+            .card-container {
+                margin: 0;
+                border: 2px solid #000;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card-container">
+        <h1>ID: {{ card.unique_id }}</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>B</th>
+                    <th>I</th>
+                    <th>N</th>
+                    <th>G</th>
+                    <th>O</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in card.card_data %}
+                <tr>
+                    {% for num in row %}
+                        {% if num == 0 %}
+                        <td class="free-space"><span>GRATIS</span></td>
+                        {% else %}
+                        <td>{{ num }}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="no-print">
+        <button onclick="window.print();" class="print-button">Imprimir Cartón</button>
+        <p><a href="{% url 'manage_printable_cards' %}">Volver a la lista</a></p>
+    </div>
+
+</body>
+</html>

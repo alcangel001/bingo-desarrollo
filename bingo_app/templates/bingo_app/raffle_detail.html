@@ -1,0 +1,2028 @@
+{% extends "bingo_app/base.html" %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #28a745, #218838);
+        --accent-gradient: linear-gradient(135deg, #ffc107, #ffca2c);
+        --dark-color: #2c3e50;
+        --light-color: #f8f9fa;
+    }
+    
+    .raffle-header {
+        background: var(--primary-gradient);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .raffle-header::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80') center/cover;
+        opacity: 0.15;
+        z-index: 0;
+    }
+    
+    .raffle-card {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 3rem;
+        background: white;
+    }
+    
+    .card-header {
+        background: var(--primary-gradient) !important;
+        border-bottom: none !important;
+        padding: 2rem !important;
+        position: relative;
+    }
+    
+    .card-body {
+        padding: 2.5rem;
+    }
+    
+    .card-footer {
+        background: var(--light-color);
+        border-top: none !important;
+        padding: 1.5rem 2.5rem !important;
+    }
+    
+    .ticket-grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 12px;
+        margin: 2rem 0;
+    }
+    
+    .ticket-number {
+        padding: 1rem 0.5rem;
+        text-align: center;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        font-weight: 600;
+        position: relative;
+        overflow: hidden;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #000; /* Color de texto negro para todos los tickets */
+    }
+    
+    .ticket-available {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    }
+    
+    .ticket-available:hover {
+        background: linear-gradient(135deg, #e9ecef, #dee2e6);
+        transform: translateY(-5px) scale(1.1);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        z-index: 1;
+    }
+
+    .ticket-available.selected {
+        background: var(--accent-gradient);
+        color: var(--dark-color);
+        transform: translateY(-5px) scale(1.1);
+        box-shadow: 0 8px 25px rgba(255, 193, 7, 0.4);
+    }
+    
+    .ticket-sold {
+        background: linear-gradient(135deg, #d1e7dd, #a3cfbb);
+        cursor: not-allowed;
+        color: #0f5132;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    }
+    
+    .ticket-mine {
+        background: var(--primary-gradient);
+        color: white;
+        font-weight: bold;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .ticket-winning {
+        background: var(--accent-gradient);
+        font-weight: bold;
+        color: var(--dark-color);
+        animation: pulse 2s infinite;
+        box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+    }
+    
+    .progress-container {
+        height: 30px;
+        margin: 2rem 0;
+        border-radius: 15px;
+        overflow: hidden;
+        background-color: #f8f9fa;
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        position: relative;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        background: var(--secondary-gradient);
+        transition: width 0.8s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .progress-bar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, 
+                      rgba(255,255,255,0) 0%, 
+                      rgba(255,255,255,0.3) 50%, 
+                      rgba(255,255,255,0) 100%);
+        animation: shimmer 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(255, 193, 7, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    }
+    
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    
+    .status-badge {
+        font-size: 1rem;
+        padding: 0.8rem 1.5rem;
+        border-radius: 50px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .status-waiting {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        color: white;
+    }
+    
+    .status-in_progress {
+        background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+        color: white;
+    }
+    
+    .status-finished {
+        background: linear-gradient(135deg, #198754, #157347);
+        color: white;
+    }
+    
+    .user-tickets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 2rem 0;
+    }
+    
+    .user-ticket {
+        padding: 0.8rem 1.5rem;
+        border-radius: 50px;
+        font-weight: 600;
+        transition: all 0.3s;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .user-ticket-normal {
+        background: var(--primary-gradient);
+        color: white;
+    }
+    
+    .user-ticket-winning {
+        background: var(--accent-gradient);
+        color: var(--dark-color);
+        animation: pulse 2s infinite;
+        box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+    }
+    
+    .prize-highlight {
+        font-size: 1.3rem;
+        color: var(--dark-color);
+        font-weight: 700;
+        background: var(--accent-gradient);
+        padding: 0.3rem 1rem;
+        border-radius: 50px;
+        display: inline-block;
+    }
+    
+    .info-item {
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #000;
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .alert-winner {
+        background: linear-gradient(135deg, #fff3cd, #ffecb5);
+        border: none;
+        color: #664d03;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+    
+    .icon-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1.5rem;
+    }
+    
+    .btn-action {
+        border-radius: 50px;
+        font-weight: 600;
+        padding: 0.8rem 2rem;
+        transition: all 0.3s;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        letter-spacing: 0.5px;
+    }
+    
+    .btn-action:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    /* Nuevos estilos añadidos */
+    .card-body h4 {
+        color: #000;
+    }
+    
+    .alert-info span {
+        color: #000;
+    }
+    
+    .alert-warning span {
+        color: #000;
+    }
+    
+    /* Estilos para el modal de confirmación */
+    .confirm-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        color: #000
+    }
+    
+    .confirm-modal.show {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .confirm-dialog {
+        background: white;
+        color: #000;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        transform: translateY(-20px);
+        transition: all 0.3s ease;
+    }
+    
+    .confirm-modal.show .confirm-dialog {
+        transform: translateY(0);
+    }
+    
+    .confirm-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        color: #000
+    }
+    
+    .confirm-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--primary-gradient);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+    }
+    
+    .confirm-body {
+        padding: 2rem;
+        color: #000;
+    }
+    
+    .confirm-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #eee;
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+
+    .multi-buy-bar {
+        position: fixed;
+        bottom: -100px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 600px;
+        background: var(--dark-color);
+        color: white;
+        border-radius: 15px 15px 0 0;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 1000;
+        transition: bottom 0.4s ease-in-out;
+    }
+
+    .multi-buy-bar.show {
+        bottom: 0;
+    }
+    
+    /* Responsive */
+    @media (max-width: 992px) {
+        .ticket-grid {
+            grid-template-columns: repeat(5, 1fr);
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .raffle-header {
+            padding: 2rem 0;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .ticket-number {
+            padding: 0.8rem 0.3rem;
+            font-size: 0.9rem;
+        }
+        
+        .info-item {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .icon-circle {
+            width: 40px;
+            height: 40px;
+            margin-right: 1rem;
+        }
+    }
+
+    /* Estilos para el panel de videollamada flotante */
+    .video-call-panel {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 350px;
+        max-height: 500px;
+        background: linear-gradient(145deg, #2C3E50, #34495E);
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        z-index: 1000;
+        transition: all 0.3s ease;
+        display: none;
+    }
+
+    .video-call-panel.mode-full {
+        width: 350px;
+        max-height: 500px;
+    }
+
+    .video-call-panel.mode-compact {
+        width: 250px;
+        max-height: 350px;
+    }
+
+    .video-call-panel.mode-compact #local-video-container {
+        height: 120px;
+    }
+
+    .video-call-panel.mode-compact .remote-video-wrapper {
+        height: 80px;
+    }
+
+    .video-call-panel.mode-compact .video-call-header {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    .video-call-panel.mode-compact .video-control-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 0.85rem;
+    }
+
+    .video-call-panel.mode-mini {
+        width: 180px;
+        max-height: 60px;
+    }
+
+    .video-call-panel.mode-mini .video-call-body,
+    .video-call-panel.mode-mini .video-controls {
+        display: none;
+    }
+
+    .video-call-panel.mode-mini .video-call-header {
+        border-radius: 15px;
+        padding: 10px 15px;
+    }
+
+    .video-call-panel.pos-bottom-right {
+        bottom: 20px;
+        right: 20px;
+        top: auto;
+        left: auto;
+    }
+
+    .video-call-panel.pos-bottom-left {
+        bottom: 20px;
+        left: 20px;
+        top: auto;
+        right: auto;
+    }
+
+    .video-call-panel.pos-top-right {
+        top: 80px;
+        right: 20px;
+        bottom: auto;
+        left: auto;
+    }
+
+    .video-call-panel.pos-top-left {
+        top: 80px;
+        left: 20px;
+        bottom: auto;
+        right: auto;
+    }
+
+    .video-call-panel.show {
+        display: block;
+    }
+
+    .video-call-header {
+        background: linear-gradient(to right, #E74C3C, #C0392B);
+        color: white;
+        padding: 15px;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: move;
+        user-select: none;
+    }
+
+    .video-call-header-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+    }
+
+    .video-call-header-actions {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+
+    .video-header-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        font-size: 0.8rem;
+    }
+
+    .video-header-btn:hover {
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.1);
+    }
+
+    .video-header-btn.active {
+        background: rgba(39, 174, 96, 0.5);
+    }
+
+    .video-call-body {
+        padding: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    #local-video-container {
+        width: 100%;
+        height: 180px;
+        background: #000;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    #remote-videos-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .remote-video-wrapper {
+        width: 100%;
+        height: 120px;
+        background: #000;
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .video-player {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .video-username {
+        position: absolute;
+        bottom: 5px;
+        left: 5px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 5px;
+        font-size: 0.75rem;
+    }
+
+    .video-controls {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 0 0 15px 15px;
+    }
+
+    .video-control-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-control-btn.active {
+        background: #27ae60;
+    }
+
+    .video-control-btn.inactive {
+        background: #e74c3c;
+    }
+
+    .video-toggle-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #E74C3C, #C0392B);
+        color: white;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4);
+        transition: all 0.3s;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-toggle-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 7px 25px rgba(231, 76, 60, 0.6);
+    }
+
+    .video-toggle-btn.active {
+        background: linear-gradient(145deg, #27ae60, #229954);
+        box-shadow: 0 5px 20px rgba(39, 174, 96, 0.4);
+    }
+
+    .participants-count {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ffc107;
+        color: #000;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .panel-mode-indicator {
+        position: absolute;
+        top: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+
+    .video-call-panel:hover .panel-mode-indicator {
+        opacity: 1;
+    }
+
+    .video-call-body::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .video-call-body::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.3);
+        border-radius: 10px;
+    }
+
+    .video-call-body::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.3);
+        border-radius: 10px;
+    }
+
+    .video-call-body::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.5);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="raffle-header">
+    <div class="container position-relative" style="z-index: 1;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="mb-2">{{ raffle.title }}</h1>
+                <p class="lead mb-0 opacity-85">{{ raffle.description|default:"Participa por emocionantes premios" }}</p>
+            </div>
+            <span class="status-badge status-{{ raffle.status|lower }}">
+                {{ raffle.get_status_display }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="raffle-card">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="mb-4">
+                        <h4 class="mb-4"><i class="fas fa-info-circle me-2"></i>Información de la Rifa</h4>
+                        
+                        <div class="info-item">
+                            <span><i class="fas fa-user me-2"></i>Organizador</span>
+                            <strong>{{ raffle.organizer.username }}</strong>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span><i class="fas fa-tag me-2"></i>Precio por ticket</span>
+                            <strong>{{ raffle.ticket_price }} <i class="fas fa-coins"></i></strong>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span><i class="fas fa-trophy me-2"></i>Premio principal</span>
+                            <strong class="prize-highlight">{{ raffle.prize }} <i class="fas fa-coins"></i></strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6">
+                    <div class="mb-4">
+                        <h4 class="mb-4"><i class="fas fa-chart-bar me-2"></i>Estadísticas</h4>
+                        
+                        <div class="info-item">
+                            <span><i class="fas fa-hashtag me-2"></i>Rango de números</span>
+                            <strong>{{ raffle.start_number }} - {{ raffle.end_number }}</strong>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span><i class="fas fa-ticket-alt me-2"></i>Tickets vendidos</span>
+                            <strong data-sold-counter data-total-tickets="{{ raffle.total_tickets }}">{{ raffle.tickets.count }}/{{ raffle.total_tickets }}</strong>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span><i class="fas fa-calendar-alt me-2"></i>Fecha del sorteo</span>
+                            <strong>{{ raffle.draw_date|date:"d M Y H:i" }}</strong>
+                        </div>
+                        </div>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar" 
+                     style="width: {{ raffle.progress_percentage }}%" 
+                     aria-valuenow="{{ raffle.progress_percentage }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                    {{ raffle.progress_percentage|floatformat:0 }}% completado
+                </div>
+            </div>
+            
+            <!-- Winner Announcement -->
+            {% if raffle.status == 'FINISHED' and raffle.winner %}
+            <div class="alert-winner alert mb-5">
+                <div class="d-flex align-items-center">
+                    <div class="icon-circle">
+                        <i class="fas fa-trophy text-warning"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-2">¡Tenemos un ganador!</h4>
+                        <p class="mb-1">
+                            <strong>{{ raffle.winner.username }}</strong> con el ticket #{{ raffle.winning_number }}
+                            <span class="prize-highlight ms-3">{{ raffle.prize }} <i class="fas fa-coins"></i></span>
+                        </p>
+                        {% if raffle.winner == request.user %}
+                        <span class="badge bg-warning text-dark mt-2 p-2">
+                            <i class="fas fa-crown me-1"></i> ¡Tú ganaste!
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- User Tickets Section -->
+            <h4 class="mb-4"><i class="fas fa-ticket-alt me-2"></i>Tus Tickets</h4>
+            <div id="userTicketsContainer">
+                {% if user_tickets %}
+                <div class="user-tickets">
+                    {% for ticket in user_tickets %}
+                    <span class="user-ticket {% if raffle.status == 'FINISHED' and ticket.number == raffle.winning_number %}user-ticket-winning{% else %}user-ticket-normal{% endif %}" data-user-ticket="{{ ticket.number }}">
+                        #{{ ticket.number }}
+                        {% if raffle.status == 'FINISHED' and ticket.number == raffle.winning_number %}
+                        <i class="fas fa-trophy ms-2"></i>
+                        {% endif %}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info user-tickets-empty" data-user-tickets-empty="true">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle me-3 fa-lg"></i>
+                        <span>No tienes tickets en esta rifa.</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Available Numbers Section -->
+            <h4 class="mb-4 mt-5"><i class="fas fa-grid me-2"></i>Números Disponibles</h4>
+            
+            {% if raffle.status == 'FINISHED' %}
+            <div class="alert alert-warning">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-info-circle me-3 fa-lg"></i>
+                    <span>Esta rifa ha terminado. No se pueden comprar más tickets.</span>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="ticket-grid">
+                {% for number in available_numbers %}
+                    {% if number in sold_numbers %}
+                        {% for ticket in raffle.tickets.all %}
+                            {% if ticket.number == number %}
+                            <div class="ticket-number {% if ticket.owner == request.user %}ticket-mine{% else %}ticket-sold{% endif %}">
+                                {{ number }}
+                                {% if raffle.status == 'FINISHED' and number == raffle.winning_number %}
+                                <i class="fas fa-trophy ms-1"></i>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        {% if raffle.status == 'WAITING' or raffle.status == 'IN_PROGRESS' %}
+                        <div class="ticket-number ticket-available" data-number="{{ number }}">
+                            {{ number }}
+                        </div>
+                        {% else %}
+                        <div class="ticket-number ticket-available">
+                            {{ number }}
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="card-footer">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <a href="{% url 'raffle_lobby' %}" class="btn btn-secondary btn-action">
+                    <i class="fas fa-arrow-left me-2"></i>Volver al Lobby
+                </a>
+                
+                {% if user == raffle.organizer and raffle.can_be_drawn %}
+                <form id="drawRaffleForm" method="post" action="{% url 'draw_raffle' raffle.id %}">
+                    {% csrf_token %}
+                    <button type="button" id="startRaffleBtn" class="btn btn-warning btn-action">
+                        <i class="fas fa-random me-2"></i>Realizar Sorteo
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if user == raffle.organizer and raffle.status != 'FINISHED' %}
+                <div class="d-grid gap-2 my-3">
+                    <a href="{% url 'set_manual_raffle_winner' raffle.id %}" class="btn btn-success btn-lg btn-action">
+                        <i class="fas fa-edit me-2"></i>Establecer Ganador Manualmente
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if raffle.status == 'FINISHED' %}
+                <div class="text-muted">
+                    <i class="fas fa-check-circle me-1"></i> Sorteo completado
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Barra de compra múltiple -->
+<div class="multi-buy-bar" id="multiBuyBar">
+    <div>
+        <span id="selectedCount">0</span> números seleccionados
+        <strong class="ms-3">Total: <span id="totalPrice">0</span> <i class="fas fa-coins"></i></strong>
+    </div>
+    <button class="btn btn-primary btn-action" id="buySelectedBtn">Comprar seleccionados</button>
+</div>
+
+<!-- Modal de confirmación de compra -->
+<div class="confirm-modal" id="confirmModal">
+    <div class="confirm-dialog">
+        <div class="confirm-header">
+            <div class="confirm-icon">
+                <i class="fas fa-ticket-alt"></i>
+            </div>
+            <h5 class="mb-0">Confirmar compra</h5>
+        </div>
+        <div class="confirm-body">
+            <p>¿Estás seguro de que deseas comprar los siguientes <strong id="ticketCount"></strong> tickets?</p>
+            <div id="ticketList" class="mb-3"></div>
+            <p>El costo total será de <strong><span id="modalTotalPrice"></span> <i class="fas fa-coins"></i></strong>.</p>
+        </div>
+        <div class="confirm-footer">
+            <button type="button" class="btn btn-secondary" id="cancelBtn">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="confirmBtn">Confirmar compra</button>
+        </div>
+    </div>
+</div>
+
+<!-- Botón flotante para videollamada -->
+<button class="video-toggle-btn" id="video-toggle-btn" title="Videollamada grupal">
+    <i class="fas fa-video"></i>
+    <span class="participants-count" id="participants-count">0</span>
+</button>
+
+<!-- Panel de videollamada flotante -->
+<div class="video-call-panel pos-bottom-right mode-full" id="video-call-panel">
+    <div class="panel-mode-indicator" id="panel-mode-indicator">📺 Modo Completo</div>
+    <div class="video-call-header">
+        <div class="video-call-header-title">
+            <i class="fas fa-users"></i>
+            <strong id="current-room-name">Salas de Video</strong>
+        </div>
+        <div class="video-call-header-actions">
+            <button class="video-header-btn" id="toggle-size-btn" title="Cambiar tamaño">
+                <i class="fas fa-compress-arrows-alt"></i>
+            </button>
+            <button class="video-header-btn" id="change-position-btn" title="Cambiar posición">
+                <i class="fas fa-arrows-alt"></i>
+            </button>
+            <button class="video-header-btn" id="minimize-panel-btn" title="Minimizar">
+                <i class="fas fa-minus"></i>
+            </button>
+            <button class="video-header-btn" id="close-video-panel" title="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Selector de salas -->
+    <div id="room-selector" class="p-3" style="background: rgba(0,0,0,0.2);">
+        <label class="text-white mb-2"><i class="fas fa-door-open"></i> Seleccionar Sala:</label>
+        <select class="form-select mb-2" id="video-room-select">
+            <option value="">-- Selecciona una sala --</option>
+            {% for vg in video_groups %}
+            <option value="{{ vg.id }}" 
+                    data-channel="{{ vg.agora_channel_name }}" 
+                    data-name="{{ vg.name }}"
+                    data-public="{{ vg.is_public }}"
+                    data-has-password="{% if vg.password %}true{% else %}false{% endif %}">
+                {{ vg.name }} 
+                {% if vg.is_public %}
+                    🌐 Pública
+                {% else %}
+                    🔒 Privada
+                {% endif %}
+                ({{ vg.participants.count }} participantes)
+            </option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-success w-100 mb-2" id="join-selected-room">
+            <i class="fas fa-sign-in-alt"></i> Unirse a Sala
+        </button>
+        <button class="btn btn-sm btn-info w-100" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+            <i class="fas fa-plus"></i> Crear Sala Privada
+        </button>
+    </div>
+    
+    <div class="video-call-body" id="video-body" style="display: none;">
+        <div id="local-video-container">
+            <div id="local-player" class="video-player"></div>
+            <div class="video-username">Tú ({{ user.username }})</div>
+        </div>
+        <div id="remote-videos-container"></div>
+    </div>
+
+    <div class="video-controls" id="video-controls-panel" style="display: none;">
+        <button class="video-control-btn active" id="toggle-camera" title="Cámara">
+            <i class="fas fa-video"></i>
+        </button>
+        <button class="video-control-btn active" id="toggle-mic" title="Micrófono">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <button class="video-control-btn inactive" id="leave-call" title="Salir">
+            <i class="fas fa-phone-slash"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal para crear sala privada -->
+<div class="modal fade" id="createRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Crear Sala Privada</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-private-room-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de la Sala</label>
+                        <input type="text" class="form-control" id="room-name" placeholder="Ej: Mi Familia" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña (opcional)</label>
+                        <input type="password" class="form-control" id="room-password" placeholder="Dejar vacío para sin contraseña">
+                    </div>
+                    <div class="alert alert-info">
+                        <small><i class="fas fa-info-circle"></i> Solo tú y quienes tengan la contraseña podrán unirse a esta sala.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="create-room-btn">
+                    <i class="fas fa-check"></i> Crear Sala
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// WS de rifa: suspenso y ganador
+(function(){
+    const raffleId = parseInt('{{ raffle.id }}', 10);
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/raffle/${raffleId}/`);
+    socket.onopen = function(){ console.log('WS raffle conectado', raffleId); };
+
+    let spinnerInterval = null;
+    let spinnerModal = null;
+    let countdownInterval = null;
+    let spinnerActive = false;
+    let suspenseActive = false; // nuevo: suspenso (countdown o ruleta) activo
+    let pendingWinner = null;
+
+    function showAnnouncement(message){
+        if (window.Swal){
+            Swal.fire({
+                title: '¡Atención!',
+                text: message,
+                icon: 'info',
+                timer: 2000,
+                showConfirmButton: false,
+                allowOutsideClick: false
+            });
+        }
+    }
+
+    function showCountdown(seconds, onComplete){
+        suspenseActive = true;
+        let remaining = seconds;
+        if (!spinnerModal){
+            spinnerModal = document.createElement('div');
+            spinnerModal.id = 'raffle-spinner-modal';
+            spinnerModal.style.position = 'fixed';
+            spinnerModal.style.inset = '0';
+            spinnerModal.style.background = 'rgba(0,0,0,0.8)';
+            spinnerModal.style.display = 'flex';
+            spinnerModal.style.alignItems = 'center';
+            spinnerModal.style.justifyContent = 'center';
+            spinnerModal.style.zIndex = '2000';
+            document.body.appendChild(spinnerModal);
+        } else {
+            spinnerModal.style.display = 'flex';
+        }
+        
+        const countdownEl = document.createElement('div');
+        countdownEl.id = 'raffle-countdown';
+        countdownEl.style.cssText = 'font-size:72px;font-weight:800;color:#fff;text-align:center';
+        spinnerModal.innerHTML = '<div style="background:#111;border-radius:12px;padding:32px 48px;min-width:300px;text-align:center;color:#fff;"><div style="font-size:24px;margin-bottom:16px;">¡El sorteo comienza en!</div><div id="raffle-countdown" style="font-size:72px;font-weight:800;color:#ffc107;">' + remaining + '</div></div>';
+        
+        countdownInterval = setInterval(function(){
+            remaining--;
+            const el = document.getElementById('raffle-countdown');
+            if (el) el.textContent = remaining;
+            if (remaining <= 0){
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+                if (onComplete) onComplete();
+            }
+        }, 1000);
+    }
+
+    function showSpinner(durationMs){
+        stopSpinner();
+        if (!spinnerModal){
+            spinnerModal = document.createElement('div');
+            spinnerModal.id = 'raffle-spinner-modal';
+            spinnerModal.style.position = 'fixed';
+            spinnerModal.style.inset = '0';
+            spinnerModal.style.background = 'rgba(0,0,0,0.8)';
+            spinnerModal.style.display = 'flex';
+            spinnerModal.style.alignItems = 'center';
+            spinnerModal.style.justifyContent = 'center';
+            spinnerModal.style.zIndex = '2000';
+            document.body.appendChild(spinnerModal);
+        } else {
+            spinnerModal.style.display = 'flex';
+        }
+        
+        spinnerModal.innerHTML = '<div style="background:#111;border-radius:12px;padding:32px 48px;min-width:360px;text-align:center;color:#fff;"><div style="font-size:24px;margin-bottom:16px;">¡Sorteo en progreso!</div><div id="raffle-spinner-number" style="font-size:64px;font-weight:700;letter-spacing:4px;color:#ffc107;min-height:80px;">--</div><div style="margin-top:16px;opacity:0.8">Buscando número ganador...</div></div>';
+
+        const numberEl = document.getElementById('raffle-spinner-number');
+        spinnerActive = true;
+        spinnerInterval = setInterval(function(){
+            const min = parseInt('{{ raffle.start_number }}', 10);
+            const max = parseInt('{{ raffle.end_number }}', 10);
+            const r = Math.floor(Math.random()*(max - min + 1)) + min;
+            if (numberEl) numberEl.textContent = r;
+        }, 50);
+
+        // Parar spinner tras duración
+        setTimeout(function(){
+            spinnerActive = false;
+            suspenseActive = false;
+            stopSpinner();
+            if (pendingWinner){
+                const w = pendingWinner; pendingWinner = null;
+                showWinner(w.winning_number, w.winner_username, w.prize);
+            }
+        }, durationMs || 5000);
+    }
+
+    function stopSpinner(){
+        if (countdownInterval){ clearInterval(countdownInterval); countdownInterval = null; }
+        if (spinnerInterval){ clearInterval(spinnerInterval); spinnerInterval = null; }
+        if (spinnerModal){ spinnerModal.style.display = 'none'; }
+    }
+
+    function showWinner(winningNumber, winnerUsername, prize){
+        if (spinnerActive || suspenseActive){
+            pendingWinner = { winning_number: winningNumber, winner_username: winnerUsername, prize: prize };
+            return;
+        }
+        stopSpinner();
+        const html = '<div style="font-size:20px;margin-bottom:16px;">🎉 ¡Número ganador! 🎉</div>' +
+                     '<div style="font-size:72px;font-weight:800;margin-bottom:16px;color:#ffc107;">' + winningNumber + '</div>' +
+                     '<div style="font-size:22px;margin-bottom:12px;">Ganador: <strong style="color:#4CAF50;">' + winnerUsername + '</strong></div>' +
+                     '<div style="font-size:18px;opacity:0.9">Premio: <strong>' + parseFloat(prize).toFixed(2) + ' créditos</strong></div>';
+        if (window.Swal){
+            Swal.fire({ 
+                title: '¡RIFA GANADA!', 
+                html: html, 
+                icon: 'success', 
+                confirmButtonText: 'OK',
+                allowOutsideClick: false
+            });
+        } else {
+            alert('Número ganador: ' + winningNumber + ' - Ganador: ' + winnerUsername);
+        }
+    }
+
+    socket.onmessage = function(e){
+        const data = JSON.parse(e.data);
+        try { console.log('WS raffle msg', data.type, data); } catch(_e) {}
+        if (data.type === 'raffle_draw_announcement'){
+            showAnnouncement(data.message);
+        } else if (data.type === 'raffle_draw_start'){
+            const countdown = data.countdown_seconds || 3;
+            showCountdown(countdown, function(){
+                showSpinner(data.duration_ms || 5000);
+            });
+        } else if (data.type === 'raffle_winner'){
+            showWinner(data.winning_number, data.winner_username, data.prize);
+        } else if (data.type === 'ticket_purchased'){
+            const numbers = Array.isArray(data.numbers) ? data.numbers.slice() : [];
+            if (!numbers.length && (data.number !== undefined && data.number !== null)) {
+                numbers.push(data.number);
+            }
+
+            const isCurrentUser = data.buyer && data.buyer === '{{ request.user.username }}';
+
+            numbers.forEach(function(num){
+                const numStr = String(num);
+                const selector = '.ticket-number[data-number="' + numStr + '"]';
+                const el = document.querySelector(selector);
+                if (!el) {
+                    return;
+                }
+
+                el.classList.remove('ticket-available', 'selected', 'ticket-sold', 'ticket-mine');
+                el.classList.add(isCurrentUser ? 'ticket-mine' : 'ticket-sold');
+                el.textContent = numStr;
+                el.removeAttribute('data-number');
+
+                if (window.raffleSelectedNumbers instanceof Set && window.raffleSelectedNumbers.has(numStr)) {
+                    window.raffleSelectedNumbers.delete(numStr);
+                    if (typeof window.raffleUpdateMultiBuyBar === 'function') {
+                        window.raffleUpdateMultiBuyBar();
+                    }
+                }
+            });
+
+            if (typeof data.progress_percentage === 'number'){
+                const percentage = Math.max(0, Math.min(100, data.progress_percentage));
+                const progressBar = document.querySelector('.progress-bar');
+                if (progressBar){
+                    const pctRounded = percentage.toFixed(0);
+                    progressBar.style.width = pctRounded + '%';
+                    progressBar.setAttribute('aria-valuenow', pctRounded);
+                    progressBar.textContent = pctRounded + '% completado';
+                }
+            }
+
+            if (typeof data.total_tickets_sold === 'number'){
+                const soldCounter = document.querySelector('[data-sold-counter]');
+                if (soldCounter){
+                    const totalTickets = parseInt(soldCounter.dataset.totalTickets, 10);
+                    if (totalTickets){
+                        soldCounter.textContent = data.total_tickets_sold + '/' + totalTickets;
+                    } else {
+                        soldCounter.textContent = data.total_tickets_sold;
+                    }
+                }
+            }
+
+            if (numbers.length && isCurrentUser){
+                const container = document.getElementById('userTicketsContainer');
+                if (container){
+                    let ticketsList = container.querySelector('.user-tickets');
+                    const emptyAlert = container.querySelector('[data-user-tickets-empty]');
+                    if (!ticketsList){
+                        ticketsList = document.createElement('div');
+                        ticketsList.className = 'user-tickets';
+                        container.appendChild(ticketsList);
+                    }
+                    if (emptyAlert){
+                        emptyAlert.remove();
+                    }
+                    numbers.forEach(function(num){
+                        const numStr = String(num);
+                        if (ticketsList.querySelector('[data-user-ticket="' + numStr + '"]')){
+                            return;
+                        }
+                        const ticketSpan = document.createElement('span');
+                        ticketSpan.className = 'user-ticket user-ticket-normal';
+                        ticketSpan.dataset.userTicket = numStr;
+                        ticketSpan.textContent = '#' + numStr;
+                        ticketsList.appendChild(ticketSpan);
+                    });
+                }
+            }
+        }
+    };
+    socket.onerror = function(e){ console.warn('WS raffle error', e); try{ socket.close(); }catch(_e){} };
+
+    // Inicio inmediato del sorteo al pulsar el botón (cliente)
+    document.addEventListener('DOMContentLoaded', function(){
+        const startBtn = document.getElementById('startRaffleBtn');
+        const form = document.getElementById('drawRaffleForm');
+        if (startBtn && form){
+            startBtn.addEventListener('click', function(){
+                try {
+                    showAnnouncement('¡El sorteo está por comenzar!');
+                    showCountdown(3, function(){
+                        showSpinner(5000);
+                    });
+                } catch(_e) {}
+
+                // Enviar POST al servidor sin recargar
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': (function(){
+                            const m = document.cookie.match(/csrftoken=([^;]+)/);
+                            return m ? decodeURIComponent(m[1]) : '';
+                        })()
+                    }
+                }).catch(function(err){ console.warn('Error iniciando sorteo:', err); });
+            });
+        }
+    });
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ticketGrid = document.querySelector('.ticket-grid');
+    const multiBuyBar = document.getElementById('multiBuyBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const totalPrice = document.getElementById('totalPrice');
+    const buySelectedBtn = document.getElementById('buySelectedBtn');
+    const ticketPrice = parseFloat("{{ raffle.ticket_price|stringformat:'f' }}");
+    
+    const confirmModal = document.getElementById('confirmModal');
+    const ticketCount = document.getElementById('ticketCount');
+    const ticketList = document.getElementById('ticketList');
+    const modalTotalPrice = document.getElementById('modalTotalPrice');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const confirmBtn = document.getElementById('confirmBtn');
+
+    let selectedNumbers = new Set();
+    window.raffleSelectedNumbers = selectedNumbers;
+
+    if (ticketGrid) {
+        ticketGrid.addEventListener('click', function(e) {
+            const ticket = e.target.closest('.ticket-available');
+            if (!ticket) return;
+
+            const number = ticket.dataset.number;
+            if (selectedNumbers.has(number)) {
+                selectedNumbers.delete(number);
+                ticket.classList.remove('selected');
+            } else {
+                selectedNumbers.add(number);
+                ticket.classList.add('selected');
+            }
+            updateMultiBuyBar();
+        });
+    }
+
+    function updateMultiBuyBar() {
+        const count = selectedNumbers.size;
+        selectedCount.textContent = count;
+        totalPrice.textContent = (count * ticketPrice).toFixed(2);
+
+        if (count > 0) {
+            multiBuyBar.classList.add('show');
+        } else {
+            multiBuyBar.classList.remove('show');
+        }
+    }
+
+    window.raffleUpdateMultiBuyBar = updateMultiBuyBar;
+
+    buySelectedBtn.addEventListener('click', function() {
+        const count = selectedNumbers.size;
+        if (count === 0) return;
+
+        ticketCount.textContent = count;
+        modalTotalPrice.textContent = (count * ticketPrice).toFixed(2);
+        
+        ticketList.innerHTML = '';
+        const list = document.createElement('div');
+        list.className = 'user-tickets';
+        selectedNumbers.forEach(num => {
+            const ticketSpan = document.createElement('span');
+            ticketSpan.className = 'user-ticket user-ticket-normal';
+            ticketSpan.textContent = `#${num}`;
+            list.appendChild(ticketSpan);
+        });
+        ticketList.appendChild(list);
+
+        confirmModal.classList.add('show');
+    });
+
+    cancelBtn.addEventListener('click', () => confirmModal.classList.remove('show'));
+    confirmModal.addEventListener('click', (e) => {
+        if (e.target === confirmModal) {
+            confirmModal.classList.remove('show');
+        }
+    });
+
+    confirmBtn.addEventListener('click', function() {
+        const numbersToBuy = Array.from(selectedNumbers);
+        
+        fetch(`{% url 'buy_multiple_tickets' raffle.id %}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ numbers: numbersToBuy })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Compra exitosa!',
+                    text: `Has comprado ${data.tickets_bought} tickets.`, 
+                    background: '#2C3E50',
+                    color: '#ECF0F1',
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error en la compra',
+                    text: data.error,
+                    background: '#2C3E50',
+                    color: '#ECF0F1',
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire('Error', 'Ocurrió un error de conexión.', 'error');
+        });
+
+        confirmModal.classList.remove('show');
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+
+<!-- SDK de Agora RTC -->
+<script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.19.0.js"></script>
+
+<script>
+    // ==================== Configuración de Agora ====================
+    const APP_ID = "{{ agora_app_id }}";
+    const RAFFLE_ID = {{ raffle.id }};
+    let CHANNEL_NAME = null;
+    let CURRENT_ROOM_ID = null;
+    const USER_ID = {{ user.id }};
+    const USERNAME = "{{ user.username }}";
+    
+    let agoraClient = null;
+    let localTracks = {
+        videoTrack: null,
+        audioTrack: null
+    };
+    let remoteUsers = {};
+    let isVideoCallActive = false;
+    let isCameraOn = true;
+    let isMicOn = true;
+
+    // ==================== Inicializar cuando DOM esté listo ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        // ==================== Elementos del DOM ====================
+        const videoToggleBtn = document.getElementById('video-toggle-btn');
+        const videoCallPanel = document.getElementById('video-call-panel');
+        const closeVideoPanel = document.getElementById('close-video-panel');
+        const roomSelector = document.getElementById('room-selector');
+        
+        // Verificar que los elementos existan
+        if (!videoToggleBtn || !videoCallPanel) {
+            console.error('Elementos de videollamada no encontrados');
+            return;
+        }
+        const videoBody = document.getElementById('video-body');
+        const videoControlsPanel = document.getElementById('video-controls-panel');
+        const videoRoomSelect = document.getElementById('video-room-select');
+        const joinSelectedRoomBtn = document.getElementById('join-selected-room');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const toggleCameraBtn = document.getElementById('toggle-camera');
+        const toggleMicBtn = document.getElementById('toggle-mic');
+        const leaveCallBtn = document.getElementById('leave-call');
+        const participantsCount = document.getElementById('participants-count');
+        const remoteVideosContainer = document.getElementById('remote-videos-container');
+        const currentRoomName = document.getElementById('current-room-name');
+        
+        // Controles
+        const toggleSizeBtn = document.getElementById('toggle-size-btn');
+        const changePositionBtn = document.getElementById('change-position-btn');
+        const minimizePanelBtn = document.getElementById('minimize-panel-btn');
+        const panelModeIndicator = document.getElementById('panel-mode-indicator');
+
+        // Estado del panel
+        let panelMode = 'full';
+        let panelPosition = 'bottom-right';
+        let isPanelMinimized = false;
+
+        // ==================== Funciones de utilidad ====================
+        function showToast(icon, title, text) {
+            if (window.Swal) {
+            Swal.fire({
+                icon: icon,
+                title: title,
+                text: text,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+        } else {
+            alert(`${title}: ${text}`);
+        }
+    }
+
+    // ==================== Funciones de UI ====================
+    function toggleVideoPanel() {
+        videoCallPanel.classList.toggle('show');
+    }
+
+    function closeVideoCallPanel() {
+        videoCallPanel.classList.remove('show');
+    }
+
+    function showRoomSelector() {
+        roomSelector.style.display = 'block';
+        videoBody.style.display = 'none';
+        videoControlsPanel.style.display = 'none';
+        currentRoomName.textContent = 'Salas de Video';
+    }
+    
+    function showVideoCall() {
+        roomSelector.style.display = 'none';
+        videoBody.style.display = 'block';
+        videoControlsPanel.style.display = 'flex';
+    }
+
+    // ==================== Funciones para controlar el panel ====================
+    function togglePanelSize() {
+        if (panelMode === 'full') {
+            panelMode = 'compact';
+            videoCallPanel.classList.remove('mode-full');
+            videoCallPanel.classList.add('mode-compact');
+            toggleSizeBtn.innerHTML = '<i class="fas fa-expand-arrows-alt"></i>';
+            panelModeIndicator.textContent = '📱 Modo Compacto';
+        } else {
+            panelMode = 'full';
+            videoCallPanel.classList.remove('mode-compact');
+            videoCallPanel.classList.add('mode-full');
+            toggleSizeBtn.innerHTML = '<i class="fas fa-compress-arrows-alt"></i>';
+            panelModeIndicator.textContent = '📺 Modo Completo';
+        }
+    }
+
+    function changePosition() {
+        const positions = ['bottom-right', 'bottom-left', 'top-left', 'top-right'];
+        const currentIndex = positions.indexOf(panelPosition);
+        const nextIndex = (currentIndex + 1) % positions.length;
+        const nextPosition = positions[nextIndex];
+        
+        videoCallPanel.classList.remove(`pos-${panelPosition}`);
+        videoCallPanel.classList.add(`pos-${nextPosition}`);
+        panelPosition = nextPosition;
+    }
+
+    function toggleMinimize() {
+        isPanelMinimized = !isPanelMinimized;
+        
+        if (isPanelMinimized) {
+            videoCallPanel.classList.add('mode-mini');
+            videoCallPanel.classList.remove('mode-full', 'mode-compact');
+            minimizePanelBtn.innerHTML = '<i class="fas fa-window-maximize"></i>';
+            panelModeIndicator.textContent = '▪️ Minimizado';
+        } else {
+            videoCallPanel.classList.remove('mode-mini');
+            if (panelMode === 'full') {
+                videoCallPanel.classList.add('mode-full');
+                panelModeIndicator.textContent = '📺 Modo Completo';
+            } else {
+                videoCallPanel.classList.add('mode-compact');
+                panelModeIndicator.textContent = '📱 Modo Compacto';
+            }
+            minimizePanelBtn.innerHTML = '<i class="fas fa-minus"></i>';
+        }
+    }
+
+    // ==================== Funciones de Agora ====================
+    async function initAgoraClient() {
+        if (agoraClient) return;
+        agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        agoraClient.on("user-published", handleUserPublished);
+        agoraClient.on("user-unpublished", handleUserUnpublished);
+        agoraClient.on("user-left", handleUserLeft);
+    }
+
+    async function joinVideoCall(roomId, channelName, roomName) {
+        if (isVideoCallActive) return;
+
+        try {
+            CHANNEL_NAME = channelName;
+            CURRENT_ROOM_ID = roomId;
+            
+            videoToggleBtn.classList.add('active');
+
+            if (!agoraClient) {
+                await initAgoraClient();
+            }
+
+            const tokenResponse = await fetch('/api/get-agora-token/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    channel_name: CHANNEL_NAME,
+                    uid: USER_ID
+                })
+            });
+
+            const tokenData = await tokenResponse.json();
+            const token = tokenData.token || null;
+
+            await agoraClient.join(APP_ID, CHANNEL_NAME, token, USER_ID);
+
+            localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
+
+            localTracks.videoTrack.play("local-player");
+            await agoraClient.publish([localTracks.audioTrack, localTracks.videoTrack]);
+
+            isVideoCallActive = true;
+            currentRoomName.textContent = roomName;
+            showVideoCall();
+            updateParticipantsCount();
+            videoCallPanel.classList.add('show');
+            
+            // Guardar estado de videollamada para persistencia entre páginas
+            saveVideoCallState();
+
+        } catch (error) {
+            console.error('Error al unirse a la videollamada:', error);
+            videoToggleBtn.classList.remove('active');
+        }
+    }
+
+    async function leaveVideoCall(clearState = true) {
+        if (!isVideoCallActive) return;
+
+        try {
+            // Limpiar estado guardado solo si el usuario explícitamente quiere salir
+            if (clearState) {
+                sessionStorage.removeItem('activeVideoCall');
+            }
+            
+            if (localTracks.videoTrack) {
+                localTracks.videoTrack.stop();
+                localTracks.videoTrack.close();
+            }
+            if (localTracks.audioTrack) {
+                localTracks.audioTrack.stop();
+                localTracks.audioTrack.close();
+            }
+
+            Object.keys(remoteUsers).forEach(uid => {
+                const playerContainer = document.getElementById(`player-wrapper-${uid}`);
+                if (playerContainer) playerContainer.remove();
+            });
+            remoteUsers = {};
+
+            await agoraClient.leave();
+
+            isVideoCallActive = false;
+            
+            // No limpiar CHANNEL_NAME y CURRENT_ROOM_ID si clearState es false (navegación)
+            if (clearState) {
+                CHANNEL_NAME = null;
+                CURRENT_ROOM_ID = null;
+            }
+            
+            videoToggleBtn.classList.remove('active');
+            showRoomSelector();
+            updateParticipantsCount();
+
+        } catch (error) {
+            console.error('Error al salir de la videollamada:', error);
+        }
+    }
+
+    async function toggleCamera() {
+        if (!localTracks.videoTrack) return;
+        try {
+            if (isCameraOn) {
+                await localTracks.videoTrack.setEnabled(false);
+                toggleCameraBtn.classList.remove('active');
+                toggleCameraBtn.classList.add('inactive');
+                toggleCameraBtn.innerHTML = '<i class="fas fa-video-slash"></i>';
+                isCameraOn = false;
+            } else {
+                await localTracks.videoTrack.setEnabled(true);
+                toggleCameraBtn.classList.remove('inactive');
+                toggleCameraBtn.classList.add('active');
+                toggleCameraBtn.innerHTML = '<i class="fas fa-video"></i>';
+                isCameraOn = true;
+            }
+        } catch (error) {
+            console.error('Error al alternar cámara:', error);
+        }
+    }
+
+    async function toggleMic() {
+        if (!localTracks.audioTrack) return;
+        try {
+            if (isMicOn) {
+                await localTracks.audioTrack.setEnabled(false);
+                toggleMicBtn.classList.remove('active');
+                toggleMicBtn.classList.add('inactive');
+                toggleMicBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+                isMicOn = false;
+            } else {
+                await localTracks.audioTrack.setEnabled(true);
+                toggleMicBtn.classList.remove('inactive');
+                toggleMicBtn.classList.add('active');
+                toggleMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                isMicOn = true;
+            }
+        } catch (error) {
+            console.error('Error al alternar micrófono:', error);
+        }
+    }
+
+    async function handleUserPublished(user, mediaType) {
+        await agoraClient.subscribe(user, mediaType);
+        
+        if (mediaType === "video") {
+            remoteUsers[user.uid] = user;
+            
+            const playerWrapper = document.createElement('div');
+            playerWrapper.id = `player-wrapper-${user.uid}`;
+            playerWrapper.className = 'remote-video-wrapper';
+            
+            const playerDiv = document.createElement('div');
+            playerDiv.id = `player-${user.uid}`;
+            playerDiv.className = 'video-player';
+            
+            const usernameDiv = document.createElement('div');
+            usernameDiv.className = 'video-username';
+            usernameDiv.textContent = `Usuario ${user.uid}`;
+            
+            playerWrapper.appendChild(playerDiv);
+            playerWrapper.appendChild(usernameDiv);
+            remoteVideosContainer.appendChild(playerWrapper);
+            
+            user.videoTrack.play(`player-${user.uid}`);
+            updateParticipantsCount();
+        }
+        
+        if (mediaType === "audio") {
+            user.audioTrack.play();
+        }
+    }
+
+    function handleUserUnpublished(user, mediaType) {
+        if (mediaType === "video") {
+            const playerWrapper = document.getElementById(`player-wrapper-${user.uid}`);
+            if (playerWrapper) playerWrapper.remove();
+        }
+    }
+
+    function handleUserLeft(user) {
+        const playerWrapper = document.getElementById(`player-wrapper-${user.uid}`);
+        if (playerWrapper) playerWrapper.remove();
+        delete remoteUsers[user.uid];
+        updateParticipantsCount();
+    }
+
+    function updateParticipantsCount() {
+        const count = Object.keys(remoteUsers).length + (isVideoCallActive ? 1 : 0);
+        participantsCount.textContent = count;
+    }
+
+    // ==================== Crear Sala Privada ====================
+    async function createPrivateRoom() {
+        const name = document.getElementById('room-name').value.trim();
+        const password = document.getElementById('room-password').value.trim();
+        
+        if (!name) {
+            alert('El nombre de la sala es requerido');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/videocallgroups/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    name: name,
+                    is_public: false,
+                    password: password,
+                    raffle_id: RAFFLE_ID
+                })
+            });
+            
+            if (response.ok) {
+                const newRoom = await response.json();
+                bootstrap.Modal.getInstance(document.getElementById('createRoomModal')).hide();
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert(error.error || 'Error al crear la sala');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al crear la sala');
+        }
+    }
+
+    // ==================== Event Listeners ====================
+    if (videoToggleBtn) {
+        videoToggleBtn.addEventListener('click', toggleVideoPanel);
+    }
+    if (closeVideoPanel) {
+        closeVideoPanel.addEventListener('click', closeVideoCallPanel);
+    }
+    if (toggleSizeBtn) {
+        toggleSizeBtn.addEventListener('click', togglePanelSize);
+    }
+    if (changePositionBtn) {
+        changePositionBtn.addEventListener('click', changePosition);
+    }
+    if (minimizePanelBtn) {
+        minimizePanelBtn.addEventListener('click', toggleMinimize);
+    }
+    if (toggleCameraBtn) {
+        toggleCameraBtn.addEventListener('click', toggleCamera);
+    }
+    if (toggleMicBtn) {
+        toggleMicBtn.addEventListener('click', toggleMic);
+    }
+    if (leaveCallBtn) {
+        leaveCallBtn.addEventListener('click', leaveVideoCall);
+    }
+    if (createRoomBtn) {
+        createRoomBtn.addEventListener('click', createPrivateRoom);
+    }
+    
+    if (joinSelectedRoomBtn && videoRoomSelect) {
+        joinSelectedRoomBtn.addEventListener('click', async () => {
+            const selectedOption = videoRoomSelect.options[videoRoomSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                const roomId = selectedOption.value;
+                const channelName = selectedOption.dataset.channel;
+                const roomName = selectedOption.dataset.name;
+                const hasPassword = selectedOption.dataset.hasPassword === 'true';
+                
+                let password = null;
+                
+                // Si la sala requiere contraseña, mostrar modal elegante
+                if (hasPassword) {
+                    const { value: enteredPassword } = await Swal.fire({
+                        title: '🔒 Sala Privada',
+                        html: `<p class="mb-3">La sala <strong>${roomName}</strong> requiere contraseña para acceder.</p>`,
+                        input: 'password',
+                        inputLabel: 'Introduce la contraseña',
+                        inputPlaceholder: 'Contraseña',
+                        inputAttributes: {
+                            autocapitalize: 'off',
+                            autocorrect: 'off'
+                        },
+                        showCancelButton: true,
+                        confirmButtonText: 'Unirse',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#E74C3C',
+                        cancelButtonColor: '#6c757d',
+                        inputValidator: (value) => {
+                            if (!value) {
+                                return 'Debes ingresar una contraseña';
+                            }
+                        }
+                    });
+                    
+                    if (!enteredPassword) {
+                        return; // Usuario canceló
+                    }
+                    
+                    password = enteredPassword;
+                    
+                    // Validar contraseña con el servidor
+                    try {
+                        const verifyResponse = await fetch(`/api/video-groups/${roomId}/verify-password/`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({ password: password })
+                        });
+                        
+                        const verifyData = await verifyResponse.json();
+                        
+                        if (!verifyData.valid) {
+                            await Swal.fire({
+                                icon: 'error',
+                                title: 'Contraseña incorrecta',
+                                text: verifyData.error || 'La contraseña ingresada no es correcta',
+                                confirmButtonColor: '#E74C3C'
+                            });
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error verificando contraseña:', error);
+                        await Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No se pudo verificar la contraseña. Intenta nuevamente.',
+                            confirmButtonColor: '#E74C3C'
+                        });
+                        return;
+                    }
+                }
+                
+                await joinVideoCall(roomId, channelName, roomName);
+            }
+        });
+    }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    }); // Cerrar DOMContentLoaded
+    
+    // ==================== Persistencia de Videollamada ====================
+    // Guardar estado de videollamada cuando está activa
+    function saveVideoCallState() {
+        if (isVideoCallActive && CHANNEL_NAME && CURRENT_ROOM_ID) {
+            sessionStorage.setItem('activeVideoCall', JSON.stringify({
+                channelName: CHANNEL_NAME,
+                roomId: CURRENT_ROOM_ID,
+                roomName: currentRoomName ? currentRoomName.textContent : 'Sala activa',
+                isCameraOn: isCameraOn,
+                isMicOn: isMicOn,
+                raffleId: RAFFLE_ID,
+                pageType: 'raffle'
+            }));
+            console.log('Estado de videollamada guardado (rifa)');
+        }
+    }
+    
+    // Restaurar videollamada si existe una activa
+    async function restoreVideoCallIfActive() {
+        const savedState = sessionStorage.getItem('activeVideoCall');
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                
+                // Restaurar videollamada si existe, independientemente de la página de origen
+                // Funciona si vienes de game_room, lobby, perfil, etc.
+                if (state.roomId && state.channelName) {
+                    // Verificar si la sala aún existe
+                    const response = await fetch(`/api/videocallgroups/`);
+                    const data = await response.json();
+                    const room = data.groups.find(g => g.id === parseInt(state.roomId));
+                    
+                    if (room) {
+                        // Restaurar la videollamada automáticamente
+                        // Esto permite mantener la conexión al cambiar entre cualquier página
+                        console.log('Restaurando videollamada activa desde navegación (rifa)...');
+                        CHANNEL_NAME = state.channelName;
+                        CURRENT_ROOM_ID = state.roomId;
+                        
+                        // Reconectar a la videollamada (mantiene conexión entre páginas)
+                        await joinVideoCall(state.roomId, state.channelName, state.roomName || room.name);
+                    } else {
+                        // La sala ya no existe, limpiar estado
+                        sessionStorage.removeItem('activeVideoCall');
+                    }
+                }
+            } catch (error) {
+                console.error('Error restaurando videollamada:', error);
+                sessionStorage.removeItem('activeVideoCall');
+            }
+        }
+    }
+    
+    // Guardar estado periódicamente cuando hay videollamada activa
+    setInterval(() => {
+        if (isVideoCallActive) {
+            saveVideoCallState();
+        }
+    }, 5000);
+    
+    // Intentar restaurar videollamada al cargar la página
+    setTimeout(() => {
+        restoreVideoCallIfActive();
+    }, 1500); // Esperar a que todo esté inicializado
+</script>
+{% endblock %}

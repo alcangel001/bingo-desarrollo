@@ -1,0 +1,330 @@
+{% extends "bingo_app/base.html" %}
+
+{% block extra_css %}
+<style>
+    /* Mejorar visibilidad de textos en las cards del perfil */
+    .card-header h4 {
+        color: #212529 !important;
+        font-weight: 600;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa !important;
+        color: #212529 !important;
+    }
+    
+    .card-body {
+        background-color: #ffffff !important;
+        color: #212529 !important;
+    }
+    
+    .form-check-label {
+        color: #212529 !important;
+        font-weight: 500;
+    }
+    
+    .card {
+        background-color: #ffffff !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    
+    /* Asegurar que el texto pequeño también sea visible */
+    .card-header .text-muted {
+        color: #6c757d !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Sección de saldo -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4>Saldo Disponible</h4>
+        <span class="badge bg-success">${{ user.credit_balance }}</span>
+    </div>
+    <div class="card-body">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creditModal">
+            Solicitar Créditos
+        </button>
+        <a href="{% url 'request_credits' %}" class="btn btn-outline-primary ms-2">
+            Ver solicitudes anteriores
+        </a>
+    </div>
+</div>
+
+<!-- Formulario de Configuración de Perfil -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h4>Configuración de Perfil</h4>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="is_organizer" name="is_organizer" {% if user.is_organizer %}checked{% endif %}>
+                <label class="form-check-label" for="is_organizer">Quiero ser organizador (esto te permitirá crear tus propios juegos y rifas)</label>
+            </div>
+            <button type="submit" class="btn btn-success mt-3">Guardar Cambios</button>
+        </form>
+    </div>
+</div>
+
+<!-- Historial completo de partidas -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h4>Tu Historial de Partidas</h4>
+        <small class="text-muted">Mostrando todas las partidas en las que has participado</small>
+    </div>
+    <div class="card-body">
+        {% if games_playing %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nombre del Juego</th>
+                            <th>Organizador</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Resultado</th>
+                            <th>Premio</th>
+                            <th>Cartones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in games_playing %}
+                        <tr class="{% if player.is_winner %}table-success{% endif %}">
+                            <td>
+                                <a href="{% url 'game_room' player.game.id %}">
+                                    {{ player.game.name }}
+                                    {% if player.is_winner %}
+                                        <i class="fas fa-trophy ms-1 text-warning"></i>
+                                    {% endif %}
+                                </a>
+                            </td>
+                            <td>{{ player.game.organizer.username }}</td>
+                            <td>{{ player.game.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if player.game.is_finished %}
+                                    <span class="badge bg-secondary">Terminado</span>
+                                {% elif player.game.is_started %}
+                                    <span class="badge bg-warning text-dark">En curso</span>
+                                {% else %}
+                                    <span class="badge bg-info text-dark">Esperando</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if player.game.is_finished %}
+                                    {% if player.is_winner %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-crown me-1"></i> Ganaste
+                                        </span>
+                                    {% else %}
+                                        {% if player.game.winner %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times me-1"></i> Perdiste
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                Sin ganador
+                                            </span>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-light text-dark">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if player.is_winner %}
+                                    <span class="fw-bold text-success">${{ player.game.current_prize }}</span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ player.cards|length }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Resumen estadístico mejorado -->
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="card text-white bg-primary mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Partidas jugadas</h5>
+                            <p class="card-text display-6">{{ total_games|default:0 }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-success mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Victorias</h5>
+                            <p class="card-text display-6">{{ won_count|default:0 }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-danger mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Derrotas</h5>
+                            <p class="card-text display-6">{{ lost_count|default:0 }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-info mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Cartones totales</h5>
+                            <p class="card-text display-6">{{ total_cards|default:0 }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Estadísticas de gastos y ganancias -->
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <div class="card border-warning mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title text-warning">
+                                <i class="fas fa-shopping-cart me-2"></i>Gasto en Cartones
+                            </h6>
+                            <p class="card-text h4">${{ total_spent_on_cards|default:0|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-info mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title text-info">
+                                <i class="fas fa-ticket-alt me-2"></i>Gasto en Rifas
+                            </h6>
+                            <p class="card-text h4">${{ total_spent_on_raffles|default:0|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-success mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title text-success">
+                                <i class="fas fa-trophy me-2"></i>Ganancias Totales
+                            </h6>
+                            <p class="card-text h4">${{ total_earnings|default:0|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No has participado en ninguna partida todavía. 
+                <a href="{% url 'lobby' %}" class="alert-link">¡Únete a una ahora!</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Historial de Rifas Ganadas -->
+{% if won_raffles %}
+<div class="card mt-4">
+    <div class="card-header bg-success text-white">
+        <h4><i class="fas fa-ticket-alt me-2"></i>Tus Rifas Ganadas</h4>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Rifa</th>
+                        <th>Número Ganador</th>
+                        <th>Premio</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for raffle in won_raffles %}
+                    <tr>
+                        <td>
+                            <strong>{{ raffle.title }}</strong>
+                            <br>
+                            <small class="text-muted">Org: {{ raffle.organizer.username }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-success fs-6">#{{ raffle.winning_number }}</span>
+                        </td>
+                        <td class="text-success fw-bold">${{ raffle.prize }}</td>
+                        <td>{{ raffle.draw_date|date:"d/m/Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Estado de Cuenta - Historial de Transacciones -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h4><i class="fas fa-wallet me-2"></i>Estado de Cuenta - Historial de Transacciones</h4>
+        <small class="text-muted">Registro completo de todas tus transacciones con saldo antes y después</small>
+    </div>
+    <div class="card-body">
+        {% if transaction_history %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th>Saldo Antes</th>
+                            <th>Movimiento</th>
+                            <th>Saldo Después</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in transaction_history %}
+                        <tr class="{% if item.amount < 0 %}table-danger{% else %}table-success{% endif %}">
+                            <td>{{ item.transaction.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <span class="badge {% if item.amount < 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                    {{ item.transaction.get_transaction_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {{ item.transaction.description|default:"-" }}
+                                {% if item.transaction.related_game %}
+                                    <br><small class="text-muted">Partida: {{ item.transaction.related_game.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted">${{ item.balance_before|floatformat:2 }}</td>
+                            <td class="{% if item.amount < 0 %}text-danger{% else %}text-success{% endif %} fw-bold">
+                                {% if item.amount < 0 %}
+                                    - ${{ item.amount_abs|floatformat:2 }}
+                                {% else %}
+                                    + ${{ item.amount|floatformat:2 }}
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold">${{ item.balance_after|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                No tienes transacciones registradas todavía.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Inclusión del modal -->
+{% include "bingo_app/credit_request/modal.html" %}
+
+{% endblock %}

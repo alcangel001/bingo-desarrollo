@@ -1,0 +1,164 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Horarios de Bingo Diario{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
+<style>
+    .admin-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    .admin-card .card-title {
+        color: #000000 !important;
+    }
+    .admin-card .card-text {
+        color: #000000 !important;
+    }
+    .admin-card .form-label {
+        color: #000000 !important;
+    }
+    .admin-card .form-text {
+        color: #6c757d !important;
+    }
+    .admin-card .form-control {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ced4da !important;
+    }
+    .admin-card .form-check-label {
+        color: #000000 !important;
+    }
+    .admin-card .btn {
+        color: #ffffff !important;
+    }
+    .admin-card .alert {
+        background-color: #d1ecf1 !important;
+        color: #0c5460 !important;
+        border: 1px solid #bee5eb !important;
+    }
+    .admin-card .badge {
+        color: #ffffff !important;
+    }
+    .admin-card .text-muted {
+        color: #6c757d !important;
+    }
+    .schedule-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    .schedule-card .card-title {
+        color: #000000 !important;
+    }
+    .schedule-card .text-muted {
+        color: #6c757d !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 admin-page">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card admin-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-clock"></i> Gestión de Horarios de Bingo Diario
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for schedule in schedules %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card {% if schedule.is_active %}border-success{% else %}border-danger{% endif %}">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-clock"></i> {{ schedule.get_time_slot_display }}
+                                        <span class="badge badge-{% if schedule.is_active %}success{% else %}danger{% endif %} float-right">
+                                            {% if schedule.is_active %}Activo{% else %}Inactivo{% endif %}
+                                        </span>
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <form method="post" class="mb-3">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+                                        <input type="hidden" name="action" value="toggle_active">
+                                        <button type="submit" class="btn btn-sm btn-{% if schedule.is_active %}danger{% else %}success{% endif %}">
+                                            <i class="fas fa-{% if schedule.is_active %}pause{% else %}play{% endif %}"></i>
+                                            {% if schedule.is_active %}Desactivar{% else %}Activar{% endif %}
+                                        </button>
+                                    </form>
+
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+                                        <input type="hidden" name="action" value="update_settings">
+                                        
+                                        <div class="form-group">
+                                            <label for="max_players_{{ schedule.id }}">Máximo Jugadores</label>
+                                            <input type="number" class="form-control" id="max_players_{{ schedule.id }}" 
+                                                   name="max_players" value="{{ schedule.max_players }}" 
+                                                   min="10" max="100">
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="prize_amount_{{ schedule.id }}">Premio Base ($)</label>
+                                            <input type="number" class="form-control" id="prize_amount_{{ schedule.id }}" 
+                                                   name="prize_amount" value="{{ schedule.prize_amount }}" 
+                                                   min="1" max="100" step="0.01">
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="description_{{ schedule.id }}">Descripción</label>
+                                            <textarea class="form-control" id="description_{{ schedule.id }}" 
+                                                      name="description" rows="2">{{ schedule.description }}</textarea>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-save"></i> Actualizar
+                                        </button>
+                                    </form>
+
+                                    <hr>
+                                    <small class="text-muted">
+                                        <strong>Próximo juego:</strong><br>
+                                        {{ schedule.next_game_time|date:"d/m/Y H:i" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle"></i> Información Importante:</h6>
+                                <ul class="mb-0">
+                                    <li>Los bingos diarios son organizados automáticamente por el sistema</li>
+                                    <li>Los usuarios necesitan tickets válidos para participar</li>
+                                    <li>Los juegos se crean automáticamente cuando un usuario se une</li>
+                                    <li>El premio puede aumentar según la participación</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-4">
+                        <a href="{% url 'admin_ticket_settings' %}" class="btn btn-secondary">
+                            <i class="fas fa-cog"></i> Configuración de Tickets
+                        </a>
+                        <a href="{% url 'admin_ticket_stats' %}" class="btn btn-info">
+                            <i class="fas fa-chart-bar"></i> Ver Estadísticas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

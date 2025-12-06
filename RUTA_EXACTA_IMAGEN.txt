@@ -1,0 +1,32 @@
+RUTA EXACTA DONDE PEGAR LA IMAGEN:
+====================================
+
+C:\Users\DELL VOSTRO 7500\bingo-mejorado\bingo_app\static\images
+
+NOMBRE EXACTO DEL ARCHIVO:
+===========================
+
+bingo_login_background_v2.png
+
+INSTRUCCIONES:
+==============
+
+1. Copia tu imagen (debe ser 1920 x 1080 píxeles)
+2. Abre la carpeta: C:\Users\DELL VOSTRO 7500\bingo-mejorado\bingo_app\static\images
+3. Pega tu imagen
+4. Renombra el archivo a: bingo_login_background_v2.png
+   (todo en minúsculas, con guión bajo, extensión .png)
+
+IMPORTANTE:
+===========
+
+- El nombre DEBE ser exactamente: bingo_login_background_v2.png
+- Si tu imagen es JPG, primero cámbiala a PNG
+- Reemplaza el archivo que ya existe ahí
+
+
+
+
+
+
+

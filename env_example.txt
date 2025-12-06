@@ -1,0 +1,18 @@
+# Copia este archivo como .env y completa con tus valores de Railway
+
+# Base de datos de Railway
+DATABASE_URL=postgresql://username:password@host:port/database
+
+# Otras variables de Railway
+AGORA_APP_ID=tu_agora_app_id
+AGORA_APP_CERTIFICATE=tu_agora_certificate
+DEBUG=False
+SECRET_KEY=tu_secret_key
+ALLOWED_HOSTS=localhost,127.0.0.1,tu-dominio.railway.app
+
+# Para emails (opcional)
+SENDGRID_API_KEY=tu_sendgrid_key
+DEFAULT_FROM_EMAIL=noreply@tu-dominio.com
+
+# IA con Gemini (opcional)
+GEMINI_API_KEY=tu_gemini_api_key

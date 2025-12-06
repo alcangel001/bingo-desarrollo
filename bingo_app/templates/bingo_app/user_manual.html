@@ -1,0 +1,637 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Manual de Usuario - Bingo y Rifa JyM{% endblock %}
+
+{% block content %}
+<style>
+/* Override del fondo para el manual */
+body {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+/* Contenedor principal con fondo blanco */
+.manual-container {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin: 20px auto;
+    padding: 30px;
+}
+
+/* Asegurar que todo el texto sea visible */
+.manual-container * {
+    color: #212529 !important;
+}
+
+/* Títulos principales */
+.manual-container h1,
+.manual-container h2,
+.manual-container h3,
+.manual-container h4,
+.manual-container h5,
+.manual-container h6 {
+    color: #212529 !important;
+}
+
+/* Párrafos y texto */
+.manual-container p,
+.manual-container li,
+.manual-container span,
+.manual-container small {
+    color: #495057 !important;
+}
+
+/* Enlaces */
+.manual-container a {
+    color: #0d6efd !important;
+}
+
+.manual-container a:hover {
+    color: #0a58ca !important;
+}
+
+/* Cards con mejor contraste */
+.manual-container .card {
+    background-color: white !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.manual-container .card-header {
+    background-color: #f8f9fa !important;
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.manual-container .card-body {
+    background-color: white !important;
+}
+
+/* Alertas con mejor contraste */
+.manual-container .alert {
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    color: #495057 !important;
+}
+
+.manual-container .alert-info {
+    background-color: #d1ecf1 !important;
+    border-color: #bee5eb !important;
+    color: #0c5460 !important;
+}
+
+.manual-container .alert-warning {
+    background-color: #fff3cd !important;
+    border-color: #ffeaa7 !important;
+    color: #856404 !important;
+}
+
+.manual-container .alert-success {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    color: #155724 !important;
+}
+
+/* Botones */
+.manual-container .btn {
+    color: white !important;
+}
+
+.manual-container .btn-outline-primary {
+    color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.manual-container .btn-outline-primary:hover {
+    color: white !important;
+    background-color: #0d6efd !important;
+}
+
+/* Badges */
+.manual-container .badge {
+    color: white !important;
+}
+
+/* Iconos */
+.manual-container .fas,
+.manual-container .fab {
+    color: inherit !important;
+}
+</style>
+
+<div class="container mt-4">
+    <div class="manual-container">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="text-center mb-4">
+                        <i class="fas fa-book text-primary"></i> Manual de Usuario
+                    </h1>
+                    <p class="text-center text-muted mb-5">
+                        Guía completa para jugar Bingo y Rifas en nuestra plataforma
+                    </p>
+
+                    <!-- Tabla de Contenidos -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-list"></i> Tabla de Contenidos</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">1. Introducción</h6>
+                                    <ul class="list-unstyled">
+                                        <li><a href="#introduccion" class="text-decoration-none">¿Qué es Bingo y Rifa JyM?</a></li>
+                                        <li><a href="#registro" class="text-decoration-none">Cómo registrarse</a></li>
+                                        <li><a href="#login" class="text-decoration-none">Iniciar sesión</a></li>
+                                    </ul>
+                                    
+                                    <h6 class="text-primary">2. Sistema de Bingo</h6>
+                                    <ul class="list-unstyled">
+                                        <li><a href="#como-jugar-bingo" class="text-decoration-none">Cómo jugar Bingo</a></li>
+                                        <li><a href="#comprar-cartones" class="text-decoration-none">Comprar cartones</a></li>
+                                        <li><a href="#patrones-ganadores" class="text-decoration-none">Patrones ganadores</a></li>
+                                        <li><a href="#reclamar-bingo" class="text-decoration-none">Reclamar Bingo</a></li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">3. Sistema de Rifas</h6>
+                                    <ul class="list-unstyled">
+                                        <li><a href="#como-jugar-rifas" class="text-decoration-none">Cómo jugar Rifas</a></li>
+                                        <li><a href="#comprar-tickets" class="text-decoration-none">Comprar tickets</a></li>
+                                        <li><a href="#sorteo" class="text-decoration-none">Sorteo y ganadores</a></li>
+                                    </ul>
+                                    
+                                    <h6 class="text-primary">4. Sistema de Progreso</h6>
+                                    <ul class="list-unstyled">
+                                        <li><a href="#niveles" class="text-decoration-none">Niveles de usuario</a></li>
+                                        <li><a href="#reputacion" class="text-decoration-none">Sistema de reputación</a></li>
+                                        <li><a href="#logros" class="text-decoration-none">Logros y medallas</a></li>
+                                    </ul>
+                                    
+                                    <h6 class="text-primary">5. Gestión de Cuenta</h6>
+                                    <ul class="list-unstyled">
+                                        <li><a href="#creditos" class="text-decoration-none">Sistema de créditos</a></li>
+                                        <li><a href="#retiros" class="text-decoration-none">Retiros</a></li>
+                                        <li><a href="#perfil" class="text-decoration-none">Perfil de usuario</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 1. Introducción -->
+                    <section id="introduccion" class="mb-5">
+                        <h2 class="text-primary border-bottom pb-2">
+                            <i class="fas fa-star"></i> 1. Introducción
+                        </h2>
+                        
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">¿Qué es Bingo y Rifa JyM?</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Bingo y Rifa JyM es una plataforma online donde puedes:</p>
+                                <ul>
+                                    <li><strong>Jugar Bingo:</strong> Compra cartones y participa en juegos de bingo en tiempo real</li>
+                                    <li><strong>Participar en Rifas:</strong> Compra tickets para rifas con premios increíbles</li>
+                                    <li><strong>Crear tus propios juegos:</strong> Si eres organizador, puedes crear juegos y rifas</li>
+                                    <li><strong>Ganar premios:</strong> Gana dinero real jugando y participando</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Cómo registrarse</h5>
+                            </div>
+                            <div class="card-body">
+                                <ol>
+                                    <li>Ve a la página de <strong>Registro</strong></li>
+                                    <li>Completa el formulario con tu información</li>
+                                    <li>O usa <strong>Facebook</strong> o <strong>Google</strong> para registrarte más rápido</li>
+                                    <li>Verifica tu email (si es necesario)</li>
+                                    <li>¡Ya puedes empezar a jugar!</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Iniciar sesión</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Puedes iniciar sesión de varias formas:</p>
+                                <ul>
+                                    <li><strong>Email y contraseña:</strong> Usa las credenciales que creaste</li>
+                                    <li><strong>Facebook:</strong> Inicia sesión con tu cuenta de Facebook</li>
+                                    <li><strong>Google:</strong> Inicia sesión con tu cuenta de Google</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 2. Sistema de Bingo -->
+                    <section id="como-jugar-bingo" class="mb-5">
+                        <h2 class="text-primary border-bottom pb-2">
+                            <i class="fas fa-gamepad"></i> 2. Sistema de Bingo
+                        </h2>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Cómo jugar Bingo</h5>
+                            </div>
+                            <div class="card-body">
+                                <ol>
+                                    <li><strong>Ve al Lobby:</strong> Desde el menú principal, ve a "Juegos"</li>
+                                    <li><strong>Selecciona un juego:</strong> Elige un juego de bingo disponible</li>
+                                    <li><strong>Comprar cartones:</strong> Compra uno o más cartones para participar</li>
+                                    <li><strong>Esperar el inicio:</strong> El organizador iniciará el juego</li>
+                                    <li><strong>Marcar números:</strong> Los números se llamarán automáticamente</li>
+                                    <li><strong>Reclamar Bingo:</strong> Si completas el patrón, reclama tu premio</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Comprar cartones</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Para comprar cartones:</p>
+                                <ol>
+                                    <li>Entra a un juego de bingo</li>
+                                    <li>Haz clic en <strong>"Comprar Cartón"</strong></li>
+                                    <li>Selecciona cuántos cartones quieres</li>
+                                    <li>Confirma la compra</li>
+                                    <li>Los cartones aparecerán en tu pantalla</li>
+                                </ol>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Tip:</strong> Puedes comprar múltiples cartones para aumentar tus posibilidades de ganar.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Patrones ganadores</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Los patrones más comunes son:</p>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <ul>
+                                            <li><strong>Línea horizontal:</strong> Una línea completa de izquierda a derecha</li>
+                                            <li><strong>Línea vertical:</strong> Una línea completa de arriba a abajo</li>
+                                            <li><strong>Línea diagonal:</strong> Una línea diagonal (X)</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <ul>
+                                            <li><strong>Tabla llena:</strong> Todos los números marcados</li>
+                                            <li><strong>Cuatro esquinas:</strong> Las cuatro esquinas marcadas</li>
+                                            <li><strong>Patrón personalizado:</strong> Patrón especial del organizador</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Reclamar Bingo</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Cuando completes un patrón ganador:</p>
+                                <ol>
+                                    <li>Aparecerá un botón <strong>"¡BINGO!"</strong> en tu pantalla</li>
+                                    <li>Haz clic inmediatamente para reclamar</li>
+                                    <li>El sistema verificará tu cartón</li>
+                                    <li>Si es válido, ¡ganarás el premio!</li>
+                                </ol>
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    <strong>Importante:</strong> Reclama tu Bingo rápidamente, otros jugadores también pueden completar el patrón.
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 3. Sistema de Rifas -->
+                    <section id="como-jugar-rifas" class="mb-5">
+                        <h2 class="text-primary border-bottom pb-2">
+                            <i class="fas fa-ticket-alt"></i> 3. Sistema de Rifas
+                        </h2>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Cómo jugar Rifas</h5>
+                            </div>
+                            <div class="card-body">
+                                <ol>
+                                    <li><strong>Ve a Rifas:</strong> Desde el menú principal, ve a "Rifas"</li>
+                                    <li><strong>Explora las rifas:</strong> Ve las rifas disponibles con sus premios</li>
+                                    <li><strong>Comprar tickets:</strong> Compra uno o más tickets para participar</li>
+                                    <li><strong>Esperar el sorteo:</strong> El organizador realizará el sorteo</li>
+                                    <li><strong>Verificar resultados:</strong> Revisa si tu número fue el ganador</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Comprar tickets</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Para comprar tickets de rifa:</p>
+                                <ol>
+                                    <li>Entra a una rifa específica</li>
+                                    <li>Haz clic en <strong>"Comprar Tickets"</strong></li>
+                                    <li>Selecciona cuántos tickets quieres</li>
+                                    <li>Confirma la compra</li>
+                                    <li>Recibirás números únicos para tu participación</li>
+                                </ol>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Tip:</strong> Cada ticket tiene un número único. Cuantos más tickets compres, más posibilidades de ganar.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Sorteo y ganadores</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>El proceso de sorteo:</p>
+                                <ol>
+                                    <li><strong>Sorteo automático:</strong> El sistema selecciona un número aleatorio</li>
+                                    <li><strong>Sorteo manual:</strong> El organizador puede elegir el ganador manualmente</li>
+                                    <li><strong>Verificación:</strong> Se verifica que el número ganador sea válido</li>
+                                    <li><strong>Anuncio:</strong> Se anuncia el ganador públicamente</li>
+                                    <li><strong>Premio:</strong> El ganador recibe su premio automáticamente</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 4. Sistema de Progreso -->
+                    <section id="niveles" class="mb-5">
+                        <h2 class="text-primary border-bottom pb-2">
+                            <i class="fas fa-trophy"></i> 4. Sistema de Progreso
+                        </h2>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Niveles de usuario</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Tu nivel se basa en los juegos completados:</p>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card border-warning mb-2">
+                                            <div class="card-body text-center">
+                                                <h5 class="text-warning">🥉 Bronce</h5>
+                                                <p class="mb-0">0-24 juegos completados</p>
+                                            </div>
+                                        </div>
+                                        <div class="card border-secondary mb-2">
+                                            <div class="card-body text-center">
+                                                <h5 class="text-secondary">🥈 Plata</h5>
+                                                <p class="mb-0">25+ juegos completados</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-warning mb-2">
+                                            <div class="card-body text-center">
+                                                <h5 class="text-warning">🥇 Oro</h5>
+                                                <p class="mb-0">61+ juegos completados<br>4+ rifas completadas</p>
+                                            </div>
+                                        </div>
+                                        <div class="card border-primary mb-2">
+                                            <div class="card-body text-center">
+                                                <h5 class="text-primary">💎 Platino</h5>
+                                                <p class="mb-0">151+ juegos completados<br>10+ rifas completadas</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Sistema de reputación</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Tu reputación se basa en:</p>
+                                <ul>
+                                    <li><strong>Juegos completados:</strong> Participación activa en juegos</li>
+                                    <li><strong>Rifas completadas:</strong> Participación en rifas</li>
+                                    <li><strong>Comportamiento:</strong> Cumplimiento de las reglas</li>
+                                    <li><strong>Actividad:</strong> Frecuencia de participación</li>
+                                </ul>
+                                <div class="alert alert-success">
+                                    <i class="fas fa-star"></i> 
+                                    <strong>Beneficios:</strong> Una buena reputación puede darte acceso a juegos exclusivos y mejores premios.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Logros y medallas</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Puedes obtener logros especiales:</p>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="text-center mb-3">
+                                            <i class="fas fa-medal text-warning fa-2x"></i>
+                                            <h6>Primer Juego</h6>
+                                            <small>Completa tu primer juego</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center mb-3">
+                                            <i class="fas fa-trophy text-warning fa-2x"></i>
+                                            <h6>Primera Victoria</h6>
+                                            <small>Gana tu primer premio</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center mb-3">
+                                            <i class="fas fa-fire text-danger fa-2x"></i>
+                                            <h6>Racha Ganadora</h6>
+                                            <small>Gana 3 juegos seguidos</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 5. Gestión de Cuenta -->
+                    <section id="creditos" class="mb-5">
+                        <h2 class="text-primary border-bottom pb-2">
+                            <i class="fas fa-wallet"></i> 5. Gestión de Cuenta
+                        </h2>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Sistema de créditos</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Los créditos son la moneda virtual de la plataforma:</p>
+                                <ul>
+                                    <li><strong>Comprar créditos:</strong> Ve a "Solicitar Créditos" en tu perfil</li>
+                                    <li><strong>Usar créditos:</strong> Para comprar cartones y tickets</li>
+                                    <li><strong>Ganar créditos:</strong> Al ganar juegos y rifas</li>
+                                    <li><strong>Retirar créditos:</strong> Convertir créditos a dinero real</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Retiros</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Para retirar tus ganancias:</p>
+                                <ol>
+                                    <li>Ve a "Solicitar Retiro" en tu perfil</li>
+                                    <li>Selecciona el método de pago</li>
+                                    <li>Ingresa la cantidad a retirar</li>
+                                    <li>Proporciona los datos de tu cuenta</li>
+                                    <li>Espera la aprobación del administrador</li>
+                                </ol>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Nota:</strong> Los retiros son procesados manualmente por el administrador para mayor seguridad.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Perfil de usuario</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>En tu perfil puedes:</p>
+                                <ul>
+                                    <li><strong>Ver estadísticas:</strong> Juegos jugados, ganados, créditos</li>
+                                    <li><strong>Historial:</strong> Todas tus transacciones</li>
+                                    <li><strong>Configuración:</strong> Cambiar contraseña, email</li>
+                                    <li><strong>Métodos de pago:</strong> Gestionar cuentas bancarias</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Consejos y Tips -->
+                    <section class="mb-5">
+                        <h2 class="text-primary border-bottom pb-2">
+                            <i class="fas fa-lightbulb"></i> Consejos y Tips
+                        </h2>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card border-success mb-3">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-0"><i class="fas fa-check-circle"></i> Consejos para Bingo</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="mb-0">
+                                            <li>Compra múltiples cartones para aumentar tus posibilidades</li>
+                                            <li>Presta atención a los patrones ganadores</li>
+                                            <li>Reclama tu Bingo inmediatamente</li>
+                                            <li>Juega en horarios con menos competencia</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-info mb-3">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0"><i class="fas fa-info-circle"></i> Consejos para Rifas</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="mb-0">
+                                            <li>Compra más tickets para mayor probabilidad</li>
+                                            <li>Participa en rifas con premios que te interesen</li>
+                                            <li>Revisa la fecha de sorteo</li>
+                                            <li>Mantén un presupuesto responsable</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Contacto y Soporte -->
+                    <section class="mb-5">
+                        <h2 class="text-primary border-bottom pb-2">
+                            <i class="fas fa-headset"></i> Soporte y Contacto
+                        </h2>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <p>Si necesitas ayuda:</p>
+                                <ul>
+                                    <li><strong>Chat en vivo:</strong> Usa el sistema de mensajería de la plataforma</li>
+                                    <li><strong>Email:</strong> Contacta al administrador</li>
+                                    <li><strong>FAQ:</strong> Revisa las preguntas frecuentes</li>
+                                </ul>
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    <strong>Recuerda:</strong> Juega responsablemente y dentro de tus posibilidades económicas.
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Botones de acción -->
+                    <div class="text-center mb-4">
+                        <a href="{% url 'lobby' %}" class="btn btn-primary btn-lg me-3">
+                            <i class="fas fa-play"></i> Empezar a Jugar
+                        </a>
+                        <a href="{% url 'profile' %}" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-user"></i> Ver Mi Perfil
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
+
+<style>
+/* Smooth scrolling para los enlaces internos */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Estilos para las secciones */
+section {
+    scroll-margin-top: 80px;
+}
+
+/* Mejorar la apariencia de las tarjetas */
+.manual-container .card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.manual-container .card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Estilos para los iconos */
+.manual-container .fa-2x {
+    font-size: 2em;
+}
+</style>
+{% endblock %}

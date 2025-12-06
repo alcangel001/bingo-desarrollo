@@ -1,0 +1,75 @@
+{% load bingo_filters %}
+<div class="col-md-6" id="game-{{ game.id }}">
+    <div class="game-card rep-{{ level|lower }} {% if game.id in joined_game_ids %}joined{% endif %}">
+        
+        <div class="reputation-corner-icon">
+            {% if level == "Leyenda" %}<i class="fas fa-gem"></i>
+            {% elif level == "Platino" %}<i class="fas fa-trophy"></i>
+            {% elif level == "Oro" %}<i class="fas fa-sun"></i>
+            {% elif level == "Plata" %}<i class="fas fa-star"></i>
+            {% endif %}
+        </div>
+
+        <div class="game-header">
+            <h3>{{ game.name }}</h3>
+        </div>
+        
+        <div class="game-body">
+            <div class="prize-display">
+                <div class="prize-label">Premio</div>
+                <div class="prize-amount">${{ game.current_prize|default:0|floatformat:2 }}</div>
+            </div>
+
+            <div class="game-feature">
+                <i class="fas fa-user-shield"></i>
+                <span class="feature-label">Organizador:</span>
+                <span class="feature-value">
+                    {{ game.organizer.username }}
+                    <span class="reputation-title-badge">{{ level }}</span>
+                </span>
+            </div>
+            
+            <div class="game-feature">
+                <i class="fas fa-users"></i>
+                <span class="feature-label">Jugadores:</span>
+                <span class="feature-value">{{ game.player_set.count }}</span>
+            </div>
+
+            <div class="game-feature">
+                <i class="fas fa-chess-board"></i>
+                <span class="feature-label">Patrón:</span>
+                <span class="feature-value">{{ game.get_winning_pattern_display }}</span>
+            </div>
+
+            <div class="game-feature">
+                <i class="fas fa-tag"></i>
+                <span class="feature-label">Precio Cartón:</span>
+                <span class="feature-value">${{ game.card_price|floatformat:2 }}</span>
+            </div>
+        </div>
+        
+        <div class="game-footer">
+            <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2">
+                <span class="status-badge bg-success">
+                    Esperando
+                </span>
+                {% if game.id in joined_game_ids %}
+                <span class="joined-badge">
+                    <i class="fas fa-check-circle"></i>
+                    Ya estás dentro
+                </span>
+                {% endif %}
+            </div>
+            
+            <a href="{% url 'game_room' game.id %}" class="join-button {% if game.id in joined_game_ids %}joined{% endif %}">
+                {% if game.id in joined_game_ids %}
+                    <i class="fas fa-arrow-right"></i>
+                    Ir a la sala
+                {% else %}
+                    <i class="fas fa-door-open"></i>
+                    Unirse
+                {% endif %}
+            </a>
+        </div>
+    </div>
+</div>

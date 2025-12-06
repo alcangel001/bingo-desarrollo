@@ -1,0 +1,216 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Horarios de Bingo Diario{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
+<style>
+    .schedule-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    .schedule-card .card-title {
+        color: #000000 !important;
+    }
+    .schedule-card .text-muted {
+        color: #6c757d !important;
+    }
+    .schedule-header-active {
+        background-color: #28a745 !important;
+        color: #ffffff !important;
+    }
+    .schedule-header-inactive {
+        background-color: #dc3545 !important;
+        color: #ffffff !important;
+    }
+    .schedule-info-card {
+        background-color: #d1ecf1 !important;
+        color: #0c5460 !important;
+        border: 1px solid #bee5eb !important;
+    }
+    .schedule-card h3, .schedule-card h4, .schedule-card h5, .schedule-card h6 {
+        color: #000000 !important;
+    }
+    .schedule-card p {
+        color: #000000 !important;
+    }
+    .schedule-card strong {
+        color: #000000 !important;
+    }
+    .schedule-card .card-header {
+        background-color: #f8f9fa !important;
+        color: #000000 !important;
+    }
+    .schedule-card .card-header h3 {
+        color: #000000 !important;
+    }
+    .schedule-card .alert {
+        background-color: #fff3cd !important;
+        color: #856404 !important;
+        border: 1px solid #ffeaa7 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 admin-page">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card schedule-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-clock"></i> Horarios de Bingo Diario Gratuito
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if not ticket_settings.is_system_active %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>El sistema de tickets está desactivado temporalmente.</strong>
+                        Los bingos diarios no están disponibles en este momento.
+                    </div>
+                    {% else %}
+                    
+                    <!-- Información de tickets -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ available_tickets_count }}</h4>
+                                    <p class="mb-0">Tickets Disponibles</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle"></i> ¿Cómo obtener tickets?</h6>
+                                <ul class="mb-0">
+                                    <li>Invita amigos con tu código de referido</li>
+                                    <li>Participa en promociones especiales</li>
+                                    <li>Los tickets expiran en {{ ticket_settings.ticket_expiration_days }} días</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Horarios de bingo -->
+                    <div class="row">
+                        {% for schedule in schedules %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card {% if schedule.is_active %}border-success{% else %}border-danger{% endif %}">
+                                <div class="card-header {% if schedule.is_active %}bg-success{% else %}bg-danger{% endif %} text-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-clock"></i> {{ schedule.get_time_slot_display }}
+                                        {% if schedule.is_active %}
+                                            <span class="badge badge-light float-right">Activo</span>
+                                        {% else %}
+                                            <span class="badge badge-light float-right">Inactivo</span>
+                                        {% endif %}
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if schedule.is_active %}
+                                        <div class="text-center mb-3">
+                                            <h6 class="text-success">
+                                                <i class="fas fa-trophy"></i> Premio: ${{ schedule.prize_amount }}
+                                            </h6>
+                                            <p class="text-muted mb-2">
+                                                <i class="fas fa-users"></i> Máximo {{ schedule.max_players }} jugadores
+                                            </p>
+                                            {% if schedule.description %}
+                                                <p class="text-muted">{{ schedule.description }}</p>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="text-center mb-3">
+                                            <h6>Próximo juego:</h6>
+                                            <p class="text-primary">
+                                                <strong>{{ schedule.next_game_time|date:"d/m/Y H:i" }}</strong>
+                                            </p>
+                                        </div>
+
+                                        {% if available_tickets_count > 0 %}
+                                            <form method="post" action="{% url 'join_daily_bingo' schedule.id %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-success btn-block">
+                                                    <i class="fas fa-play"></i> Unirse con Ticket
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <div class="alert alert-warning text-center">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                <strong>No tienes tickets disponibles</strong><br>
+                                                <small>Obtén tickets invitando amigos</small>
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-center">
+                                            <i class="fas fa-pause-circle fa-2x text-danger mb-2"></i>
+                                            <p class="text-danger">Este horario está desactivado</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Información adicional -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-question-circle"></i> ¿Cómo funciona?
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <i class="fas fa-ticket-alt fa-2x text-primary mb-2"></i>
+                                                <h6>1. Obtén Tickets</h6>
+                                                <p class="text-muted">Invita amigos o participa en promociones para obtener tickets gratuitos</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <i class="fas fa-clock fa-2x text-success mb-2"></i>
+                                                <h6>2. Elige Horario</h6>
+                                                <p class="text-muted">Selecciona el horario que más te convenga: 9:00 AM, 2:00 PM o 7:00 PM</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <i class="fas fa-trophy fa-2x text-warning mb-2"></i>
+                                                <h6>3. ¡Juega y Gana!</h6>
+                                                <p class="text-muted">Usa tu ticket para participar en el bingo y competir por el premio</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% endif %}
+
+                    <div class="form-group mt-4">
+                        <a href="{% url 'my_bingo_tickets' %}" class="btn btn-info">
+                            <i class="fas fa-ticket-alt"></i> Mis Tickets
+                        </a>
+                        <a href="{% url 'referral_system' %}" class="btn btn-success">
+                            <i class="fas fa-users"></i> Invitar Amigos
+                        </a>
+                        <a href="{% url 'lobby' %}" class="btn btn-secondary">
+                            <i class="fas fa-home"></i> Volver al Lobby
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

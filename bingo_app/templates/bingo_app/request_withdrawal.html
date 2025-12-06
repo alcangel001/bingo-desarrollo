@@ -1,0 +1,86 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* Estilo para que el texto del formulario se vea negro */
+    .form-text-black label,
+    .form-text-black input,
+    .form-text-black select,
+    .form-text-black textarea,
+    .form-text-black {
+        color: #000;
+    }
+</style>
+
+<div class="container mt-4">
+    <h2>Solicitar Retiro</h2>
+    <div class="card">
+        <div class="card-body">
+            <p class="text-muted">Saldo disponible: {{ current_balance }} créditos</p>
+
+            <form method="post" class="form-text-black">
+                {% csrf_token %}
+                {{ form.as_p }}
+
+                <div class="form-group mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        Solicitar Retiro
+                    </button>
+                    <a href="{% url 'profile' %}" class="btn btn-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <h2 class="mt-4">Historial de Solicitudes de Retiro</h2>
+    {% if user_withdrawals %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Monto</th>
+                    <th>Banco</th>
+                    <th>Cuenta</th>
+                    <th>Titular</th>
+                    <th>Estado</th>
+                    <th>Solicitado</th>
+                    <th>Procesado</th>
+                    <th>Referencia</th>
+                    <th>Comprobante</th>
+                    <th>Notas Admin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in user_withdrawals %}
+                <tr>
+                    <td>{{ req.id }}</td>
+                    <td>{{ req.amount }}</td>
+                    <td>{{ req.bank_name }}</td>
+                    <td>{{ req.account_number }}</td>
+                    <td>{{ req.account_holder_name }}</td>
+                    <td><span class="badge bg-{% if req.status == 'PENDING' %}warning{% elif req.status == 'APPROVED' %}info{% elif req.status == 'COMPLETED' %}success{% else %}danger{% endif %}">{{ req.get_status_display }}</span></td>
+                    <td>{{ req.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>{% if req.processed_at %}{{ req.processed_at|date:"d/m/Y H:i" }}{% else %}N/A{% endif %}</td>
+                    <td>{% if req.transaction_reference %}{{ req.transaction_reference }}{% else %}N/A{% endif %}</td>
+                    <td>
+                        {% if req.proof_screenshot %}
+                            <a href="{{ req.proof_screenshot.url }}" target="_blank">Ver Comprobante</a>
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>{% if req.admin_notes %}{{ req.admin_notes }}{% else %}N/A{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info mt-3">
+        No tienes solicitudes de retiro anteriores.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

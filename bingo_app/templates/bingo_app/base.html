@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="es">
+{% load static %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#2C3E50">
+    <meta name="description" content="Juega bingo y participa en rifas desde tu móvil">
+    <title>{% block title %}Bingo y Rifa JyM{% endblock %}</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="{% static 'images/icon-192x192.png' %}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bingo y rifa JyM">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary-color: #2C3E50;
+            --secondary-color: #14202b;
+            --accent-color: #E74C3C;
+            --background-color: #161f2c;
+            --card-bg: #2C3E50;
+            --text-light: #ECF0F1;
+            --text-muted: #BDC3C7;
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: url('{% static "images/bingo_login_background_v2.png" %}'); /* Apply background directly */
+            background-size: cover;
+            background-position: center center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+        
+        /* Prevenir pull-to-refresh solo en iOS */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                overscroll-behavior-y: none;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+        
+        /* Ajuste para pantallas grandes */
+        @media (min-width: 1200px) {
+            body {
+                background-size: cover;
+            }
+        }
+        
+        /* Ajuste para móviles - Tamaño ajustado para que se vea bien */
+        @media (max-width: 768px) {
+            body {
+                background-size: auto 90vh;
+                background-attachment: scroll;
+            }
+        }
+        
+        /* Prevenir pull-to-refresh solo en iOS */
+        @supports (-webkit-touch-callout: none) {
+            @media (max-width: 768px) {
+                html, body {
+                    overscroll-behavior-y: none;
+                    -webkit-overflow-scrolling: touch;
+                }
+            }
+        }
+        
+        .navbar {
+            background-color: var(--primary-color) !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .main-container {
+            flex-grow: 1;
+        }
+        
+        footer {
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            padding: 15px 0;
+            margin-top: 30px;
+        }
+        
+        .btn-primary {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #C0392B;
+            border-color: #C0392B;
+        }
+        
+.join-button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .join-button:hover {
+            background-color: #C0392B;
+            transform: translateY(-2px);
+        }
+        
+        .alert {
+            background-color: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--text-light);
+        }
+        
+        /* Estilo para los items de administración */
+        .admin-item {
+            background-color: rgba(231, 76, 60, 0.1);
+            border-left: 3px solid var(--accent-color);
+        }
+        
+        .admin-item:hover {
+            background-color: rgba(231, 76, 60, 0.2);
+        }
+
+        /* Estilos para notificaciones */
+        .notification-badge {
+            position: relative;
+            top: -10px;
+            right: -5px;
+            font-size: 0.7em;
+        }
+
+        /* --- ANNOUNCEMENT CAROUSEL STYLES --- */
+        .announcement-ticker-container {
+            background: linear-gradient(90deg, #E74C3C 0%, #F39C12 100%); /* Vibrant gradient */
+            color: white;
+            padding: 10px 0;
+            overflow: hidden;
+            position: sticky;
+            top: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 1000;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            height: 40px; /* Fixed height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .announcement-item {
+            position: absolute;
+            width: 100%;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out; /* Fade transition */
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .announcement-item.active {
+            opacity: 1;
+        }
+
+        .announcement-item a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        .announcement-item a:hover {
+            color: #ECF0F1;
+        }
+        /* --- END ANNOUNCEMENT CAROUSEL STYLES --- */
+    </style>
+    {% block extra_css %}{% endblock %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'lobby' %}">
+                <i class="fas fa-dice me-2"></i>Bingo y Rifa JyM
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'lobby' %}">
+                            <i class="fas fa-home me-1"></i> Bingo
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'raffle_lobby' %}">
+                            <i class="fas fa-ticket-alt me-1"></i> Rifas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'user_manual' %}">
+                            <i class="fas fa-book me-1"></i> Manual
+                        </a>
+                    </li>
+                    {% if system_settings.promotions_enabled %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'launch_promotions' %}">
+                            <i class="fas fa-gift me-1"></i> Promociones
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user.is_authenticated %}
+                        {% if system_settings.referral_system_enabled %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'referral_system' %}">
+                                <i class="fas fa-users me-1"></i> Referidos
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if system_settings.ticket_system_enabled %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'my_bingo_tickets' %}">
+                                <i class="fas fa-ticket-alt me-1"></i> Mis Tickets
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'daily_bingo_schedule' %}">
+                                <i class="fas fa-clock me-1"></i> Bingos Diarios
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                    {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'video_lobby' %}">
+                            <i class="fas fa-video me-1"></i> Videollamadas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'messaging' %}">
+                            <i class="fas fa-envelope me-1"></i> Mensajes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'request_withdrawal' %}">
+                            <i class="fas fa-money-bill-wave me-1"></i> Retiros
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if user.is_authenticated and user.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'admin_dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Admin Dashboard
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user.is_authenticated and user.is_organizer %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'organizer_dashboard' %}">
+                            <i class="fas fa-chart-line me-1"></i> Organizer Dashboard
+                        </a>
+                    </li>
+                    {% if system_settings.accounts_receivable_enabled %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'organizer_accounts_receivable' %}">
+                            <i class="fas fa-file-invoice-dollar me-1"></i> Cuentas por Cobrar
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated  %}
+                        <!-- Notificaciones -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-bell"></i>
+                                <span id="notification-badge" class="badge bg-danger notification-badge" style="display: {% if total_unread_notifications_count > 0 %}inline{% else %}none{% endif %};">{{ total_unread_notifications_count|default:"0" }}</span>
+                            </a>
+                            <ul id="notification-list" class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationsDropdown">
+                                <li><h6 class="dropdown-header">Notificaciones</h6></li>
+                                {% for notification in all_unread_notifications %}
+                                    <li class="notification-item" data-notification-id="{{ notification.id }}" data-notification-type="{% if notification.credit_request %}credit_request_notification{% elif notification.withdrawal_request %}withdrawal_request_notification{% elif notification.sender %}message{% endif %}">
+                                        <a class="dropdown-item" href="#">
+                                            {% if notification.credit_request %}
+                                                <i class="fas fa-coins me-2 text-success"></i>
+                                                <span>Solicitud de crédito de <strong>{{ notification.credit_request.user.username }}</strong></span>
+                                            {% elif notification.withdrawal_request %}
+                                                <i class="fas fa-money-bill-wave me-2 text-warning"></i>
+                                                <span>Solicitud de retiro de <strong>{{ notification.withdrawal_request.user.username }}</strong></span>
+                                            {% elif notification.sender %}
+                                                <i class="fas fa-envelope me-2 text-primary"></i>
+                                                <span>Nuevo mensaje de <strong>{{ notification.sender.username }}</strong></span>
+                                            {% else %}
+                                                <i class="fas fa-bell me-2 text-secondary"></i>
+                                                <span>Notificación</span>
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                {% empty %}
+                                    <li><a class="dropdown-item text-muted" href="#">No hay notificaciones nuevas</a></li>
+                                {% endfor %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-center" href="{% url 'notifications' %}"><small>Ver todas</small></a></li>
+                            </ul>
+                        </li>
+                        
+                        <!-- Perfil de usuario -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i> {{ user.username }}
+                                <span class="badge bg-light text-dark ms-2">
+                                    {{ user.credit_balance }} créditos
+                                </span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'profile' %}">
+                                    <i class="fas fa-user-circle me-1"></i> Perfil
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'request_credits' %}">
+                                    <i class="fas fa-coins me-1"></i> Solicitar Créditos
+                                </a></li>
+                                
+                                {% if user.is_organizer %}
+                                <li><a class="dropdown-item" href="{% url 'create_game' %}">
+                                    <i class="fas fa-plus me-1"></i> Crear juego
+                                </a></li>
+                                {% endif %}
+                                
+                                {% if user.is_staff %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header text-warning">Administración</h6></li>
+                                
+                                <li><a class="dropdown-item" href="{% url 'credit_requests_list' %}">
+                                    <i class="fas fa-list-check me-1"></i> Solicitudes de credito
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'transaction_history' %}">
+                                    <i class="fas fa-history me-1"></i> Transacciones
+                                </a></li>
+                                                                    <li><a class="dropdown-item admin-item" href="{% url 'percentage_settings' %}">
+                                        <i class="fas fa-percent me-1"></i> Configuración de porcentajes
+                                    </a></li>
+                               <li><a class="dropdown-item" href="{% url 'payment_methods_list' %}">
+                                    <i class="fas fa-credit-card me-1"></i> Métodos de pago
+                                </a></li>
+                                    <li>
+                                        <a class="dropdown-item admin-item" href="{% url 'withdrawal_requests' %}">
+                                            <i class="fas fa-money-bill-wave"></i> Retiros
+                                        </a>
+                                    </li>
+                                      <li>
+                                        <a class="dropdown-item admin-item" href="{% url 'payment_methods_list' %}">
+                                            <i class="fas fa-money-bill-wave"></i> Gestion de cuentas bancarias
+                                        </a>
+                                    </li>
+                                     <li><a class="dropdown-item admin-item" href="{% url 'user_management' %}">
+                                            <i class="fas fa-money-bill-wave"></i> Bloquear usuarios
+                                        </a>
+                                    </li>
+                                    
+                                    <!-- Sistema de Tickets -->
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header text-dark bg-light">Sistema de Tickets</h6></li>
+                                    <li><a class="dropdown-item admin-item text-dark" href="{% url 'admin_ticket_settings' %}">
+                                        <i class="fas fa-cog me-1 text-primary"></i> Configurar Tickets
+                                    </a></li>
+                                    <li><a class="dropdown-item admin-item text-dark" href="{% url 'admin_daily_schedule' %}">
+                                        <i class="fas fa-clock me-1 text-success"></i> Horarios de Bingo
+                                    </a></li>
+                                    <li><a class="dropdown-item admin-item text-dark" href="{% url 'admin_ticket_stats' %}">
+                                        <i class="fas fa-chart-bar me-1 text-info"></i> Estadísticas
+                                    </a></li>
+                                {% endif %}
+                                
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="{% url 'logout' %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="fas fa-sign-out-alt me-1"></i> Salir
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">
+                                <i class="fas fa-sign-in-alt me-1"></i> Ingresar
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'register' %}">
+                                <i class="fas fa-user-plus me-1"></i> Registrarse
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {% if global_announcements %}
+    <div class="announcement-ticker-container">
+        <div class="announcement-ticker-content">
+            {% for announcement in global_announcements %}
+                <span class="announcement-item">
+                    {% if announcement.link %}
+                        <a href="{{ announcement.link }}">{{ announcement.message }}</a>
+                    {% else %}
+                        {{ announcement.message }}
+                    {% endif %}
+                </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <main class="main-container">
+        <div class="container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+            
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="text-center">
+        <div class="container">
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    {% if user.is_authenticated %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Detectar iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            
+            const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+            const userId = "{{ request.user.id }}";
+            
+            let userSocket = null;
+            let reconnectAttempts = 0;
+            const maxReconnectAttempts = 3;
+            let reconnectTimeout = null;
+
+            function connectUserSocket() {
+                // Si ya hay un socket abierto, no crear otro
+                if (userSocket && (userSocket.readyState === WebSocket.CONNECTING || userSocket.readyState === WebSocket.OPEN)) {
+                    console.log("WebSocket de usuario ya está conectado o conectando");
+                    return;
+                }
+                
+                // Cerrar socket anterior si existe
+                if (userSocket) {
+                    try {
+                        userSocket.close();
+                    } catch (e) {
+                        console.log('Error al cerrar socket anterior:', e);
+                    }
+                }
+
+                try {
+                    userSocket = new WebSocket(
+                        `${wsScheme}://${window.location.host}/ws/user/${userId}/notifications/`
+                    );
+
+                    userSocket.onopen = function(e) {
+                        console.log("Conexión WebSocket establecida para notificaciones de usuario");
+                        reconnectAttempts = 0; // Resetear contador al conectar exitosamente
+                    };
+
+                    userSocket.onclose = function(e) {
+                        console.log("Conexión WebSocket cerrada", e.code, e.reason);
+                        
+                        // En iOS, ser más conservador con las reconexiones
+                        if (isIOS) {
+                            // Si fue un cierre normal (código 1000), no reconectar
+                            if (e.code === 1000) {
+                                console.log("Cierre normal del WebSocket en iOS, no reconectar");
+                                return;
+                            }
+                            
+                            // Limitar intentos de reconexión en iOS
+                            if (reconnectAttempts >= maxReconnectAttempts) {
+                                console.log("Máximo de intentos de reconexión alcanzado en iOS");
+                                return;
+                            }
+                            
+                            // Esperar más tiempo antes de reconectar en iOS
+                            reconnectTimeout = setTimeout(function() {
+                                reconnectAttempts++;
+                                console.log(`Reintentando conexión WebSocket (${reconnectAttempts}/${maxReconnectAttempts})`);
+                                connectUserSocket();
+                            }, 10000); // 10 segundos en iOS
+                        } else {
+                            // En otros dispositivos, reconectar después de 5 segundos
+                            reconnectTimeout = setTimeout(function() {
+                                if (reconnectAttempts < maxReconnectAttempts) {
+                                    reconnectAttempts++;
+                                    console.log(`Reintentando conexión WebSocket (${reconnectAttempts}/${maxReconnectAttempts})`);
+                                    connectUserSocket();
+                                }
+                            }, 5000);
+                        }
+                    };
+
+                    userSocket.onerror = function(e) {
+                        console.error("Error en WebSocket", e);
+                        // No hacer nada aquí, el onclose se encargará de la reconexión
+                    };
+                    
+                    userSocket.onmessage = function(e) {
+                        const data = JSON.parse(e.data);
+                        console.log("🔊 Notificación recibida:", data);
+
+                        // Reproducir sonido si está especificado
+                        if (data.sound_type && window.playNotificationSound) {
+                            console.log('🔊 Reproduciendo sonido desde WebSocket:', data.sound_type);
+                            window.playNotificationSound(data.sound_type);
+                        }
+
+                        if (data.type === 'admin_notification') {
+                            handleNewNotification(
+                                data.message,
+                                data.url,
+                                'fa-user-shield text-danger',
+                                new Date().getTime(),
+                                data.notification_type
+                            );
+                            
+                            if (!data.sound_type && window.playNotificationSound) {
+                                window.playNotificationSound('admin_notification');
+                            }
+                        }
+
+                        if (data.type === 'credit_notification') {
+                            handleNewNotification(
+                                data.notification.message,
+                                data.notification.url,
+                                'fa-coins text-success',
+                                data.notification.id,
+                                'credit_request_notification'
+                            );
+                            
+                            if (!data.sound_type && window.playNotificationSound) {
+                                window.playNotificationSound('credit_request');
+                            }
+                        }
+
+                        if (data.type === 'withdrawal_notification') {
+                            handleNewNotification(
+                                data.notification.message,
+                                data.notification.url,
+                                'fa-money-bill-wave text-warning',
+                                data.notification.id,
+                                'withdrawal_request_notification'
+                            );
+                            
+                            if (!data.sound_type && window.playNotificationSound) {
+                                window.playNotificationSound('withdrawal_request');
+                            }
+                        }
+
+                        if (data.type === 'win_notification') {
+                            Swal.fire({
+                                title: '¡Felicidades!',
+                                html: `<p>${data.message}</p>`,
+                                icon: 'success',
+                                confirmButtonText: 'Aceptar',
+                                background: '#2C3E50',
+                                color: '#ECF0F1',
+                                confirmButtonColor: '#E74C3C'
+                            });
+                            
+                            if (!data.sound_type && window.playNotificationSound) {
+                                window.playNotificationSound('game_notification');
+                            }
+                        }
+                        
+                        if (data.type === 'credit_update') {
+                            const creditElements = document.querySelectorAll('.credit-balance-display');
+                            creditElements.forEach(el => {
+                                el.textContent = `${data.new_balance} créditos`;
+                            });
+                            
+                            if (!data.sound_type && window.playNotificationSound) {
+                                window.playNotificationSound('credit_purchase');
+                            }
+                        }
+
+                        if (data.type === 'new_message') {
+                            handleNewNotification(
+                                `Nuevo mensaje de ${data.message.sender.username}`,
+                                `/messaging/?user_id=${data.message.sender.id}`,
+                                'fa-envelope text-primary',
+                                data.message.id,
+                                'message'
+                            );
+                            
+                            if (!data.sound_type && window.playNotificationSound) {
+                                window.playNotificationSound('new_message');
+                            }
+                        }
+                    };
+                } catch (error) {
+                    console.error("Error al crear WebSocket:", error);
+                    // En iOS, esperar más tiempo antes de reintentar
+                    const delay = isIOS ? 10000 : 5000;
+                    reconnectTimeout = setTimeout(function() {
+                        if (reconnectAttempts < maxReconnectAttempts) {
+                            reconnectAttempts++;
+                            connectUserSocket();
+                        }
+                    }, delay);
+                }
+            }
+            
+            // --- Función Helper para manejar nuevas notificaciones ---
+            function handleNewNotification(message, url, iconClass, notificationId, notificationType) {
+                // 1. Mostrar alerta visual (Toast)
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 5000,
+                    timerProgressBar: true,
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer)
+                        toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    }
+                });
+                Toast.fire({
+                    icon: 'info',
+                    title: message
+                });
+
+                // 2. Actualizar el contador de la campana
+                let badge = document.getElementById('notification-badge');
+                if (badge) {
+                    badge.textContent = parseInt(badge.textContent || '0') + 1;
+                    if (badge.style.display === 'none') {
+                        badge.style.display = '';
+                    }
+                } else {
+                    const dropdownToggle = document.getElementById('notificationsDropdown');
+                    if (dropdownToggle) {
+                        const newBadge = document.createElement('span');
+                        newBadge.id = 'notification-badge';
+                        newBadge.className = 'badge bg-danger notification-badge';
+                        newBadge.textContent = '1';
+                        dropdownToggle.firstElementChild.appendChild(newBadge);
+                    }
+                }
+
+                // 3. Añadir la notificación a la lista desplegable
+                const list = document.getElementById('notification-list');
+                if (list) {
+                    const emptyItem = list.querySelector('a.text-muted');
+                    if (emptyItem) {
+                        emptyItem.parentElement.remove();
+                    }
+                    
+                    const newNotificationItem = document.createElement('li');
+                    newNotificationItem.className = 'notification-item';
+                    newNotificationItem.dataset.notificationId = notificationId;
+                    newNotificationItem.dataset.notificationType = notificationType;
+                    newNotificationItem.innerHTML = `
+                        <a class="dropdown-item" href="${url}">
+                            <i class="fas ${iconClass} me-2"></i>
+                            <span>${message}</span>
+                        </a>
+                    `;
+                    list.insertBefore(newNotificationItem, list.children[1]);
+                }
+            }
+            
+            // Conectar inicialmente
+            connectUserSocket();
+            
+            // Limpiar timeout al salir de la página
+            window.addEventListener('beforeunload', function() {
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                }
+                if (userSocket) {
+                    try {
+                        userSocket.close();
+                    } catch (e) {
+                        // Ignorar errores al cerrar
+                    }
+                }
+            });
+        });
+    </script>
+    {% endif %}
+
+    <script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const notificationList = document.getElementById('notification-list');
+        if (notificationList) {
+            notificationList.addEventListener('click', function(event) {
+                const target = event.target.closest('.notification-item');
+                if (!target) return;
+
+                event.preventDefault();
+
+                const notificationId = target.dataset.notificationId;
+                const notificationType = target.dataset.notificationType.trim();
+
+                if (!notificationId || !notificationType) {
+                    return;
+                }
+
+                fetch(`/notifications/mark-as-read/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        notification_id: notificationId,
+                        notification_type: notificationType
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Remove notification from the list
+                        target.remove();
+
+                        // Update badge
+                        const badge = document.getElementById('notification-badge');
+                        if (badge) {
+                            let count = parseInt(badge.textContent);
+                            count--;
+                            badge.textContent = count;
+                            if (count <= 0) {
+                                badge.style.display = 'none';
+                            }
+                        }
+                        
+                        // Optional: Redirect if a url is provided
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        }
+
+                    } else {
+                        console.error('Error marking notification as read:', data.message);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        }
+    });
+    </script>
+    
+    <!-- Sistema de Sonidos de Notificación -->
+    <script src="{% static 'sounds/notification.js' %}"></script>
+    <script src="{% static 'js/websocket_notifications.js' %}"></script>
+    <script src="{% static 'js/test_sounds.js' %}"></script>
+    <script>
+    // Sistema de sonidos de fallback integrado
+    class FallbackNotificationSounds {
+        constructor() {
+            this.isEnabled = localStorage.getItem('bingo_sounds_enabled') !== 'false';
+            this.audioContext = null;
+            console.log('🔊 FallbackNotificationSounds: Inicializado, enabled:', this.isEnabled);
+        }
+        
+        initAudioContext() {
+            if (!this.audioContext) {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log('🔊 FallbackNotificationSounds: AudioContext inicializado');
+                } catch (error) {
+                    console.error('🔊 FallbackNotificationSounds: Error inicializando AudioContext:', error);
+                    return false;
+                }
+            }
+            
+            // Si el contexto está suspendido, intentar reanudarlo
+            if (this.audioContext.state === 'suspended') {
+                this.audioContext.resume().then(() => {
+                    console.log('🔊 FallbackNotificationSounds: AudioContext reanudado');
+                }).catch(error => {
+                    console.error('🔊 FallbackNotificationSounds: Error reanudando AudioContext:', error);
+                });
+            }
+            
+            return true;
+        }
+        
+        playNotificationSequence(type) {
+            console.log('🔊 FallbackNotificationSounds: Reproduciendo sonido:', type);
+            
+            if (!this.isEnabled) {
+                console.log('🔊 FallbackNotificationSounds: Sonidos deshabilitados');
+                return;
+            }
+            
+            try {
+                if (!this.initAudioContext()) {
+                    console.error('🔊 FallbackNotificationSounds: No se pudo inicializar AudioContext');
+                    return;
+                }
+                
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                // Diferentes frecuencias para diferentes tipos
+                const frequencies = {
+                    'credit_purchase': 800,
+                    'credit_request': 700,  // Nueva solicitud de créditos
+                    'withdrawal_request': 600,
+                    'new_message': 1000,
+                    'admin_notification': 400,
+                    'game_notification': 1200,
+                    'default': 1200
+                };
+                
+                oscillator.frequency.value = frequencies[type] || frequencies.default;
+                oscillator.type = 'sine';
+                
+                // Configurar volumen
+                gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, this.audioContext.currentTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+                
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.3);
+                
+                console.log('🔊 FallbackNotificationSounds: Sonido reproducido exitosamente');
+            } catch (error) {
+                console.error('🔊 FallbackNotificationSounds: Error:', error);
+            }
+        }
+        
+        toggle() {
+            this.isEnabled = !this.isEnabled;
+            localStorage.setItem('bingo_sounds_enabled', this.isEnabled.toString());
+            console.log('🔊 FallbackNotificationSounds: Sonidos', this.isEnabled ? 'habilitados' : 'deshabilitados');
+            return this.isEnabled;
+        }
+    }
+    
+    // Crear instancia global de fallback
+    window.fallbackNotificationSounds = new FallbackNotificationSounds();
+    
+    // Inicializar sistema de sonidos
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🔊 Sistema de sonidos: Inicializando...');
+        
+        // Función para reproducir sonidos desde WebSocket (con fallback)
+        window.playNotificationSound = function(type) {
+            console.log('🔊 playNotificationSound llamado con tipo:', type);
+            
+            // Intentar usar el sistema principal primero
+            if (window.notificationSounds) {
+                console.log('🔊 Usando sistema principal de sonidos');
+                window.notificationSounds.playNotificationSequence(type);
+            } else {
+                console.log('🔊 Usando sistema de fallback');
+                window.fallbackNotificationSounds.playNotificationSequence(type);
+            }
+        };
+        
+        // Crear botón de control de sonidos
+        const navbar = document.querySelector('.navbar-nav');
+        if (navbar && !document.getElementById('sound-toggle-btn')) {
+            const soundButton = document.createElement('button');
+            soundButton.id = 'sound-toggle-btn';
+            soundButton.className = 'btn btn-outline-secondary btn-sm';
+            soundButton.innerHTML = window.fallbackNotificationSounds.isEnabled ? '🔊' : '🔇';
+            soundButton.title = window.fallbackNotificationSounds.isEnabled ? 'Desactivar sonidos' : 'Activar sonidos';
+            
+            soundButton.addEventListener('click', function() {
+                const enabled = window.fallbackNotificationSounds.toggle();
+                this.innerHTML = enabled ? '🔊' : '🔇';
+                this.title = enabled ? 'Desactivar sonidos' : 'Activar sonidos';
+                
+                // También actualizar el sistema principal si está disponible
+                if (window.notificationSounds) {
+                    if (enabled) {
+                        window.notificationSounds.enableSounds();
+                    } else {
+                        window.notificationSounds.disableSounds();
+                    }
+                }
+                
+                // Activar AudioContext después de interacción del usuario
+                if (enabled) {
+                    window.activateAudioContext();
+                }
+            });
+            
+            const li = document.createElement('li');
+            li.className = 'nav-item';
+            li.appendChild(soundButton);
+            navbar.appendChild(li);
+        }
+        
+        // Agregar data attribute para indicar que el usuario está autenticado
+        {% if user.is_authenticated %}
+        document.body.dataset.userAuthenticated = 'true';
+        document.body.dataset.userIsAdmin = '{{ user.is_admin|yesno:"true,false" }}';
+        document.body.dataset.userIsSuperuser = '{{ user.is_superuser|yesno:"true,false" }}';
+        console.log('🔊 Usuario autenticado detectado:', '{{ user.username }}');
+        console.log('🔊 Es admin:', {{ user.is_admin|yesno:"true,false" }});
+        console.log('🔊 Es superuser:', {{ user.is_superuser|yesno:"true,false" }});
+        {% else %}
+        console.log('🔊 Usuario NO autenticado');
+        {% endif %}
+        
+        // Función global para activar AudioContext después de interacción del usuario
+        window.activateAudioContext = function() {
+            console.log('🔊 Activando AudioContext...');
+            
+            // Activar el sistema principal
+            if (window.notificationSounds && window.notificationSounds.audioContext) {
+                if (window.notificationSounds.audioContext.state === 'suspended') {
+                    window.notificationSounds.audioContext.resume().then(() => {
+                        console.log('🔊 AudioContext principal resumido');
+                    }).catch(error => {
+                        console.error('🔊 Error resumiendo AudioContext principal:', error);
+                    });
+                }
+            }
+            
+            // Activar el sistema de fallback
+            if (window.fallbackNotificationSounds && window.fallbackNotificationSounds.audioContext) {
+                if (window.fallbackNotificationSounds.audioContext.state === 'suspended') {
+                    window.fallbackNotificationSounds.audioContext.resume().then(() => {
+                        console.log('🔊 AudioContext de fallback resumido');
+                    }).catch(error => {
+                        console.error('🔊 Error resumiendo AudioContext de fallback:', error);
+                    });
+                }
+            }
+            
+            // Si no hay contextos, crear uno de prueba para activar
+            if (!window.notificationSounds?.audioContext && !window.fallbackNotificationSounds?.audioContext) {
+                try {
+                    const testContext = new (window.AudioContext || window.webkitAudioContext)();
+                    if (testContext.state === 'suspended') {
+                        testContext.resume().then(() => {
+                            console.log('🔊 AudioContext de prueba activado');
+                            testContext.close();
+                        });
+                    } else {
+                        testContext.close();
+                    }
+                } catch (error) {
+                    console.log('🔊 Error activando AudioContext de prueba:', error);
+                }
+            }
+        };
+        
+        // Activar AudioContext en la primera interacción del usuario
+        document.addEventListener('click', function() {
+            window.activateAudioContext();
+        }, { once: true });
+        
+        document.addEventListener('keydown', function() {
+            window.activateAudioContext();
+        }, { once: true });
+        
+        console.log('🔊 Sistema de sonidos: Inicialización completa');
+    });
+    </script>
+    
+    <script>
+    // Listener global para anuncios de ganador de rifas en el lobby (toast + banner superior)
+    (function(){
+        document.addEventListener('DOMContentLoaded', function(){
+            try {
+                const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                const lobbySocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/lobby/`);
+                lobbySocket.onmessage = function(e){
+                    try {
+                        const data = JSON.parse(e.data);
+                        if (data.type === 'raffle_draw_announcement'){
+                            if (window.Swal){
+                                const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 8000, timerProgressBar: true });
+                                Toast.fire({ icon: 'info', title: data.message || '¡El sorteo está por comenzar!' }).then(()=>{});
+                                // Hacer clickeable el toast
+                                const lastToast = document.querySelector('.swal2-container .swal2-toast');
+                                if (lastToast && data.raffle_url){
+                                    lastToast.style.cursor = 'pointer';
+                                    lastToast.addEventListener('click', function(){ window.location.href = data.raffle_url; });
+                                }
+                            }
+                        } else if (data.type === 'raffle_draw_start'){
+                            // Overlay de suspenso: cuenta regresiva + ruleta
+                            // Crear overlay si no existe
+                            let overlay = document.getElementById('raffle-lobby-overlay');
+                            if (!overlay){
+                                overlay = document.createElement('div');
+                                overlay.id = 'raffle-lobby-overlay';
+                                overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:1059;';
+                                const box = document.createElement('div');
+                                box.id = 'raffle-lobby-box';
+                                box.style.cssText = 'background:#111;color:#fff;border-radius:12px;padding:24px 32px;min-width:320px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.4)';
+                                const raffleLinkBtn = data.raffle_url ? '<div style="margin-top:12px"><a id="raffle-lobby-link" href="' + data.raffle_url + '" class="btn btn-warning btn-sm">Ver rifa</a></div>' : '';
+                                box.innerHTML = '<div id="raffle-lobby-title" style="font-size:18px;margin-bottom:10px;opacity:.9">' + (data.raffle_title ? ('Sorteo de “' + data.raffle_title + '”') : 'Sorteo en progreso') + '</div>' +
+                                               '<div id="raffle-lobby-countdown" style="font-size:56px;font-weight:800;color:#ffc107;">3</div>' +
+                                               '<div id="raffle-lobby-spinner" style="font-size:48px;font-weight:700;letter-spacing:3px;color:#ffc107;display:none;margin-top:6px;">--</div>' +
+                                               '<div style="margin-top:8px;opacity:.8">Esperando resultado del organizador…</div>' + raffleLinkBtn;
+                                overlay.appendChild(box);
+                                document.body.appendChild(overlay);
+                            } else {
+                                overlay.style.display = 'flex';
+                                const titleEl = document.getElementById('raffle-lobby-title');
+                                if (titleEl && data.raffle_title){ titleEl.textContent = 'Sorteo de “' + data.raffle_title + '”'; }
+                            }
+
+                            // Control de estados
+                            window.__raffleLobbyIntervals = window.__raffleLobbyIntervals || {};
+                            const state = window.__raffleLobbyIntervals;
+                            if (state.countdown){ clearInterval(state.countdown); state.countdown = null; }
+                            if (state.spinner){ clearInterval(state.spinner); state.spinner = null; }
+
+                            // Cuenta regresiva
+                            const countdownSeconds = parseInt(data.countdown_seconds || 3, 10);
+                            let remaining = countdownSeconds;
+                            const countdownEl = document.getElementById('raffle-lobby-countdown');
+                            const spinnerEl = document.getElementById('raffle-lobby-spinner');
+                            if (countdownEl) { countdownEl.textContent = remaining; countdownEl.style.display = ''; }
+                            if (spinnerEl) { spinnerEl.style.display = 'none'; }
+                            // Guardar fin estimado del suspenso
+                            const durationMs = parseInt(data.duration_ms || 5000, 10);
+                            window.__raffleLobbyEndAt = Date.now() + (countdownSeconds * 1000) + durationMs;
+                            state.countdown = setInterval(function(){
+                                remaining--;
+                                if (countdownEl) countdownEl.textContent = remaining;
+                                if (remaining <= 0){
+                                    clearInterval(state.countdown); state.countdown = null;
+                                    // Mostrar ruleta
+                                    if (countdownEl) countdownEl.style.display = 'none';
+                                    if (spinnerEl){
+                                        spinnerEl.style.display = '';
+                                        const min = 0, max = 99;
+                                        state.spinner = setInterval(function(){
+                                            const r = Math.floor(Math.random()*(max - min + 1)) + min;
+                                            spinnerEl.textContent = r.toString().padStart(2,'0');
+                                        }, 50);
+                                    }
+                                }
+                            }, 1000);
+                        } else if (data.type === 'raffle_winner_announcement'){
+                            const title = '¡Rifa finalizada!';
+                            const msg = `Ganador: ${data.winner_username} · Número: #${data.winning_number} · Premio: ${parseFloat(data.prize).toFixed(2)} créditos`;
+                            const showWinnerUI = function(){
+                                if (window.Swal){
+                                    const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 12000, timerProgressBar: true });
+                                    Toast.fire({ icon: 'success', title: title, text: msg }).then(()=>{});
+                                    // Hacer clickeable el toast con link a la rifa
+                                    const lastToast = document.querySelector('.swal2-container .swal2-toast');
+                                    if (lastToast && data.raffle_url){
+                                        lastToast.style.cursor = 'pointer';
+                                        lastToast.addEventListener('click', function(){ window.location.href = data.raffle_url; });
+                                    }
+                                } else {
+                                    alert(`${title}\n${msg}`);
+                                }
+
+                                // Banner fijo superior
+                                let bar = document.getElementById('raffle-winner-banner');
+                                if (!bar){
+                                    bar = document.createElement('div');
+                                    bar.id = 'raffle-winner-banner';
+                                    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:1060;background:linear-gradient(90deg,#28a745,#20c997);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+                                    const text = document.createElement('div');
+                                    text.id = 'raffle-winner-banner-text';
+                                    text.style.flex = '1';
+                                    const closeBtn = document.createElement('button');
+                                    closeBtn.type = 'button';
+                                    closeBtn.innerHTML = '✕';
+                                    closeBtn.style.cssText = 'background:rgba(255,255,255,.2);border:0;color:#fff;border-radius:6px;padding:2px 8px;cursor:pointer';
+                                    closeBtn.addEventListener('click', function(){ bar.remove(); document.body.style.paddingTop = ''; });
+                                    bar.appendChild(text);
+                                    bar.appendChild(closeBtn);
+                                    document.body.appendChild(bar);
+                                    document.body.style.paddingTop = '56px';
+                                }
+                                const label = data.raffle_title ? `“${data.raffle_title}” — ` : '';
+                                document.getElementById('raffle-winner-banner-text').innerHTML = `🎉 ${label}Ganador: <strong>${data.winner_username}</strong> · Número: <strong>#${data.winning_number}</strong> · Premio: <strong>${parseFloat(data.prize).toFixed(2)}</strong> créditos ${data.raffle_url ? '<a href="' + data.raffle_url + '" class="btn btn-light btn-sm ms-2">Ver rifa</a>' : ''}`;
+                                // Banner clickeable
+                                bar.style.cursor = data.raffle_url ? 'pointer' : 'default';
+                                if (data.raffle_url){
+                                    bar.addEventListener('click', function(e){
+                                        // Evitar que el botón close consuma el click
+                                        if (e.target && e.target.tagName === 'BUTTON') return;
+                                        window.location.href = data.raffle_url;
+                                    });
+                                }
+                                setTimeout(function(){
+                                    const b = document.getElementById('raffle-winner-banner');
+                                    if (b){ b.remove(); document.body.style.paddingTop = ''; }
+                                }, 20000);
+
+                                // Quitar overlay de suspenso
+                                if (window.__raffleLobbyIntervals){
+                                    if (window.__raffleLobbyIntervals.countdown){ clearInterval(window.__raffleLobbyIntervals.countdown); window.__raffleLobbyIntervals.countdown = null; }
+                                    if (window.__raffleLobbyIntervals.spinner){ clearInterval(window.__raffleLobbyIntervals.spinner); window.__raffleLobbyIntervals.spinner = null; }
+                                }
+                                const overlay = document.getElementById('raffle-lobby-overlay');
+                                if (overlay){ overlay.remove(); }
+                            };
+
+                            // Diferir ganador hasta que acabe el suspenso
+                            const now = Date.now();
+                            const endAt = window.__raffleLobbyEndAt || now;
+                            const delay = Math.max(0, endAt - now);
+                            if (delay > 0){
+                                setTimeout(showWinnerUI, delay);
+                            } else {
+                                showWinnerUI();
+                            }
+                        }
+                    } catch(_e){}
+                };
+                lobbySocket.onerror = function(){ try{ lobbySocket.close(); }catch(_e){} };
+            } catch(_e) {}
+        });
+    })();
+    </script>
+    
+    <script>
+    // ==================== Global Video Call Launcher ====================
+    // Usar nombre de ventana fijo para que persista entre navegaciones
+    const VIDEO_CALL_WINDOW_NAME = 'bingo_videocall_popup';
+    
+    function launchVideoCallPopup(gameId, raffleId) {
+        // Intentar encontrar ventana existente por su nombre
+        let videoCallWindow = null;
+        
+        // Buscar ventana existente (puede estar abierta desde otra página)
+        try {
+            // Intentar acceder a la ventana por nombre
+            // Esto funciona incluso si la referencia se perdió al navegar
+            videoCallWindow = window.open('', VIDEO_CALL_WINDOW_NAME);
+            
+            // Si la ventana existe pero está cerrada, window.open devuelve null
+            // Si existe y está abierta, podemos acceder a ella
+            if (videoCallWindow && !videoCallWindow.closed) {
+                // La ventana ya existe y está abierta
+                videoCallWindow.focus();
+                return;
+            }
+        } catch (e) {
+            // Si hay error, significa que la ventana no existe o no se puede acceder
+            console.log('No se encontró ventana de videollamada existente');
+        }
+        
+        // Si no existe, crear nueva ventana
+        const url = `/videocall-popup/?game_id=${gameId || ''}&raffle_id=${raffleId || ''}`;
+        videoCallWindow = window.open(url, VIDEO_CALL_WINDOW_NAME, 'height=600,width=400,resizable=yes,scrollbars=yes');
+        
+        // Guardar referencia en sessionStorage para persistencia
+        if (videoCallWindow) {
+            sessionStorage.setItem('videocall_popup_open', 'true');
+            
+            // Listener para detectar cuando se cierra el popup
+            const checkClosed = setInterval(() => {
+                if (videoCallWindow.closed) {
+                    clearInterval(checkClosed);
+                    sessionStorage.removeItem('videocall_popup_open');
+                }
+            }, 1000);
+        }
+    }
+    
+    // Restaurar referencia al popup cuando se carga la página
+    document.addEventListener('DOMContentLoaded', () => {
+        // Verificar si hay un popup abierto
+        if (sessionStorage.getItem('videocall_popup_open') === 'true') {
+            try {
+                const existingWindow = window.open('', VIDEO_CALL_WINDOW_NAME);
+                if (existingWindow && !existingWindow.closed) {
+                    // El popup todavía está abierto, restaurar referencia
+                    console.log('Popup de videollamada detectado y restaurado');
+                } else {
+                    // El popup se cerró, limpiar sessionStorage
+                    sessionStorage.removeItem('videocall_popup_open');
+                }
+            } catch (e) {
+                // No se puede acceder, limpiar
+                sessionStorage.removeItem('videocall_popup_open');
+            }
+        }
+    });
+    </script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // Detectar iOS/Safari
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        // En iOS, DESACTIVAR completamente el service worker para evitar problemas
+        // iOS tiene problemas conocidos con service workers que causan loops infinitos
+        if (isIOS) {
+            console.log('iOS detectado - Service Worker desactivado para prevenir problemas');
+            
+            // Desregistrar cualquier service worker existente en iOS
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        registrations.forEach(function(registration) {
+                            registration.unregister().then(function(success) {
+                                if (success) {
+                                    console.log('Service Worker desregistrado en iOS');
+                                }
+                            });
+                        });
+                    });
+                });
+            }
+        } else {
+            // Registrar Service Worker para PWA (solo en dispositivos no iOS)
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    // Protección contra recargas infinitas
+                    const reloadKey = 'sw_reload_attempt';
+                    const lastReload = sessionStorage.getItem(reloadKey);
+                    const now = Date.now();
+                    
+                    // Si hubo una recarga hace menos de 10 segundos, no recargar de nuevo
+                    if (lastReload && (now - parseInt(lastReload)) < 10000) {
+                        console.log('Prevención de recarga infinita activada');
+                        sessionStorage.removeItem(reloadKey);
+                        return;
+                    }
+                    
+                    // Registrar el service worker
+                    navigator.serviceWorker.register('/service-worker.js')
+                        .then(function(registration) {
+                            console.log('Service Worker registrado exitosamente:', registration.scope);
+                            
+                            // Detectar si hay una nueva versión del service worker
+                            registration.addEventListener('updatefound', function() {
+                                const newWorker = registration.installing;
+                                if (!newWorker) return;
+                                
+                                newWorker.addEventListener('statechange', function() {
+                                    // Solo actuar cuando el nuevo worker esté instalado Y haya un worker activo
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        console.log('Nueva versión de la app disponible');
+                                        // NO recargar automáticamente - el usuario puede recargar manualmente
+                                        sessionStorage.removeItem(reloadKey);
+                                    }
+                                });
+                            });
+                            
+                            // Verificar actualizaciones periódicamente (cada 10 minutos)
+                            setInterval(function() {
+                                registration.update().catch(function(err) {
+                                    console.log('Error al verificar actualizaciones del Service Worker:', err);
+                                });
+                            }, 10 * 60 * 1000);
+                        })
+                        .catch(function(error) {
+                            console.log('Error al registrar Service Worker:', error);
+                        });
+                });
+            }
+        }
+            
+            // Manejar el evento de instalación de la PWA
+            let deferredPrompt;
+            window.addEventListener('beforeinstallprompt', function(e) {
+                // Prevenir que el navegador muestre el prompt automáticamente
+                e.preventDefault();
+                deferredPrompt = e;
+                
+                // Mostrar botón personalizado para instalar (opcional)
+                // Puedes crear un botón en el HTML y mostrarlo aquí
+                console.log('PWA lista para instalar');
+                
+                // Opcional: Mostrar un botón de instalación personalizado
+                showInstallButton();
+            });
+            
+            // Función para mostrar botón de instalación (opcional)
+            function showInstallButton() {
+                // Crear botón flotante para instalar la app
+                const installButton = document.createElement('button');
+                installButton.innerHTML = '<i class="fas fa-download"></i> Instalar App';
+                installButton.className = 'btn btn-primary';
+                installButton.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
+                installButton.onclick = function() {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        deferredPrompt.userChoice.then(function(choiceResult) {
+                            if (choiceResult.outcome === 'accepted') {
+                                console.log('Usuario aceptó instalar la app');
+                            } else {
+                                console.log('Usuario rechazó instalar la app');
+                            }
+                            deferredPrompt = null;
+                            installButton.remove();
+                        });
+                    }
+                };
+                
+                // Solo mostrar si no está ya instalada
+                if (window.matchMedia('(display-mode: standalone)').matches) {
+                    // Ya está instalada, no mostrar botón
+                    return;
+                }
+                
+                // Verificar si ya existe el botón
+                if (!document.getElementById('pwa-install-button')) {
+                    installButton.id = 'pwa-install-button';
+                    document.body.appendChild(installButton);
+                }
+            }
+            
+            // Detectar si la app ya está instalada
+            window.addEventListener('appinstalled', function() {
+                console.log('PWA instalada exitosamente');
+                const installButton = document.getElementById('pwa-install-button');
+                if (installButton) {
+                    installButton.remove();
+                }
+            });
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

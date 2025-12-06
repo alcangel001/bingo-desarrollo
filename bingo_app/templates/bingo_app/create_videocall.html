@@ -1,0 +1,121 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Crear Sala de Videollamada{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-video"></i> Crear Nueva Sala de Videollamada</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="createRoomForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Nombre de la Sala *</label>
+                            <input type="text" class="form-control" id="name" name="name" required
+                                   placeholder="Ej: Sala familiar, Juego de amigos...">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="game_id" class="form-label">Juego Asociado (Opcional)</label>
+                            <select class="form-select" id="game_id" name="game_id">
+                                <option value="">-- Sin juego --</option>
+                                {% for game in games %}
+                                    <option value="{{ game.id }}">{{ game.name }} ({{ game.organizer.username }})</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Si seleccionas un juego, la sala aparecerá vinculada a ese juego</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_public" name="is_public" checked>
+                                <label class="form-check-label" for="is_public">
+                                    <i class="fas fa-users"></i> Sala Pública
+                                </label>
+                            </div>
+                            <small class="text-muted">Las salas públicas son visibles para todos. Las privadas requieren contraseña.</small>
+                        </div>
+
+                        <div class="mb-3" id="passwordField" style="display: none;">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock"></i> Contraseña
+                            </label>
+                            <input type="password" class="form-control" id="password" name="password"
+                                   placeholder="Ingresa una contraseña para la sala privada">
+                            <small class="text-muted">Los participantes necesitarán esta contraseña para unirse</small>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus-circle"></i> Crear Sala
+                            </button>
+                            <a href="{% url 'video_lobby' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver al Lobby
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-3 shadow-sm">
+                <div class="card-body">
+                    <h6><i class="fas fa-info-circle text-info"></i> Consejos:</h6>
+                    <ul class="mb-0">
+                        <li>Elige un nombre descriptivo para tu sala</li>
+                        <li>Las salas públicas son ideales para jugar con toda la comunidad</li>
+                        <li>Usa salas privadas para videollamadas con amigos y familia</li>
+                        <li>Puedes vincular la sala a un juego específico para mejor organización</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Mostrar/ocultar campo de contraseña según tipo de sala
+    document.getElementById('is_public').addEventListener('change', function() {
+        const passwordField = document.getElementById('passwordField');
+        const passwordInput = document.getElementById('password');
+        
+        if (this.checked) {
+            passwordField.style.display = 'none';
+            passwordInput.removeAttribute('required');
+            passwordInput.value = '';
+        } else {
+            passwordField.style.display = 'block';
+            passwordInput.setAttribute('required', 'required');
+        }
+    });
+
+    // Validación del formulario
+    document.getElementById('createRoomForm').addEventListener('submit', function(e) {
+        const isPublic = document.getElementById('is_public').checked;
+        const password = document.getElementById('password').value;
+        
+        if (!isPublic && !password) {
+            e.preventDefault();
+            alert('Las salas privadas requieren una contraseña');
+            return false;
+        }
+    });
+</script>
+
+<style>
+    .card {
+        border-radius: 15px;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+{% endblock %}
+

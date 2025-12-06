@@ -1,0 +1,268 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Promociones de Lanzamiento - Bingo y Rifa JyM{% endblock %}
+
+{% block content %}
+<style>
+/* Override del fondo para las promociones */
+body {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+.promotions-container {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin: 20px auto;
+    padding: 30px;
+}
+
+.promotions-container * {
+    color: #212529 !important;
+}
+
+.promotion-card {
+    border: 2px solid #28a745;
+    border-radius: 10px;
+    transition: transform 0.3s ease;
+}
+
+.promotion-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+}
+
+.achievement-badge {
+    background: linear-gradient(45deg, #ffd700, #ffed4e);
+    color: #000 !important;
+    border-radius: 50px;
+    padding: 10px 20px;
+    font-weight: bold;
+}
+</style>
+
+<div class="container mt-4">
+    <div class="promotions-container">
+        <div class="text-center mb-5">
+            <h1 class="display-4 text-primary">
+                <i class="fas fa-rocket"></i> ¡LANZAMIENTO OFICIAL!
+            </h1>
+            <p class="lead text-muted">
+                Promociones especiales solo por tiempo limitado
+            </p>
+            <div class="alert alert-success">
+                <h4><i class="fas fa-gift"></i> ¡Celebra con nosotros el lanzamiento de Bingo y Rifa JyM!</h4>
+                <p class="mb-0">Reclama tus bonificaciones especiales y participa en eventos exclusivos</p>
+            </div>
+        </div>
+
+        <!-- Promociones Disponibles -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="text-primary mb-4">
+                    <i class="fas fa-tags"></i> Promociones Disponibles
+                </h2>
+                
+                {% if available_promotions %}
+                    <div class="row">
+                        {% for promotion in available_promotions %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card promotion-card h-100">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-gift"></i> {{ promotion.name }}
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">{{ promotion.description }}</p>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <h4 class="text-success">${{ promotion.bonus_amount }}</h4>
+                                            <small class="text-muted">Créditos gratis</small>
+                                        </div>
+                                        <div class="col-6 text-end">
+                                            {% if promotion.max_uses %}
+                                                <small class="text-muted">
+                                                    {{ promotion.current_uses }}/{{ promotion.max_uses }} usados
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <a href="{% url 'claim_promotion' promotion.id %}" class="btn btn-success btn-lg w-100">
+                                        <i class="fas fa-hand-holding-usd"></i> Reclamar Ahora
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> No hay promociones disponibles</h5>
+                        <p class="mb-0">Ya has reclamado todas las promociones disponibles o no hay promociones activas en este momento.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Logros del Usuario -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="text-primary mb-4">
+                    <i class="fas fa-trophy"></i> Tus Logros Especiales
+                </h2>
+                
+                {% if user_achievements %}
+                    <div class="row">
+                        {% for achievement in user_achievements %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <i class="{{ achievement.achievement.icon }} fa-3x text-warning mb-3"></i>
+                                    <h5 class="card-title">{{ achievement.achievement.name }}</h5>
+                                    <p class="card-text">{{ achievement.achievement.description }}</p>
+                                    {% if achievement.bonus_credits > 0 %}
+                                        <span class="badge bg-success">+${{ achievement.bonus_credits }}</span>
+                                    {% endif %}
+                                    <small class="text-muted d-block mt-2">
+                                        Obtenido: {{ achievement.awarded_at|date:"d/m/Y" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Aún no tienes logros</h5>
+                        <p class="mb-0">¡Participa en juegos y rifas para obtener logros especiales!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sistema de Referidos -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="text-primary mb-4">
+                    <i class="fas fa-users"></i> Invita Amigos y Gana
+                </h2>
+                
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-share-alt"></i> Programa de Referidos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Tu Código de Referido:</h5>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control form-control-lg text-center font-weight-bold" 
+                                           value="{{ request.user.username|upper }}" readonly>
+                                    <button class="btn btn-outline-secondary" onclick="copyReferralCode()">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <p class="text-muted">Comparte este código con tus amigos</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>¿Cómo funciona?</h5>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success"></i> Comparte tu código</li>
+                                    <li><i class="fas fa-check text-success"></i> Tu amigo se registra</li>
+                                    <li><i class="fas fa-check text-success"></i> Ambos ganan $5 en créditos</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <a href="{% url 'referral_system' %}" class="btn btn-info btn-lg">
+                                <i class="fas fa-users"></i> Ver Mis Referidos
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Eventos Especiales -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="text-primary mb-4">
+                    <i class="fas fa-calendar-star"></i> Eventos Especiales
+                </h2>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-danger">
+                            <div class="card-body text-center">
+                                <i class="fas fa-trophy fa-3x text-danger mb-3"></i>
+                                <h5 class="card-title">Torneo Inaugural</h5>
+                                <p class="card-text">Gran torneo con premio especial de $500</p>
+                                <span class="badge bg-danger">Próximamente</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <i class="fas fa-ticket-alt fa-3x text-warning mb-3"></i>
+                                <h5 class="card-title">Rifa de Lanzamiento</h5>
+                                <p class="card-text">Rifa especial con premios increíbles</p>
+                                <span class="badge bg-warning">Activa</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <i class="fas fa-gift fa-3x text-success mb-3"></i>
+                                <h5 class="card-title">Bonificaciones Diarias</h5>
+                                <p class="card-text">Créditos gratis todos los días</p>
+                                <span class="badge bg-success">Activo</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="text-center">
+            <a href="{% url 'lobby' %}" class="btn btn-primary btn-lg me-3">
+                <i class="fas fa-play"></i> Empezar a Jugar
+            </a>
+            <a href="{% url 'raffle_lobby' %}" class="btn btn-outline-primary btn-lg me-3">
+                <i class="fas fa-ticket-alt"></i> Ver Rifas
+            </a>
+            <a href="{% url 'user_manual' %}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-book"></i> Manual de Usuario
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyReferralCode() {
+    const referralCode = "{{ request.user.username|upper }}";
+    navigator.clipboard.writeText(referralCode).then(function() {
+        Swal.fire({
+            icon: 'success',
+            title: '¡Copiado!',
+            text: 'Código de referido copiado al portapapeles',
+            timer: 2000
+        });
+    });
+}
+
+// Auto-refresh cada 30 segundos para promociones
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}

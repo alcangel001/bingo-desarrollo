@@ -1,0 +1,29 @@
+{% extends "bingo_app/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h3 class="mb-0 text-white">Establecer Ganador Manual para {{ raffle.title }}</h3>
+                </div>
+                <div class="card-body text-dark">
+                    <p>Introduce el número ganador para la rifa. El número debe estar entre {{ raffle.start_number }} y {{ raffle.end_number }}.</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="winning_number" class="form-label">Número Ganador</label>
+                            <input type="number" class="form-control" id="winning_number" name="winning_number" min="{{ raffle.start_number }}" max="{{ raffle.end_number }}" required>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'raffle_detail' raffle.id %}" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Establecer Ganador</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

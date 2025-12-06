@@ -1,0 +1,75 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Probar Email - SendGrid{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-envelope"></i> Probar Envío de Email - SendGrid
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if result_message %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> {{ result_message }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if error_message %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i> {{ error_message }}
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email destino:</label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="email" 
+                                   name="email" 
+                                   value="{{ default_email }}" 
+                                   required>
+                            <small class="form-text text-muted">
+                                Email al que se enviará la prueba. Por defecto: {{ default_email }}
+                            </small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Enviar Email de Prueba
+                        </button>
+                        
+                        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                        </a>
+                    </form>
+                    
+                    <hr>
+                    
+                    <div class="alert alert-info mt-3">
+                        <h6><i class="fas fa-info-circle"></i> Instrucciones:</h6>
+                        <ol>
+                            <li>Ingresa el email destino (o usa el por defecto)</li>
+                            <li>Haz clic en "Enviar Email de Prueba"</li>
+                            <li>Revisa tu bandeja de entrada y spam</li>
+                            <li>Si recibes el email, SendGrid está funcionando correctamente</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+

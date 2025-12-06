@@ -1,0 +1,148 @@
+{% extends 'bingo_app/base.html' %}
+
+{% block title %}Promocionar Evento{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos para asegurar la visibilidad en el formulario de promoción */
+    .form-control, .form-select, .form-control[type=file] {
+        background-color: #f8f9fa !important; /* Un fondo claro para los inputs */
+        color: #212529 !important; /* Texto oscuro para legibilidad */
+        border: 1px solid #ced4da !important;
+    }
+
+    /* Estilo para el texto de las etiquetas */
+    label, .form-label {
+        color: #212529 !important; /* Texto oscuro para las etiquetas */
+    }
+
+    /* Estilo para el texto general dentro del card-body si es necesario */
+    .card-body, .card-body p {
+        color: #212529 !important; /* Asegura que el texto del cuerpo de la tarjeta sea oscuro */
+    }
+
+    /* Placeholder-text color */
+    .form-control::placeholder {
+        color: #6c757d !important;
+    }
+
+    /* Focus styles */
+    .form-control:focus, .form-select:focus {
+        border-color: #86b7fe !important;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+    }
+    .alert-info, .alert-info strong, .alert-info ul, .alert-info li, .alert-info p {
+        color: #0c5460 !important; /* A dark color that works well with the light blue background of alert-info */
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Promocionar un Evento</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Crea un anuncio para promocionar tu evento. El costo se descontará de tus créditos.</p>
+                    
+                    <div class="alert alert-info">
+                        <strong>Costos de Promoción:</strong>
+                        <ul>
+                            <li>Promoción con Imagen:</li>
+                            <ul>
+                                {% for duration, cost in costs.image.items %}
+                                <li>{{ duration }} día(s) - {{ cost }} créditos</li>
+                                {% endfor %}
+                            </ul>
+                            <li>Promoción con Video:</li>
+                            <ul>
+                                {% for duration, cost in costs.video.items %}
+                                <li>{{ duration }} día(s) - {{ cost }} créditos</li>
+                                {% endfor %}
+                            </ul>
+                        </ul>
+                        <p>Tu saldo actual es: <strong>{{ request.user.credit_balance }} créditos</strong></p>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        {{ form.as_p }}
+
+                        <div class="mb-3">
+                            <label for="id_duration" class="form-label">Duración de la Promoción</label>
+                            <select name="duration" id="id_duration" class="form-select">
+                                <option value="1" {% if selected_duration == 1 %}selected{% endif %}>1 Día</option>
+                                <option value="3" {% if selected_duration == 3 %}selected{% endif %}>3 Días</option>
+                                <option value="7" {% if selected_duration == 7 %}selected{% endif %}>7 Días</option>
+                            </select>
+                        </div>
+
+                        <div class="alert alert-warning" id="promotion-cost-display" style="display: none;">
+                            Costo de la promoción: <strong id="cost-value"></strong> créditos.
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">Promocionar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const costsData = JSON.parse(document.getElementById('costs-data').textContent);
+        const costs = costsData; // costs is now an object with 'image' and 'video' keys
+
+        const durationSelect = document.getElementById('id_duration');
+        const imageInput = document.getElementById('id_image');
+        const videoUrlInput = document.getElementById('id_video_url');
+        const costDisplay = document.getElementById('promotion-cost-display');
+        const costValue = document.getElementById('cost-value');
+
+        function updateCost() {
+            const selectedDuration = parseInt(durationSelect.value);
+            const hasImage = imageInput.files.length > 0;
+            const hasVideoUrl = videoUrlInput.value.trim() !== '';
+
+            let promotionType = null;
+            if (hasImage) {
+                promotionType = 'image';
+            } else if (hasVideoUrl) {
+                promotionType = 'video';
+            }
+
+            if (promotionType && selectedDuration) {
+                const typeCosts = costs[promotionType];
+                if (typeCosts && typeCosts[selectedDuration]) {
+                    costValue.textContent = typeCosts[selectedDuration];
+                    costDisplay.style.display = 'block';
+                } else {
+                    costDisplay.style.display = 'none';
+                }
+            } else {
+                costDisplay.style.display = 'none';
+            }
+        }
+
+        durationSelect.addEventListener('change', updateCost);
+        imageInput.addEventListener('change', updateCost);
+        videoUrlInput.addEventListener('input', updateCost); // Use 'input' for text fields
+
+        updateCost(); // Initial call
+    });
+</script>
+{% endblock %}

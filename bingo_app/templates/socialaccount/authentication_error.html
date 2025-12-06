@@ -1,0 +1,63 @@
+{% extends "bingo_app/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Error de Login Social" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-exclamation-triangle text-warning" style="font-size: 4rem;"></i>
+                    </div>
+                    
+                    <h3 class="card-title text-center mb-4">{% trans "Error en el Login Social" %}</h3>
+                    <p class="text-muted mb-4">{% trans "Ocurrió un error al intentar iniciar sesión con tu cuenta social." %}</p>
+                    
+                    {% if auth_error %}
+                        <div class="alert alert-danger" role="alert">
+                            <h5 class="alert-heading">Detalles del Error:</h5>
+                            <p><strong>Código:</strong> {{ auth_error.code }}</p>
+                            <p><strong>Mensaje:</strong> {{ auth_error.message }}</p>
+                            
+                            {% if "application not currently active" in auth_error.message|lower %}
+                                <hr>
+                                <div class="text-start">
+                                    <h6>Posibles Soluciones:</h6>
+                                    <ul class="mb-0">
+                                        <li>La aplicación de Facebook puede estar en modo desarrollo</li>
+                                        <li>Intenta usar el login con email y contraseña</li>
+                                        <li>Verifica tu conexión a internet</li>
+                                        <li>Intenta nuevamente en unos minutos</li>
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning" role="alert">
+                            <p>{% trans "No se proporcionaron detalles específicos del error." %}</p>
+                        </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                        <a href="{% url 'login' %}" class="btn btn-primary me-md-2">
+                            <i class="fas fa-sign-in-alt"></i> {% trans "Volver al Login" %}
+                        </a>
+                        <a href="{% url 'register' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-user-plus"></i> {% trans "Crear Cuenta" %}
+                        </a>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <small class="text-muted">
+                            Si el problema persiste, contacta al soporte técnico.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

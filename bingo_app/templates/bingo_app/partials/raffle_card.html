@@ -1,0 +1,47 @@
+{% load bingo_filters %}
+<div class="col-md-6" id="raffle-{{ raffle.id }}">
+    <div class="game-card rep-{{ level|lower }}"> 
+        <div class="reputation-corner-icon">
+            {% if level == "Leyenda" %}<i class="fas fa-gem"></i>
+            {% elif level == "Platino" %}<i class="fas fa-trophy"></i>
+            {% elif level == "Oro" %}<i class="fas fa-sun"></i>
+            {% elif level == "Plata" %}<i class="fas fa-star"></i>
+            {% endif %}
+        </div>
+        <div class="game-header">
+            <h3>{{ raffle.title }}</h3>
+        </div>
+        <div class="game-body">
+            <div class="prize-display">
+                <div class="prize-label">Premio</div>
+                <div class="prize-amount">${{ raffle.prize|floatformat:2 }}</div>
+            </div>
+            <div class="game-feature">
+                <i class="fas fa-user-shield"></i>
+                <span class="feature-label">Organizador:</span>
+                <span class="feature-value">
+                    {{ raffle.organizer.username }}
+                    <span class="reputation-title-badge">{{ level }}</span>
+                </span>
+            </div>
+            <div class="game-feature">
+                <i class="fas fa-ticket-alt"></i>
+                <span class="feature-label">Precio Ticket:</span>
+                <span class="feature-value">${{ raffle.ticket_price|floatformat:2 }}</span>
+            </div>
+            <div class="game-feature">
+                <i class="fas fa-hashtag"></i>
+                <span class="feature-label">Tickets Vendidos:</span>
+                <span class="feature-value">{{ raffle.tickets.count }}/{{ raffle.total_tickets }}</span>
+            </div>
+        </div>
+        <div class="game-footer">
+            <span class="status-badge bg-success">
+                Esperando
+            </span>
+            <a href="{% url 'raffle_detail' raffle.id %}" class="join-button">
+                <i class="fas fa-door-open"></i> Ver Rifa
+            </a>
+        </div>
+    </div>
+</div>

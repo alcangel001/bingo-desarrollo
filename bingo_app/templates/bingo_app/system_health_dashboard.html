@@ -1,0 +1,336 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Dashboard de Salud del Sistema{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-heartbeat text-danger"></i> Dashboard de Salud del Sistema</h2>
+                <div>
+                    <a href="{% url 'reset_error_counters' %}" class="btn btn-warning">
+                        <i class="fas fa-refresh"></i> Reiniciar Contadores
+                    </a>
+                    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver al Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="text-white">{{ total_users }}</h4>
+                            <p class="mb-0 text-white">Total Usuarios</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="text-white">{{ active_users_today }}</h4>
+                            <p class="mb-0 text-white">Usuarios Activos Hoy</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-user-check fa-2x text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="text-white">{{ total_games }}</h4>
+                            <p class="mb-0 text-white">Total Juegos</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-gamepad fa-2x text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="text-dark">{{ active_games }}</h4>
+                            <p class="mb-0 text-dark">Juegos Activos</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-play-circle fa-2x text-dark"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas de Rifas -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="text-white">{{ total_raffles }}</h4>
+                            <p class="mb-0 text-white">Total Rifas</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-ticket-alt fa-2x text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="text-white">{{ active_raffles }}</h4>
+                            <p class="mb-0 text-white">Rifas Activas</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-star fa-2x text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas de Login Social -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0 text-white"><i class="fab fa-facebook text-white"></i> Facebook Login</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h3 class="text-primary">{{ facebook_accounts }}</h3>
+                            <small class="text-dark">Cuentas Facebook</small>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-success">{{ facebook_errors.total_errors|default:0 }}</h3>
+                            <small class="text-dark">Errores Totales</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0 text-white"><i class="fab fa-google text-white"></i> Google Login</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h3 class="text-danger">{{ google_accounts }}</h3>
+                            <small class="text-dark">Cuentas Google</small>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-success">{{ social_accounts }}</h3>
+                            <small class="text-dark">Total Social</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0 text-white"><i class="fas fa-chart-line text-white"></i> Resumen</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h3 class="text-info">{{ facebook_accounts|add:google_accounts }}</h3>
+                            <small class="text-dark">Total Social</small>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-warning">{{ facebook_errors.critical_errors|length|default:0 }}</h3>
+                            <small class="text-dark">Errores Críticos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Errores de Facebook -->
+    {% if facebook_errors.total_errors > 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Errores de Facebook ({{ facebook_errors.timeframe }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Tipos de Errores:</h6>
+                            {% for error_type, count in facebook_errors.error_types.items %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-danger">{{ error_type }}</span>
+                                <span class="badge bg-secondary">{{ count }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Errores Críticos:</h6>
+                            {% if facebook_errors.critical_errors %}
+                                {% for error in facebook_errors.critical_errors %}
+                                <div class="alert alert-warning">
+                                    <strong>{{ error.type }}</strong>: {{ error.count }} errores
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-success">
+                                    <i class="fas fa-check-circle"></i> No hay errores críticos
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
+                    <h5 class="text-success">¡Sistema Saludable!</h5>
+                    <p class="text-muted">No se han detectado errores de Facebook en las últimas 24 horas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Debug de Rifas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0 text-white"><i class="fas fa-ticket-alt text-white"></i> Debug de Rifas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 class="text-info">{{ total_raffles }}</h4>
+                            <small class="text-dark">Total Rifas</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-success">{{ active_raffles }}</h4>
+                            <small class="text-dark">Rifas Activas</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-warning">{{ pending_raffles }}</h4>
+                            <small class="text-dark">Rifas Pendientes</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-primary">{{ finished_raffles }}</h4>
+                            <small class="text-dark">Rifas Finalizadas</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug de Juegos -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0 text-dark"><i class="fas fa-bug text-dark"></i> Debug de Juegos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 class="text-primary">{{ started_games }}</h4>
+                            <small class="text-dark">Juegos Iniciados</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-success">{{ finished_games }}</h4>
+                            <small class="text-dark">Juegos Finalizados</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-warning">{{ pending_games }}</h4>
+                            <small class="text-dark">Juegos Pendientes</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-info">{{ active_games }}</h4>
+                            <small class="text-dark">Juegos Activos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del Sistema -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0 text-dark"><i class="fas fa-info-circle text-primary"></i> Información del Sistema</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-dark"><strong class="text-dark">Versión:</strong> <span class="text-dark">Bingo y Rifa JyM v2.0</span></p>
+                            <p class="text-dark"><strong class="text-dark">Última Actualización:</strong> <span class="text-dark">{{ "now"|date:"d/m/Y H:i" }}</span></p>
+                            <p class="text-dark"><strong class="text-dark">Estado:</strong> 
+                                {% if facebook_errors.total_errors == 0 %}
+                                    <span class="badge bg-success">Operativo</span>
+                                {% elif facebook_errors.critical_errors|length > 0 %}
+                                    <span class="badge bg-danger">Crítico</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Advertencia</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-dark"><strong class="text-dark">Monitoreo:</strong> <span class="text-dark">Activo</span></p>
+                            <p class="text-dark"><strong class="text-dark">Logs:</strong> <span class="text-dark">Habilitados</span></p>
+                            <p class="text-dark"><strong class="text-dark">Backup:</strong> <span class="text-dark">Automático</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh cada 30 segundos
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}

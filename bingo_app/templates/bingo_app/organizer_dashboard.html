@@ -1,0 +1,283 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}{{ title|default:"Panel de Organizador" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+        border: none;
+        color: #fff;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+    }
+    .card-icon {
+        font-size: 3rem;
+        opacity: 0.3;
+        position: absolute;
+        right: 20px;
+        bottom: 10px;
+    }
+    .bg-primary { background-color: #007bff !important; }
+    .bg-success { background-color: #28a745 !important; }
+    .bg-info { background-color: #17a2b8 !important; }
+    .bg-warning { background-color: #ffc107 !important; }
+    .bg-danger { background-color: #dc3545 !important; }
+    .bg-secondary { background-color: #6c757d !important; }
+    .bg-purple { background-color: #6f42c1 !important; }
+    .bg-teal { background-color: #20c997 !important; }
+
+    .alert-card {
+        border-left: 5px solid;
+    }
+    .alert-card.alert-warning { border-color: #ffc107; }
+    .alert-card.alert-info { border-color: #17a2b8; }
+    .alert-card.alert-improvement { border-color: #28a745; }
+    .alert-card.alert-opportunity { border-color: #007bff; }
+
+    .list-group-item {
+        background-color: #f8f9fa;
+        border: none;
+        padding: 1rem;
+        margin-bottom: 5px;
+        border-radius: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">{{ title }}</h1>
+        <div>
+            <a href="{% url 'create_game' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Crear Sala</a>
+            <a href="{% url 'create_raffle' %}" class="btn btn-success"><i class="fas fa-plus"></i> Crear Rifa</a>
+            <a href="{% url 'create_promotion' %}" class="btn btn-info"><i class="fas fa-bullhorn"></i> Crear Promoción</a>
+        </div>
+    </div>
+
+    <!-- Alertas y Recomendaciones -->
+    <div class="row mb-4">
+        {% if alerts %}
+        <div class="col-md-6">
+            <h4><i class="fas fa-exclamation-triangle text-warning"></i> Alertas del Sistema</h4>
+            {% for alert in alerts %}
+            <div class="alert alert-card alert-{{ alert.type }}" role="alert">
+                <h5 class="alert-heading">{{ alert.message }}</h5>
+                <p class="mb-0">{{ alert.action }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if recommendations %}
+        <div class="col-md-6">
+            <h4><i class="fas fa-lightbulb text-info"></i> Recomendaciones</h4>
+            {% for rec in recommendations %}
+            <div class="alert alert-card alert-{{ rec.type }}" role="alert">
+                <h5 class="alert-heading">{{ rec.message }}</h5>
+                <p class="mb-0">{{ rec.action }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Métricas Financieras -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Ganancia Neta</h5>
+                    <p class="stat-number">${{ net_profit|floatformat:2 }}</p>
+                    <i class="fas fa-dollar-sign card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Ingresos Totales</h5>
+                    <p class="stat-number">${{ total_revenue|floatformat:2 }}</p>
+                    <i class="fas fa-piggy-bank card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Saldo Actual</h5>
+                    <p class="stat-number">${{ current_balance|floatformat:2 }}</p>
+                    <i class="fas fa-wallet card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Saldo Bloqueado</h5>
+                    <p class="stat-number">${{ blocked_balance|floatformat:2 }}</p>
+                    <i class="fas fa-lock card-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas de Rendimiento -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-purple">
+                <div class="card-body">
+                    <h5 class="card-title">Juegos Activos</h5>
+                    <p class="stat-number">{{ active_games }}</p>
+                    <i class="fas fa-gamepad card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-teal">
+                <div class="card-body">
+                    <h5 class="card-title">Rifas Activas</h5>
+                    <p class="stat-number">{{ active_raffles }}</p>
+                    <i class="fas fa-ticket-alt card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-secondary">
+                <div class="card-body">
+                    <h5 class="card-title">Tasa de Finalización</h5>
+                    <p class="stat-number">{{ completion_rate|floatformat:1 }}%</p>
+                    <i class="fas fa-check-circle card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">ROI</h5>
+                    <p class="stat-number">{{ roi|floatformat:1 }}%</p>
+                    <i class="fas fa-chart-line card-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proyecciones -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Ingresos Potenciales</h5>
+                    <p class="display-6 text-success">${{ total_potential_revenue|floatformat:2 }}</p>
+                    <small>De eventos activos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Comisiones Estimadas</h5>
+                    <p class="display-6 text-warning">${{ estimated_commissions|floatformat:2 }}</p>
+                    <small>A pagar a la plataforma</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Ganancia Neta Estimada</h5>
+                    <p class="display-6 text-info">${{ estimated_net_revenue|floatformat:2 }}</p>
+                    <small>De eventos activos</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eventos Recientes -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-purple text-white">
+                    <i class="fas fa-gamepad me-2"></i>Juegos Recientes
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for game in recent_games %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'game_room' game.id %}">{{ game.name }}</a>
+                            <span class="badge bg-{{ game.get_status_display|lower }}">{{ game.get_status_display }}</span>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item">No has creado juegos recientemente.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-teal text-white">
+                    <i class="fas fa-ticket-alt me-2"></i>Rifas Recientes
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for raffle in recent_raffles %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'raffle_detail' raffle.id %}">{{ raffle.title }}</a>
+                            <span class="badge bg-{{ raffle.status|lower }}">{{ raffle.get_status_display }}</span>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item">No has creado rifas recientemente.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Últimas Transacciones -->
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-history me-2"></i>Últimas Transacciones
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Descripción</th>
+                                <th>Monto</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in recent_transactions %}
+                                <tr>
+                                    <td><span class="badge bg-info">{{ tx.get_transaction_type_display }}</span></td>
+                                    <td>{{ tx.description }}</td>
+                                    <td class="{% if tx.amount > 0 %}text-success{% else %}text-danger{% endif %}">${{ tx.amount|floatformat:2 }}</td>
+                                    <td>{{ tx.created_at|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No hay transacciones recientes.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Puedes añadir JS específico para esta página si es necesario -->
+{% endblock %}

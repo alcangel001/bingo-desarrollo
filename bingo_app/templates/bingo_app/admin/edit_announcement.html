@@ -1,0 +1,68 @@
+{% extends 'bingo_app/base.html' %}
+
+{% block title %}Editar Anuncio{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h2 class="mb-0">Editar Anuncio</h2>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+                        <button type="submit" class="btn btn-warning">Guardar Cambios</button>
+                        <a href="{% url 'manage_announcements' %}" class="btn btn-secondary">Cancelar</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.getElementById('id_announcement_type');
+        const externalLinkRow = document.querySelector('#id_external_link').closest('p');
+        const relatedGameRow = document.querySelector('#id_related_game').closest('p');
+        const relatedRaffleRow = document.querySelector('#id_related_raffle').closest('p');
+        const imageRow = document.querySelector('#id_image').closest('p');
+        const videoUrlRow = document.querySelector('#id_video_url').closest('p');
+
+        function toggleFields() {
+            const selectedType = typeSelect.value;
+
+            // Ocultar todos los campos condicionales
+            externalLinkRow.style.display = 'none';
+            relatedGameRow.style.display = 'none';
+            relatedRaffleRow.style.display = 'none';
+            imageRow.style.display = 'none';
+            videoUrlRow.style.display = 'none';
+
+            // Mostrar campos basados en la selección
+            if (selectedType === 'PROMOTION') {
+                relatedGameRow.style.display = 'block';
+                relatedRaffleRow.style.display = 'block';
+                imageRow.style.display = 'block';
+                videoUrlRow.style.display = 'block';
+            } else if (selectedType === 'EXTERNAL') {
+                externalLinkRow.style.display = 'block';
+                imageRow.style.display = 'block';
+                videoUrlRow.style.display = 'block';
+            } else { // GENERAL
+                imageRow.style.display = 'block';
+                videoUrlRow.style.display = 'block';
+            }
+        }
+
+        // Ejecutar al cargar la página y al cambiar la selección
+        toggleFields();
+        typeSelect.addEventListener('change', toggleFields);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Detalle de Cuenta por Cobrar{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-file-invoice-dollar me-2"></i>Detalle de Cuenta por Cobrar</h1>
+        <a href="{% url 'organizer_accounts_receivable' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </a>
+    </div>
+
+    <!-- Información de la Cuenta -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Información de la Cuenta</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="text-dark"><strong class="fw-bold">Deudor:</strong> <span class="fw-semibold">{{ account.debtor.username }}</span></p>
+                    <p class="text-dark"><strong class="fw-bold">Email:</strong> <span class="fw-semibold">{{ account.debtor.email }}</span></p>
+                    <p class="text-dark"><strong class="fw-bold">Concepto:</strong> <span class="fw-semibold">{{ account.concept }}</span></p>
+                </div>
+                <div class="col-md-6">
+                    <p class="text-dark"><strong class="fw-bold">Fecha de Creación:</strong> <span class="fw-semibold">{{ account.created_at|date:"d/m/Y H:i" }}</span></p>
+                    <p class="text-dark"><strong class="fw-bold">Estado:</strong> 
+                        {% if account.is_paid %}
+                            <span class="badge bg-success fw-bold">Pagado</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark fw-bold">Pendiente</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen Financiero -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body bg-light">
+                    <h5 class="text-dark fw-bold">Monto Total</h5>
+                    <h2 class="text-primary fw-bold">${{ account.amount|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body bg-light">
+                    <h5 class="text-dark fw-bold">Total Abonado</h5>
+                    <h2 class="text-success fw-bold">${{ total_paid|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body bg-light">
+                    <h5 class="text-dark fw-bold">Saldo Pendiente</h5>
+                    <h2 class="text-warning fw-bold">${{ remaining_balance|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historial de Pagos -->
+    <div class="card">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Historial de Pagos</h5>
+            {% if not account.is_paid %}
+            <button type="button" class="btn btn-sm btn-success" onclick="openPaymentModal({{ account.id }}, {{ remaining_balance }})">
+                <i class="fas fa-plus me-1"></i>Registrar Abono
+            </button>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if payments %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="fw-bold">Fecha</th>
+                            <th class="fw-bold">Monto</th>
+                            <th class="fw-bold">Método de Pago</th>
+                            <th class="fw-bold">Comprobante</th>
+                            <th class="fw-bold">Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td class="text-dark fw-semibold">{{ payment.created_at|date:"d/m/Y H:i" }}</td>
+                            <td class="text-dark"><strong class="fw-bold">${{ payment.amount|floatformat:2 }}</strong></td>
+                            <td class="text-dark fw-semibold">{{ payment.payment_method.title|default:"N/A" }}</td>
+                            <td>
+                                {% if payment.proof %}
+                                <a href="{{ payment.proof.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-file-download"></i> Ver
+                                </a>
+                                {% else %}
+                                <span class="text-dark fw-semibold">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-dark fw-semibold">{{ payment.notes|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-inbox fa-2x mb-2"></i>
+                <p class="mb-0">No hay pagos registrados para esta cuenta.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Abonar -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Registrar Abono</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="paymentForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="account_id" id="payment_account_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="payment_amount" class="form-label">Monto del Abono</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" name="amount" id="payment_amount" class="form-control" step="0.01" min="0.01" required>
+                        </div>
+                        <small class="text-muted" id="max_amount_hint"></small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="payment_method" class="form-label">Método de Pago</label>
+                        <select name="payment_method" id="payment_method" class="form-select" required>
+                            <option value="">Selecciona un método...</option>
+                            {% for method in payment_methods %}
+                            <option value="{{ method.id }}">{{ method.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="proof" class="form-label">Comprobante de Pago</label>
+                        <input type="file" name="proof" id="proof" class="form-control" accept="image/*,.pdf" required>
+                        <small class="text-muted">Formato: JPG, PNG o PDF (máx. 5MB)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notas (opcional)</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Notas adicionales..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Registrar Abono</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openPaymentModal(accountId, maxAmount) {
+    document.getElementById('payment_account_id').value = accountId;
+    document.getElementById('payment_amount').max = maxAmount;
+    document.getElementById('payment_amount').value = '';
+    document.getElementById('max_amount_hint').textContent = 'Máximo permitido: $' + maxAmount.toFixed(2);
+    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+}
+
+document.getElementById('paymentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const accountId = formData.get('account_id');
+    
+    try {
+        const response = await fetch(`/organizer/accounts-receivable/${accountId}/add-payment/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo registrar el pago'));
+        }
+    } catch (error) {
+        alert('Error al registrar el pago: ' + error.message);
+    }
+});
+</script>
+{% endblock %}
+

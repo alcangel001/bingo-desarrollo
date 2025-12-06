@@ -1,0 +1,273 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Mis Tickets de Bingo{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
+<style>
+    .ticket-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    .ticket-card .card-title {
+        color: #000000 !important;
+    }
+    .ticket-card .text-muted {
+        color: #6c757d !important;
+    }
+    .ticket-header {
+        background-color: #28a745 !important;
+        color: #ffffff !important;
+    }
+    .ticket-header-info {
+        background-color: #17a2b8 !important;
+        color: #ffffff !important;
+    }
+    .ticket-header-warning {
+        background-color: #ffc107 !important;
+        color: #000000 !important;
+    }
+    .ticket-card h3, .ticket-card h4, .ticket-card h5, .ticket-card h6 {
+        color: #000000 !important;
+    }
+    .ticket-card p {
+        color: #000000 !important;
+    }
+    .ticket-card strong {
+        color: #000000 !important;
+    }
+    .ticket-card .card-header {
+        background-color: #f8f9fa !important;
+        color: #000000 !important;
+    }
+    .ticket-card .card-header h3 {
+        color: #000000 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 admin-page">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card ticket-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-ticket-alt"></i> Mis Tickets de Bingo
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Resumen -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ available_count }}</h4>
+                                    <p class="mb-0">Tickets Disponibles</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ used_tickets.count }}</h4>
+                                    <p class="mb-0">Tickets Usados</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ expired_tickets.count }}</h4>
+                                    <p class="mb-0">Tickets Expirados</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tickets Disponibles -->
+                    {% if available_tickets %}
+                    <div class="card mb-4 ticket-card">
+                        <div class="card-header ticket-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-check-circle"></i> Tickets Disponibles ({{ available_tickets.count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for ticket in available_tickets %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card border-success">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">
+                                                {% if ticket.ticket_type == 'DAILY_MORNING' %}
+                                                    <i class="fas fa-sun text-warning"></i> Bingo Matutino
+                                                {% elif ticket.ticket_type == 'DAILY_AFTERNOON' %}
+                                                    <i class="fas fa-sun text-orange"></i> Bingo Vespertino
+                                                {% elif ticket.ticket_type == 'DAILY_EVENING' %}
+                                                    <i class="fas fa-moon text-primary"></i> Bingo Nocturno
+                                                {% elif ticket.ticket_type == 'REFERRAL' %}
+                                                    <i class="fas fa-users text-success"></i> Por Referido
+                                                {% elif ticket.ticket_type == 'PROMOTION' %}
+                                                    <i class="fas fa-gift text-info"></i> Promocional
+                                                {% endif %}
+                                            </h6>
+                                            <p class="card-text">
+                                                <small class="text-muted">
+                                                    Creado: {{ ticket.created_at|date:"d/m/Y" }}<br>
+                                                    Expira: {{ ticket.expires_at|date:"d/m/Y" }}
+                                                </small>
+                                            </p>
+                                            <a href="{% url 'daily_bingo_schedule' %}" class="btn btn-success btn-sm">
+                                                <i class="fas fa-play"></i> Usar Ticket
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Tickets Usados -->
+                    {% if used_tickets %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-history"></i> Tickets Usados ({{ used_tickets.count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Tipo</th>
+                                            <th>Juego</th>
+                                            <th>Fecha de Uso</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for ticket in used_tickets %}
+                                        <tr>
+                                            <td>
+                                                {% if ticket.ticket_type == 'DAILY_MORNING' %}
+                                                    <i class="fas fa-sun text-warning"></i> Matutino
+                                                {% elif ticket.ticket_type == 'DAILY_AFTERNOON' %}
+                                                    <i class="fas fa-sun text-orange"></i> Vespertino
+                                                {% elif ticket.ticket_type == 'DAILY_EVENING' %}
+                                                    <i class="fas fa-moon text-primary"></i> Nocturno
+                                                {% elif ticket.ticket_type == 'REFERRAL' %}
+                                                    <i class="fas fa-users text-success"></i> Referido
+                                                {% elif ticket.ticket_type == 'PROMOTION' %}
+                                                    <i class="fas fa-gift text-info"></i> Promocional
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if ticket.used_in_game %}
+                                                    <a href="{% url 'game_room' ticket.used_in_game.id %}">
+                                                        {{ ticket.used_in_game.name }}
+                                                    </a>
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ ticket.used_at|date:"d/m/Y H:i" }}</td>
+                                            <td>
+                                                {% if ticket.used_in_game %}
+                                                    {% if ticket.used_in_game.is_finished %}
+                                                        <span class="badge badge-secondary">Finalizado</span>
+                                                    {% elif ticket.used_in_game.is_started %}
+                                                        <span class="badge badge-success">En Progreso</span>
+                                                    {% else %}
+                                                        <span class="badge badge-warning">Esperando</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="badge badge-danger">Error</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Tickets Expirados -->
+                    {% if expired_tickets %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-exclamation-triangle"></i> Tickets Expirados ({{ expired_tickets.count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for ticket in expired_tickets %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card border-warning">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title text-warning">
+                                                {% if ticket.ticket_type == 'DAILY_MORNING' %}
+                                                    <i class="fas fa-sun"></i> Bingo Matutino
+                                                {% elif ticket.ticket_type == 'DAILY_AFTERNOON' %}
+                                                    <i class="fas fa-sun"></i> Bingo Vespertino
+                                                {% elif ticket.ticket_type == 'DAILY_EVENING' %}
+                                                    <i class="fas fa-moon"></i> Bingo Nocturno
+                                                {% elif ticket.ticket_type == 'REFERRAL' %}
+                                                    <i class="fas fa-users"></i> Por Referido
+                                                {% elif ticket.ticket_type == 'PROMOTION' %}
+                                                    <i class="fas fa-gift"></i> Promocional
+                                                {% endif %}
+                                            </h6>
+                                            <p class="card-text">
+                                                <small class="text-muted">
+                                                    Creado: {{ ticket.created_at|date:"d/m/Y" }}<br>
+                                                    Expiró: {{ ticket.expires_at|date:"d/m/Y" }}
+                                                </small>
+                                            </p>
+                                            <span class="badge badge-warning">Expirado</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Sin tickets -->
+                    {% if not available_tickets and not used_tickets and not expired_tickets %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-ticket-alt fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No tienes tickets de bingo</h5>
+                        <p class="text-muted">Obtén tickets invitando amigos o participando en promociones</p>
+                        <a href="{% url 'referral_system' %}" class="btn btn-primary">
+                            <i class="fas fa-users"></i> Invitar Amigos
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <div class="form-group mt-4">
+                        <a href="{% url 'daily_bingo_schedule' %}" class="btn btn-primary">
+                            <i class="fas fa-clock"></i> Ver Horarios de Bingo
+                        </a>
+                        <a href="{% url 'referral_system' %}" class="btn btn-success">
+                            <i class="fas fa-users"></i> Invitar Amigos
+                        </a>
+                        <a href="{% url 'profile' %}" class="btn btn-secondary">
+                            <i class="fas fa-user"></i> Mi Perfil
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

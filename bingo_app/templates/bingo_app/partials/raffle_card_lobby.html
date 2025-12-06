@@ -1,0 +1,78 @@
+{% load bingo_filters %}
+<div class="col" id="raffle-{{ raffle.id }}">
+    <div class="card h-100 raffle-card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-white">{{ raffle.title }}</h5>
+                <span class="badge-status badge-{{ raffle.status|lower }}">
+                    {{ raffle.get_status_display }}
+                </span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="mb-4">
+                <p class="text-muted">{{ raffle.description|default:"Descripción no disponible"|truncatechars:120 }}</p>
+            </div>
+            
+            <div class="raffle-stats mb-4">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon-wrapper">
+                        <i class="fas fa-tag text-white"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Precio por ticket</small>
+                        <h5 class="mb-0">{{ raffle.ticket_price }} <i class="fas fa-coins"></i></h5>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon-wrapper">
+                        <i class="fas fa-trophy text-white"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Premio principal</small>
+                        <h5 class="mb-0 prize-highlight">{{ raffle.prize }} <i class="fas fa-coins"></i></h5>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted"><i class="fas fa-ticket-alt me-2"></i>Tickets vendidos</span>
+                    <strong>{{ raffle.tickets.count }}/{{ raffle.total_tickets }}</strong>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted"><i class="fas fa-calendar-alt me-2"></i>Fecha de sorteo</span>
+                    <strong>{{ raffle.draw_date|date:"d M Y H:i" }}</strong>
+                </div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="d-flex justify-content-between mb-2">
+                    <small>Progreso</small>
+                    <small>{{ raffle.progress_percentage }}% completado</small>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" 
+                         style="width: {{ raffle.progress_percentage }}%" 
+                         role="progressbar" 
+                         aria-valuenow="{{ raffle.progress_percentage }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                    </div>
+                </div>
+            </div>
+            
+            {% if raffle.status == 'waiting' %}
+            <div class="countdown-timer mt-3">
+                <i class="fas fa-clock me-2"></i>
+                <span id="countdown-{{ raffle.id }}"></span>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer text-center">
+            <a href="{% url 'raffle_detail' raffle.id %}" class="btn btn-view-details text-white w-100">
+                <i class="fas fa-eye me-2"></i>Ver Detalles
+            </a>
+        </div>
+    </div>
+</div>

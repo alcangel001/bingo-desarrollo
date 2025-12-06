@@ -1,0 +1,195 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Configuración de Tickets de Bingo{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
+<style>
+    .admin-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    .admin-card .card-title {
+        color: #000000 !important;
+    }
+    .admin-card .card-text {
+        color: #000000 !important;
+    }
+    .admin-card .form-label {
+        color: #000000 !important;
+    }
+    .admin-card .form-text {
+        color: #6c757d !important;
+    }
+    .admin-card .form-control {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ced4da !important;
+    }
+    .admin-card .form-check-label {
+        color: #000000 !important;
+    }
+    .admin-card .btn {
+        color: #ffffff !important;
+    }
+    .admin-card .alert {
+        background-color: #d1ecf1 !important;
+        color: #0c5460 !important;
+        border: 1px solid #bee5eb !important;
+    }
+    .admin-card .badge {
+        color: #ffffff !important;
+    }
+    .admin-card .list-unstyled li {
+        color: #000000 !important;
+    }
+    .admin-card .text-muted {
+        color: #6c757d !important;
+    }
+    .admin-card h3, .admin-card h4, .admin-card h5, .admin-card h6 {
+        color: #000000 !important;
+    }
+    .admin-card p {
+        color: #000000 !important;
+    }
+    .admin-card strong {
+        color: #000000 !important;
+    }
+    .admin-card .card-header {
+        background-color: #f8f9fa !important;
+        color: #000000 !important;
+    }
+    .admin-card .card-header h3 {
+        color: #000000 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 admin-page">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card admin-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-ticket-alt"></i> Configuración del Sistema de Tickets
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               id="is_system_active" name="is_system_active" 
+                                               {% if ticket_settings.is_system_active %}checked{% endif %}>
+                                        <label class="form-check-label" for="is_system_active">
+                                            <strong>Activar Sistema de Tickets</strong>
+                                        </label>
+                                        <small class="form-text text-muted">
+                                            Cuando esté activo, los referidos otorgarán tickets en lugar de créditos
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="referral_ticket_bonus">Tickets para el Referidor</label>
+                                    <input type="number" class="form-control" id="referral_ticket_bonus" 
+                                           name="referral_ticket_bonus" 
+                                           value="{{ ticket_settings.referral_ticket_bonus }}" 
+                                           min="1" max="10">
+                                    <small class="form-text text-muted">
+                                        Número de tickets que recibe quien hace el referido
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="referred_ticket_bonus">Tickets para el Referido</label>
+                                    <input type="number" class="form-control" id="referred_ticket_bonus" 
+                                           name="referred_ticket_bonus" 
+                                           value="{{ ticket_settings.referred_ticket_bonus }}" 
+                                           min="1" max="10">
+                                    <small class="form-text text-muted">
+                                        Número de tickets que recibe el usuario referido
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="ticket_expiration_days">Días de Expiración</label>
+                                    <input type="number" class="form-control" id="ticket_expiration_days" 
+                                           name="ticket_expiration_days" 
+                                           value="{{ ticket_settings.ticket_expiration_days }}" 
+                                           min="1" max="30">
+                                    <small class="form-text text-muted">
+                                        Días hasta que expire un ticket
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Configuración
+                            </button>
+                            <a href="{% url 'admin_daily_schedule' %}" class="btn btn-secondary">
+                                <i class="fas fa-clock"></i> Gestionar Horarios
+                            </a>
+                            <a href="{% url 'admin_ticket_stats' %}" class="btn btn-info">
+                                <i class="fas fa-chart-bar"></i> Ver Estadísticas
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-info-circle"></i> Información del Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Estado Actual:</h6>
+                            <span class="badge badge-{% if ticket_settings.is_system_active %}success{% else %}danger{% endif %}">
+                                {% if ticket_settings.is_system_active %}Activo{% else %}Inactivo{% endif %}
+                            </span>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Última Actualización:</h6>
+                            <small class="text-muted">{{ ticket_settings.updated_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>Funcionamiento:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success"></i> Los usuarios pueden obtener tickets por referidos</li>
+                        <li><i class="fas fa-check text-success"></i> Los tickets permiten participar en bingos diarios gratuitos</li>
+                        <li><i class="fas fa-check text-success"></i> Los tickets tienen fecha de expiración configurable</li>
+                        <li><i class="fas fa-check text-success"></i> Sistema completamente configurable desde el panel de admin</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

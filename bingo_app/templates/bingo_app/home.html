@@ -1,0 +1,79 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Inicio - Bingo y Rifa JyM{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        /* Quitamos el fondo global para esta página y usamos color sólido */
+        background-image: none;
+        background-color: #161f2c;
+    }
+
+    .home-hero-wrapper {
+        min-height: calc(100vh - 80px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+
+    .home-hero-card {
+        text-align: center;
+        color: #fff;
+    }
+
+    .home-hero-image {
+        max-width: 1000px;   /* Tamaño cómodo en PC */
+        width: 100%;
+        height: auto;
+        border-radius: 20px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
+    }
+
+    .home-hero-actions {
+        margin-top: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    @media (max-width: 768px) {
+        .home-hero-wrapper {
+            padding: 1.5rem 0.5rem;
+        }
+
+        .home-hero-image {
+            max-width: 100%;
+            border-radius: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container home-hero-wrapper">
+    <div class="home-hero-card">
+        <!-- Imagen de portada: en PC se ve grande y en móvil se adapta al ancho -->
+        <img
+            src="{% static 'images/bingo_login_background_v2.png' %}"
+            alt="Bingo y Rifa JyM"
+            class="home-hero-image"
+        >
+
+        <div class="home-hero-actions">
+            <a href="{% url 'login' %}" class="btn btn-primary btn-lg">
+                Iniciar sesión
+            </a>
+            <a href="{% url 'register' %}" class="btn btn-outline-light btn-lg">
+                Registrarme
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

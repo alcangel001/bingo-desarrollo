@@ -1,0 +1,452 @@
+{% extends 'bingo_app/base.html' %}
+{% load bingo_filters %}
+{% load static %}
+
+{% block title %}Lobby Premium - Bingo Kuzu{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-image: url('{% static "images/bingo_login_background_v2.png" %}');
+        background-size: 98% auto;
+        background-position: center center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        color: #ffffff;
+    }
+    
+    /* Ajuste para pantallas grandes (desktop) */
+    @media (min-width: 1200px) {
+        body {
+            background-size: 98% auto;
+        }
+    }
+    
+    /* Ajuste para móviles - Tamaño ajustado para que se vea bien */
+    @media (max-width: 768px) {
+        body {
+            background-size: auto 90vh;
+            background-attachment: scroll;
+        }
+    }
+
+    .lobby-container {
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-top: 2rem;
+    }
+
+    .lobby-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap; /* Allow items to wrap */
+        gap: 1rem; /* Add space between items */
+        margin-bottom: 2.5rem;
+        background: linear-gradient(135deg, #2C3E50 0%, #1A252F 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        color: white;
+    }
+
+    /* --- ESTILOS DE TARJETA DE JUEGO MEJORADOS --- */
+    @keyframes pulse-leyenda {
+        0% { box-shadow: 0 0 30px rgba(176, 79, 255, 0.5); }
+        50% { box-shadow: 0 0 45px rgba(176, 79, 255, 0.9); }
+        100% { box-shadow: 0 0 30px rgba(176, 79, 255, 0.5); }
+    }
+
+    .game-card {
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        position: relative;
+        z-index: 1;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .game-card:hover {
+        transform: translateY(-10px) scale(1.02);
+    }
+
+    .game-card.joined {
+        box-shadow: 0 0 18px rgba(46, 204, 113, 0.25);
+        border: 1px solid rgba(46, 204, 113, 0.35);
+    }
+
+    .joined-badge {
+        position: static;
+        background: rgba(46, 204, 113, 0.18);
+        color: #2ecc71;
+        padding: 0.3rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .join-button.joined {
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #fff;
+    }
+
+    .join-button.joined:hover {
+        background: rgba(0, 0, 0, 0.4);
+        color: #fff;
+    }
+
+    /* Fondos de Tarjeta por Reputación */
+    .game-card.rep-bronce { background: linear-gradient(145deg, #4a4a4a 0%, #2c2c2c 100%); }
+    .game-card.rep-plata { background: linear-gradient(145deg, #b4b4b4 0%, #8c8c8c 100%); }
+    .game-card.rep-oro { background: linear-gradient(145deg, #ffb347 0%, #ffcc33 100%); }
+    .game-card.rep-platino { background: linear-gradient(145deg, #72c6ef 0%, #004e92 100%); }
+    .game-card.rep-leyenda {
+        background: linear-gradient(145deg, #480048 0%, #C04848 100%);
+        animation: pulse-leyenda 2.5s infinite;
+    }
+
+    .reputation-corner-icon {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 4rem;
+        opacity: 0.1;
+        z-index: 0;
+        transform: rotate(15deg);
+        color: #fff;
+    }
+
+    .game-header {
+        padding: 1.2rem 1.5rem;
+        position: relative;
+        background: rgba(0,0,0,0.2);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .game-header h3 {
+        font-weight: 700;
+        margin: 0;
+        position: relative;
+        z-index: 2;
+        color: #fff;
+    }
+
+    .reputation-title-badge {
+        font-size: 1rem;
+        font-weight: 700;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        margin-left: 10px;
+        vertical-align: middle;
+        color: #fff;
+    }
+
+    .rep-bronce .reputation-title-badge { background-color: #A0522D; }
+    .rep-plata .reputation-title-badge { background-color: #808080; color: #fff;}
+    .rep-oro .reputation-title-badge { background-color: #DAA520; color: #000;}
+    .rep-platino .reputation-title-badge { background-color: #007bff; }
+    .rep-leyenda .reputation-title-badge { background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); }
+
+    .game-body {
+        padding: 1.5rem;
+        color: #ECF0F1;
+    }
+
+    .game-footer {
+        padding: 1.2rem 1.5rem;
+        background: rgba(0,0,0,0.25);
+        border-top: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .prize-display {
+        text-align: center;
+        padding: 1rem;
+        background: rgba(0,0,0,0.2);
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+    .prize-display .prize-label {
+        font-size: 1rem;
+        color: #F1C40F;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .prize-display .prize-amount {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.1;
+        text-shadow: 0 3px 8px rgba(0,0,0,0.5);
+    }
+
+    .game-feature {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 0.95rem;
+    }
+    .game-feature i { width: 20px; text-align: center; margin-right: 10px; color: rgba(255,255,255,0.6); }
+    .feature-label { flex: 1; color: rgba(255,255,255,0.8); }
+    .feature-value { font-weight: 600; }
+
+    .announcement-card-game-room {
+        padding: 1rem;
+        border-radius: 15px;
+        background: linear-gradient(145deg, #480048 0%, #C04848 100%);
+        animation: pulse-leyenda 2.5s infinite;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+
+    .announcement-media {
+        position: relative !important;
+        width: 100% !important;
+        padding-top: 56.25% !important; /* Aspect Ratio 16:9 */
+        margin-bottom: 1rem !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        height: auto !important; /* Explicitly set height to auto */
+    }
+
+    .announcement-media img, .announcement-media iframe {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important; /* Use 'contain' to see the whole image */
+    }
+
+    .announcement-card-game-room h5 {
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    }
+
+    .announcement-card-game-room .btn {
+        background-color: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #fff;
+        transition: all 0.3s;
+    }
+
+    .announcement-card-game-room .btn:hover {
+        background-color: rgba(255,255,255,0.2);
+        transform: translateY(-2px);
+    }
+
+    /* Responsive header */
+    @media (max-width: 991.98px) {
+        .lobby-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .lobby-header > div:last-child {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .lobby-header .join-button, .lobby-header .user-balance-badge {
+            justify-content: center;
+        }
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lobby-container">
+    <div class="lobby-header">
+        <div>
+            <h1 class="mb-2"><i class="fas fa-dice me-2"></i>Lobby Premium</h1>
+            <p class="mb-0">Únete a las mejores partidas de bingo online</p>
+        </div>
+        <div class="d-flex align-items-center">
+            <a href="{% url 'profile' %}" class="user-balance-badge me-3">
+                <i class="fas fa-coins"></i>{{ user.credit_balance|floatformat:2 }} créditos
+            </a>
+            <a href="{% url 'request_credits' %}" class="join-button me-3">
+                <i class="fas fa-plus-circle"></i> Comprar Créditos
+            </a>
+            {% if user.is_organizer %}
+            <a href="{% url 'create_game' %}" class="join-button">
+                <i class="fas fa-plus"></i>Crear Sala
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <h2 class="text-white mb-4"><i class="fas fa-gamepad me-2"></i>Salas Disponibles</h2>
+            
+            <div class="row" id="games-list">
+                {% for game in games %}
+                    {% include 'bingo_app/partials/game_card.html' with game=game level=game.organizer.reputation_level joined_game_ids=joined_game_ids %}
+                {% endfor %}
+            </div>
+            <div id="no-games-message" class="no-games" {% if not games %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+                <h4>No hay salas disponibles</h4>
+            </div>
+
+            <h2 class="text-white mb-4 mt-5"><i class="fas fa-ticket-alt me-2"></i>Rifas Disponibles</h2>
+
+            <div class="row" id="raffles-list">
+                {% for raffle in raffles %}
+                    {% include 'bingo_app/partials/raffle_card.html' with raffle=raffle level=raffle.organizer.reputation_level %}
+                {% endfor %}
+            </div>
+            <div id="no-raffles-message" class="no-games" {% if not raffles %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+                <h4>No hay rifas disponibles</h4>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            {% if announcements %}
+            <div class="sticky-top">
+                <div id="lobbyAnnouncementCarousel" class="carousel slide mb-4" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    {% for announcement in announcements %}
+                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                        <div class="announcement-card-game-room">
+                            
+                            {# --- Media Display --- #}
+                            {% if announcement.video_url and announcement.video_url|length > 0 %}
+                                <div class="announcement-media">
+                                    {% with embed_url=announcement.video_url|get_embed_url %}
+                                    {% if embed_url %}
+                                    <iframe {% if forloop.first %}src="{{ embed_url }}"{% else %}data-src="{{ embed_url }}"{% endif %}
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                            allowfullscreen
+                                            referrerpolicy="strict-origin-when-cross-origin"
+                                            title="Video promocional"
+                                            style="width: 100%; height: 100%; border: none;">
+                                    </iframe>
+                                    {% else %}
+                                    <div style="padding: 20px; text-align: center; color: #fff;">
+                                        <p>Error: No se pudo generar la URL de embed para el video.</p>
+                                        <p>URL original: {{ announcement.video_url }}</p>
+                                    </div>
+                                    {% endif %}
+                                    {% endwith %}
+                                </div>
+                            {% elif announcement.image %}
+                                <div class="announcement-media">
+                                    <img src="{{ announcement.image.url }}" alt="{{ announcement.message|truncatewords:5 }}">
+                                </div>
+                            {% endif %}
+    
+                            {# --- Content --- #}
+                            <h5 class="card-title mb-2">{{ announcement.message }}</h5>
+                            
+                            {# --- Action Button --- #}
+                            {% if announcement.announcement_type == 'PROMOTION' %}
+                                {% if announcement.related_game %}
+                                    <a href="{% url 'game_room' announcement.related_game.id %}" class="btn btn-sm mt-2">Ir al Juego</a>
+                                {% elif announcement.related_raffle %}
+                                    <a href="{% url 'raffle_detail' announcement.related_raffle.id %}" class="btn btn-sm mt-2">Ir a la Rifa</a>
+                                {% endif %}
+                            {% elif announcement.external_link %}
+                                <a href="{{ announcement.external_link }}" class="btn btn-sm mt-2" target="_blank">Ver más</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if announcements.count > 1 %}
+                <button class="carousel-control-prev" type="button" data-bs-target="#lobbyAnnouncementCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#lobbyAnnouncementCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Next</span>
+                </button>
+                {% endif %}
+            </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const lobbySocket = new WebSocket(
+        protocol
+        + window.location.host
+        + '/ws/lobby/'
+    );
+
+    lobbySocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        if (data.type === 'new_game') {
+            const gamesList = document.getElementById('games-list');
+            const noGamesMessage = document.getElementById('no-games-message');
+            gamesList.insertAdjacentHTML('afterbegin', data.html);
+            noGamesMessage.style.display = 'none';
+        } else if (data.type === 'new_raffle') {
+            const rafflesList = document.getElementById('raffles-list');
+            const noRafflesMessage = document.getElementById('no-raffles-message');
+            rafflesList.insertAdjacentHTML('afterbegin', data.html);
+            noRafflesMessage.style.display = 'none';
+        }
+    };
+
+    lobbySocket.onclose = function(e) {
+        console.error('Lobby socket closed unexpectedly');
+    };
+
+    // Cargar iframes de YouTube cuando el carrusel cambia de slide
+    document.addEventListener('DOMContentLoaded', function() {
+        const carousel = document.getElementById('lobbyAnnouncementCarousel');
+        if (carousel) {
+            // Función para cargar iframe de un slide específico
+            function loadIframeForSlide(slideElement) {
+                if (!slideElement) return;
+                const iframe = slideElement.querySelector('iframe[data-src]');
+                if (iframe && !iframe.src) {
+                    const dataSrc = iframe.getAttribute('data-src');
+                    if (dataSrc) {
+                        iframe.src = dataSrc;
+                        // Remover el atributo data-src después de cargar
+                        iframe.removeAttribute('data-src');
+                    }
+                }
+            }
+
+            // Cargar el iframe del slide activo inicial
+            const activeSlide = carousel.querySelector('.carousel-item.active');
+            if (activeSlide) {
+                loadIframeForSlide(activeSlide);
+            }
+
+            // Cargar iframes cuando el carrusel cambia de slide
+            carousel.addEventListener('slid.bs.carousel', function(event) {
+                // event.relatedTarget es el slide que se acaba de activar
+                const activeSlide = event.relatedTarget || carousel.querySelector('.carousel-item.active');
+                loadIframeForSlide(activeSlide);
+            });
+
+            // También cargar cuando comienza el cambio (por si acaso)
+            carousel.addEventListener('slide.bs.carousel', function(event) {
+                const nextSlide = event.relatedTarget;
+                // Precargar el iframe del siguiente slide
+                loadIframeForSlide(nextSlide);
+            });
+        }
+    });
+</script>
+{% endblock %}

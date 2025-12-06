@@ -1,0 +1,5040 @@
+{% extends "bingo_app/base.html" %}
+{% load bingo_filters %}
+
+{% block title %}{{ game.name }} - Bingo Online{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Prevenir pull-to-refresh solo en iOS Safari */
+    @supports (-webkit-touch-callout: none) {
+        html, body {
+            overscroll-behavior-y: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .game-room-mobile {
+            overscroll-behavior-y: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+    
+    /* Video Call Styles */
+    #video-streams {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    .video-container {
+        position: relative;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #000;
+        border: 2px solid var(--accent-color);
+    }
+    .video-container video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .video-player {
+        width: 100%;
+        height: 150px;
+    }
+    .username-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 5px;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    /* Announcement Card Highlight */
+    .announcement-card-highlight .card-body {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); /* Gold glow */
+        border: 2px solid #FFD700; /* Gold border */
+        transition: all 0.3s ease-in-out;
+    }
+
+    .announcement-card-highlight:hover .card-body {
+        transform: translateY(-5px);
+        box-shadow: 0 0 30px rgba(255, 215, 0, 1);
+    }
+
+    /* Layout general móvil */
+    .game-room-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding-bottom: 4.6rem; /* reserva espacio para footer fijo reducido */
+    }
+
+    .game-room-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .header-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .utility-icons {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .utility-button {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: none;
+        background: #1e2a3b;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .utility-button:hover,
+    .utility-button:focus {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+    }
+
+    .utility-button .badge-notification {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        background: #ff4757;
+        color: #fff;
+        border-radius: 50%;
+        padding: 2px 6px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        box-shadow: 0 2px 6px rgba(255,71,87,0.4);
+    }
+
+    .current-number-label {
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.8);
+    }
+
+    .compact-info-bar {
+        display: flex;
+        gap: 0.75rem;
+        background: rgba(22, 31, 44, 0.95);
+        border-radius: 14px;
+        padding: 0.5rem 0.65rem;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .compact-info-bar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .compact-info-item {
+        flex: 1 1 105px;
+        min-width: 105px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .compact-info-item span:first-child {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(255,255,255,0.65);
+    }
+
+    .compact-info-item .value {
+        font-weight: 700;
+        color: #fff;
+        font-size: 0.85rem;
+        margin-top: 0.15rem;
+    }
+
+    .progress-mini {
+        width: 100%;
+        height: 8px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 0.4rem;
+        position: relative;
+    }
+
+    .progress-mini .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #f1c40f, #f39c12);
+    }
+
+    .marking-mode-compact {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.65rem;
+        background: rgba(30,42,59,0.9);
+        border-radius: 12px;
+        padding: 0.5rem 0.75rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .marking-mode-compact .mode-title {
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 1.2px;
+        color: rgba(255,255,255,0.7);
+        font-weight: 600;
+    }
+
+    .marking-mode-compact .mode-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .marking-mode-compact .mode-chip {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        padding: 0.25rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.55);
+        font-weight: 600;
+        transition: background 0.2s ease, color 0.2s ease;
+        cursor: pointer;
+    }
+
+    .marking-mode-compact .mode-chip.active {
+        background: linear-gradient(135deg, #1abc9c, #16a085);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(26, 188, 156, 0.35);
+    }
+
+    .marking-mode-compact .mode-switch {
+        position: relative;
+        width: 40px;
+        height: 20px;
+    }
+
+    .marking-mode-compact .mode-switch .form-check-input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .marking-mode-compact .mode-switch-track {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.2);
+        transition: background 0.2s ease;
+    }
+
+    .marking-mode-compact .mode-switch-track::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.2s ease;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+    }
+
+    .marking-mode-compact .mode-switch .form-check-input:checked + .mode-switch-track {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+    }
+
+    .marking-mode-compact .mode-switch .form-check-input:checked + .mode-switch-track::after {
+        transform: translateX(20px);
+    }
+
+    .action-btn {
+        padding: 0.6rem 0.75rem;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    .cards-carousel {
+        display: flex;
+        gap: 0.75rem;
+        overflow-x: auto;
+        padding: 0.25rem 0.45rem 0.45rem;
+        scroll-snap-type: x proximity;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.4) transparent;
+    }
+
+    .cards-carousel::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .cards-carousel::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.35);
+        border-radius: 999px;
+    }
+
+    .cards-carousel .bingo-card {
+        flex: 0 0 clamp(220px, 85vw, 260px);
+        max-width: clamp(220px, 85vw, 260px);
+        scroll-snap-align: center;
+        margin-bottom: 0;
+    }
+
+    .player-cards-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(22, 31, 44, 0.85);
+        border-radius: 14px;
+        padding: 0.45rem 0.75rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+        gap: 0.5rem;
+    }
+
+    .player-cards-meta .meta-left {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        color: rgba(255,255,255,0.75);
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+    }
+
+    .player-cards-meta .label {
+        font-weight: 700;
+    }
+
+    .player-cards-meta .meta-right {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .player-cards-meta .card-counter {
+        font-weight: 700;
+        font-size: 0.85rem;
+        padding: 0.32rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .connected-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(22, 31, 44, 0.82);
+        color: rgba(255,255,255,0.8);
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        backdrop-filter: blur(6px);
+        transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+    }
+
+    .connected-indicator.is-inactive {
+        opacity: 0.65;
+        color: rgba(255,255,255,0.65);
+    }
+
+    .connected-indicator .connected-count-badge {
+        min-width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: rgba(231, 76, 60, 0.88);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 0.45rem;
+        font-size: 0.78rem;
+        box-shadow: 0 3px 12px rgba(231, 76, 60, 0.35);
+    }
+
+    .chat-modal.modal {
+        display: none;
+        align-items: flex-end;
+        justify-content: flex-end;
+        padding: 1.5rem;
+    }
+
+    .chat-modal.show {
+        display: flex !important;
+    }
+
+    .chat-modal-dialog {
+        max-width: 360px;
+        margin: 0 20px 110px auto;
+    }
+
+    .chat-modal-dialog .modal-content {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+        background: rgba(22, 31, 44, 0.97);
+        color: #fff;
+    }
+
+    .chat-modal-dialog .modal-header {
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .chat-modal-dialog .modal-footer {
+        border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    @media (max-width: 768px) {
+        .chat-modal.modal {
+            padding: 1rem;
+        }
+        .chat-modal-dialog {
+            width: 100%;
+            max-width: 320px;
+            margin: 0 12px 90px auto;
+        }
+    }
+
+    .cards-wrapper {
+        position: relative;
+        width: 100%;
+        padding-top: 0.5rem;
+        overflow: visible;
+    }
+
+    .mobile-info-panels {
+        display: none;
+        flex-direction: column;
+        gap: 0.65rem;
+        margin-top: 1rem;
+    }
+
+    .mobile-info-panels .info-panel {
+        background: rgba(22, 31, 44, 0.9);
+        border-radius: 14px;
+        padding: 0.75rem 0.9rem;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+    }
+
+    .mobile-info-panels .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+        color: rgba(255,255,255,0.75);
+        margin-bottom: 0.5rem;
+    }
+
+    .mobile-info-panels .numbers-list {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+
+    .mobile-info-panels .numbers-list span {
+        min-width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(145deg, #3498db, #2980b9);
+        font-weight: 700;
+        color: #fff;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    }
+
+    .mobile-info-panels .numbers-empty {
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.6);
+        margin: 0;
+    }
+
+    .mobile-info-panels .panel-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+    }
+
+    .pattern-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+        margin-top: 0.35rem;
+    }
+
+    .pattern-mini-cell {
+        width: 100%;
+        padding-top: 100%;
+        position: relative;
+        border-radius: 4px;
+        background: rgba(255,255,255,0.08);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+    }
+
+    .pattern-mini-cell.required {
+        background: rgba(231, 76, 60, 0.65);
+        box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25);
+    }
+
+    .pattern-mini-caption {
+        margin-top: 0.4rem;
+        font-size: 0.78rem;
+        color: rgba(255,255,255,0.75);
+        letter-spacing: 0.6px;
+    }
+
+    .compact-sections {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .compact-section {
+        background: rgba(30,42,59,0.9);
+        border-radius: 16px;
+        padding: 0.75rem 1rem;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+    }
+
+    .compact-section summary {
+        list-style: none;
+    }
+
+    .compact-section summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .compact-section summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #fff;
+        letter-spacing: 1px;
+    }
+
+    .compact-section summary span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .compact-section .section-content {
+        margin-top: 0.75rem;
+    }
+
+    .compact-section[open] summary .toggle-icon {
+        transform: rotate(180deg);
+    }
+
+    .toggle-icon {
+        transition: transform 0.2s ease;
+    }
+
+    .mobile-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1040;
+        padding: 0.55rem 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: rgba(13, 20, 30, 0.95);
+        backdrop-filter: blur(14px);
+        border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .mobile-footer .control-balance {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.15rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.65);
+        min-width: 72px;
+    }
+
+    .mobile-footer .control-balance .label {
+        font-weight: 600;
+    }
+
+    .mobile-footer .credit-balance {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.1;
+    }
+
+    .mobile-footer .control-buy {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .mobile-footer .quantity-input {
+        flex: 0 0 78px;
+        padding: 0.35rem 0.5rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.12);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.95rem;
+        text-align: center;
+    }
+
+    .mobile-footer .quantity-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(243, 156, 18, 0.35);
+        background: rgba(255,255,255,0.18);
+    }
+
+    .mobile-footer .btn-accent {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        border: none;
+        border-radius: 14px;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0.45rem 0.9rem;
+        letter-spacing: 0.4px;
+        white-space: nowrap;
+        min-width: 120px;
+        justify-content: center;
+    }
+
+    .mobile-footer .btn-accent:disabled {
+        opacity: 0.45;
+    }
+
+    .footer-spacer {
+        height: 4.1rem;
+    }
+
+    /* Estilos base del juego mejorados */
+    .bingo-card {
+        border: 2px solid var(--accent-color);
+        border-radius: 12px;
+        background: linear-gradient(145deg, #ffffff, #f7f7f7);
+        padding: 10px;
+        margin-bottom: 18px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+        position: relative;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        max-width: 100%;
+    }
+
+    .pattern-grid {
+    border-collapse: collapse;
+    margin: 0 auto;
+}
+
+    .pattern-cell {
+        width: 40px;
+        height: 40px;
+        border: 2px solid #dee2e6;
+        text-align: center;
+        vertical-align: middle;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+
+    .pattern-cell.required {
+        background-color: rgba(231, 76, 60, 0.2);
+        color: var(--accent-color);
+        border-color: var(--accent-color);
+    }
+
+    .pattern-icon {
+        color: var(--primary-color);
+    }
+
+
+    .bingo-letter {
+    background-color: var(--accent-color);
+    color: black;
+    font-weight: bold;
+    text-align: center;
+    padding: 8px;
+    border-radius: 5px;
+}
+
+    .free-cell {
+        background-color: #4CAF50;
+        color: red;
+        font-weight: bold;
+    }
+
+    .bingo-card th,
+    .bingo-card td {
+        width: 20%;
+        text-align: center;
+        vertical-align: middle;
+        font-size: clamp(0.85rem, 2vw, 1.05rem);
+        color: #2C3E50;
+        background-color: #ffffff;
+        border: 1px solid #d9dee7;
+        padding: clamp(6px, 1.6vw, 12px) clamp(4px, 1.2vw, 10px);
+    }
+    
+    .bingo-card table {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+    }
+    
+    .bingo-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+    }
+    
+    .bingo-header {
+        background: linear-gradient(to right, var(--accent-color), #c0392b);
+        color: white;
+        padding: 8px;
+        text-align: center;
+        font-weight: bold;
+        border-radius: 10px 10px 0 0;
+        margin: -12px -12px 12px -12px;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .bingo-cell {
+        display: table-cell;
+        vertical-align: middle;
+        min-height: clamp(40px, 10vw, 56px);
+        font-weight: 700;
+        background: #ffffff;
+        border-radius: 6px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        text-align: center;
+        line-height: 1.15;
+        padding: 0.15rem 0;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .bingo-cell.called {
+        background: linear-gradient(145deg, #ffc107, #ffab00);
+        border-radius: 6px;
+        box-shadow: 0 3px 6px rgba(255,171,0,0.3);
+        color: #2C3E50;
+    }
+    
+    .bingo-cell.clickable-cell {
+        cursor: pointer;
+    }
+    
+    .bingo-cell.clickable-cell:hover {
+        background-color: #e9ecef;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    }
+    
+    .bingo-cell.clickable-cell.manually-marked {
+        background-color: #17a2b8 !important;
+        color: white !important;
+    }
+
+    .bingo-cell.pattern-required::before {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border-radius: 4px;
+        background: rgba(231, 76, 60, 0.18);
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .bingo-cell.pattern-required.called::before,
+    .bingo-cell.pattern-required.manually-marked::before {
+        background: rgba(231, 76, 60, 0.28);
+    }
+    
+    .number-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.9);
+        background: rgba(14, 21, 31, 0.85);
+        border-radius: 18px;
+        padding: 0.7rem 1.1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        color: #fff;
+        box-shadow: 0 18px 35px rgba(0,0,0,0.45);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        z-index: 2;
+        min-width: 120px;
+        max-width: 70vw;
+    }
+
+    .number-overlay.visible {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    .number-overlay .overlay-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 1.35px;
+        color: rgba(255,255,255,0.65);
+        font-weight: 600;
+    }
+
+    .current-number {
+        font-size: 3.2rem;
+        font-weight: 800;
+        line-height: 1;
+        text-shadow: 0 12px 30px rgba(0,0,0,0.45);
+    }
+
+    @media (min-width: 768px) {
+        .number-overlay {
+            position: static;
+            opacity: 1;
+            transform: none;
+            background: rgba(30,42,59,0.9);
+            padding: 0.6rem 1rem;
+            flex-direction: row;
+            gap: 0.6rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .number-overlay.visible {
+            transform: none;
+        }
+
+        .number-overlay .overlay-label {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.75);
+        }
+
+        .current-number {
+            font-size: 3.6rem;
+        }
+    }
+    
+    /* Panel de cr+�ditos mejorado */
+    .credit-panel {
+        background: linear-gradient(135deg, #27ae60, #2ecc71);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+        border: none;
+    }
+    
+    .credit-balance {
+        font-size: 2rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    }
+    
+    .buy-card-btn {
+        transition: all 0.3s;
+        border-radius: 8px;
+        font-weight: bold;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+    
+    .buy-card-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+    }
+    
+    /* Chat y n+�meros llamados mejorados */
+    #chat-messages {
+        height: 300px;
+        overflow-y: auto;
+        background: #161f2c;
+        border: 1px solid #161f2c;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--accent-color) #161f2c;
+    }
+    
+    #chat-messages::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    #chat-messages::-webkit-scrollbar-track {
+        background: #161f2c;
+        border-radius: 3px;
+    }
+    
+    #chat-messages::-webkit-scrollbar-thumb {
+        background-color: var(--accent-color);
+        border-radius: 3px;
+    }
+    
+    .chat-message {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        background: #161f2c;
+        border-left: 4px solid var(--accent-color);
+    }
+    
+    .message-user {
+        color: white;
+    }
+    
+    .message-time {
+        color: #6c757d;
+    }
+    
+    .called-numbers-container {
+        background: #161f2c;
+        border: 1px solid #dee2e6;
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 25px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .called-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(to bottom, #3498db, #2980b9);
+        color: white;
+        text-align: center;
+        margin: 5px;
+        border-radius: 50%;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Added text shadow */
+    }
+    
+    .called-number.newest {
+        background: linear-gradient(to bottom, #e74c3c, #c0392b);
+        transform: scale(1.3);
+        box-shadow: 0 0 15px rgba(231,76,60,0.5);
+    }
+    
+    @media (min-width: 992px) {
+        .game-room-mobile {
+            padding-bottom: 0;
+        }
+
+        .cards-carousel {
+            flex-wrap: wrap;
+            overflow-x: visible;
+            padding: 0;
+        }
+
+        .cards-carousel .bingo-card {
+            flex: 1 1 calc(33.333% - 1rem);
+            min-width: 0;
+            margin-bottom: 1rem;
+        }
+
+        .mobile-footer {
+            position: static;
+            background: transparent;
+            backdrop-filter: none;
+            border-top: none;
+            padding: 0;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .mobile-footer .control-balance {
+            flex-direction: row;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #2C3E50;
+        }
+
+        .mobile-footer .credit-balance {
+            color: #2C3E50;
+            font-size: 1.25rem;
+        }
+
+        .mobile-footer .quantity-input {
+            background: #ffffff;
+            color: #2C3E50;
+            border: 1px solid rgba(0,0,0,0.12);
+        }
+
+        .footer-spacer {
+            display: none;
+        }
+    }
+
+    /* Botones principales mejorados */
+    .game-control-btn {
+        font-size: 1.2rem;
+        padding: 12px 25px;
+        transition: all 0.3s;
+        border-radius: 10px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .game-control-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Animaciones mejoradas */
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+    }
+    
+    .pulse-animation {
+        animation: pulse 1s infinite;
+    }
+    
+    .prize-increase-animation {
+        animation: pulse 0.5s 2;
+    }
+    
+    /* Estado del juego mejorado */
+    .game-status-badge {
+        font-size: 1rem;
+        margin-top: 10px;
+        padding: 8px 15px;
+        border-radius: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    /* Loader mejorado */
+    .btn-loader {
+        display: inline-block;
+        width: 1.2rem;
+        height: 1.2rem;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 0.8s linear infinite;
+        margin-right: 10px;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Premio progresivo mejorado */
+    .prize-card {
+        transition: all 0.3s;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        position: relative;
+        overflow: hidden;
+        border-radius: 15px;
+    }
+    
+    .prize-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+            to bottom right,
+            rgba(255,255,255,0.1) 0%,
+            rgba(255,255,255,0) 50%,
+            rgba(255,255,255,0.1) 100%
+        );
+        transform: rotate(30deg);
+        animation: shine 3s infinite;
+    }
+    
+    @keyframes shine {
+        0% { transform: translateX(-100%) rotate(30deg); }
+        100% { transform: translateX(100%) rotate(30deg); }
+    }
+    
+    .prize-header {
+        background: linear-gradient(135deg, #8e44ad, #9b59b6);
+        border-bottom: none;
+        color: white;
+        font-size: 1.2rem;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .prize-body {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        padding: 20px;
+    }
+    
+    .prize-increase-badge {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: linear-gradient(to bottom, #2ecc71, #27ae60);
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        z-index: 1;
+    }
+    
+    /* Progreso mejorado */
+    .progress-info {
+        margin-bottom: 20px;
+    }
+    
+    .progress {
+        height: 12px;
+        border-radius: 10px;
+        background-color: #e9ecef;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .progress-bar {
+        background: linear-gradient(to right, #2ecc71, #27ae60);
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(46,204,113,0.3);
+        transition: width 0.6s ease;
+    }
+    
+    /* Jugadores mejorado */
+    .player-list {
+        max-height: 300px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--accent-color) #161f2c;
+    }
+    
+    .player-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .player-list::-webkit-scrollbar-track {
+        background: #161f2c;
+        border-radius: 3px;
+    }
+    
+    .player-list::-webkit-scrollbar-thumb {
+        background-color: var(--accent-color);
+        border-radius: 3px;
+    }
+    
+    .player-item {
+        padding: 12px 15px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        background: #161f2c;
+        transition: all 0.2s;
+        border-left: 4px solid transparent;
+    }
+    
+    .player-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+    
+    .player-item.organizer {
+        border-left-color: var(--primary-color);
+        background: rgba(44, 62, 80, 0.05);
+    }
+    
+    .player-item.winner {
+        border-left-color: #27ae60;
+        background: rgba(39, 174, 96, 0.05);
+    }
+    
+    /* Efectos especiales para bingo */
+    .bingo-win-effect {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0,0,0,0.5);
+        opacity: 0;
+        transition: opacity 0.5s;
+    }
+    
+    .bingo-text {
+        font-size: 8rem;
+        font-weight: bold;
+        color: #ffc107;
+        text-shadow: 0 0 20px #ff5722;
+        transform: scale(0);
+        animation: bingoReveal 1s forwards;
+    }
+    
+    @keyframes bingoReveal {
+        0% { transform: scale(0); opacity: 0; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .current-number {
+            font-size: 2.9rem;
+        }
+        
+        .bingo-cell {
+            width: 38px;
+            height: 36px;
+            font-size: 0.9rem;
+        }
+        
+        .prize-card .display-4 {
+            font-size: 2rem !important;
+        }
+
+        .cards-carousel {
+            gap: 0.75rem;
+            padding: 0.25rem 0.35rem 0.45rem;
+        }
+
+        .mobile-info-panels {
+            display: flex;
+        }
+
+        .cards-wrapper {
+            max-height: 45vh;
+        }
+
+        .cards-wrapper .cards-carousel {
+            height: 100%;
+            align-items: stretch;
+        }
+
+        .cards-wrapper .bingo-card {
+            min-width: clamp(200px, 80vw, 240px);
+            max-width: clamp(200px, 80vw, 240px);
+            padding: 8px;
+        }
+
+        .cards-wrapper .bingo-card th,
+        .cards-wrapper .bingo-card td {
+            font-size: 0.95rem;
+            padding: 8px 4px;
+        }
+
+        .player-cards-meta {
+            padding: 0.4rem 0.65rem;
+            border-radius: 12px;
+            background: rgba(22, 31, 44, 0.88);
+        }
+
+        .player-cards-meta .card-counter {
+            font-size: 0.78rem;
+            padding: 0.25rem 0.7rem;
+        }
+
+        .action-btn {
+            font-size: 0.85rem;
+            padding: 0.5rem 0.65rem;
+        }
+
+        .compact-sections {
+            display: none;
+        }
+    }
+
+    .announcement-card-game-room {
+        border-radius: 15px;
+        border: none;
+        color: #fff;
+        padding: 1rem;
+        text-align: center;
+        background: linear-gradient(145deg, #480048 0%, #C04848 100%);
+        animation: pulse-leyenda 2.5s infinite;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .announcement-card-game-room h5 {
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        font-size: 1rem;
+    }
+
+    .announcement-card-game-room .btn {
+        background-color: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #fff;
+        transition: all 0.3s;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .announcement-media {
+        position: relative !important;
+        width: 100% !important;
+        padding-top: 56.25% !important; /* Aspect Ratio 16:9 */
+        margin-bottom: 1rem !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        height: auto !important; /* Explicitly set height to auto */
+    }
+
+    .announcement-media iframe,
+    .announcement-media img {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important; /* Use 'contain' to see the whole image */
+        border: none !important;
+    }
+
+    .announcement-card-game-room .btn:hover {
+        background-color: rgba(255,255,255,0.2);
+        transform: translateY(-2px);
+    }
+
+    /* Estilos para el panel de videollamada flotante */
+    .video-call-panel {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 350px;
+        max-height: 500px;
+        background: linear-gradient(145deg, #2C3E50, #34495E);
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        z-index: 1000;
+        transition: all 0.3s ease;
+        display: none;
+    }
+
+    /* Modo Completo (por defecto) */
+    .video-call-panel.mode-full {
+        width: 350px;
+        max-height: 500px;
+    }
+
+    /* Modo Compacto */
+    .video-call-panel.mode-compact {
+        width: 250px;
+        max-height: 350px;
+    }
+
+    .video-call-panel.mode-compact #local-video-container {
+        height: 120px;
+    }
+
+    .video-call-panel.mode-compact .remote-video-wrapper {
+        height: 80px;
+    }
+
+    .video-call-panel.mode-compact .video-call-header {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    .video-call-panel.mode-compact .video-control-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 0.85rem;
+    }
+
+    /* Modo Mini (solo cuando est+� minimizado) */
+    .video-call-panel.mode-mini {
+        width: 180px;
+        max-height: 60px;
+    }
+
+    .video-call-panel.mode-mini .video-call-body,
+    .video-call-panel.mode-mini .video-controls {
+        display: none;
+    }
+
+    .video-call-panel.mode-mini .video-call-header {
+        border-radius: 15px;
+        padding: 10px 15px;
+    }
+
+    /* Posiciones del panel */
+    .video-call-panel.pos-bottom-right {
+        bottom: 20px;
+        right: 20px;
+        top: auto;
+        left: auto;
+    }
+
+    .video-call-panel.pos-bottom-left {
+        bottom: 20px;
+        left: 20px;
+        top: auto;
+        right: auto;
+    }
+
+    .video-call-panel.pos-top-right {
+        top: 80px;
+        right: 20px;
+        bottom: auto;
+        left: auto;
+    }
+
+    .video-call-panel.pos-top-left {
+        top: 80px;
+        left: 20px;
+        bottom: auto;
+        right: auto;
+    }
+
+    .video-call-panel.show {
+        display: block;
+    }
+
+    .video-call-header {
+        background: linear-gradient(to right, var(--accent-color), #c0392b);
+        color: white;
+        padding: 15px;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+    }
+
+    .video-call-header-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+    }
+
+    .video-call-header-actions {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+
+    .video-header-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        font-size: 0.8rem;
+    }
+
+    .video-header-btn:hover {
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.1);
+    }
+
+    .video-header-btn.active {
+        background: rgba(39, 174, 96, 0.5);
+    }
+
+    .video-call-body {
+        padding: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    #local-video-container {
+        width: 100%;
+        height: 180px;
+        background: #000;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    #remote-videos-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .remote-video-wrapper {
+        width: 100%;
+        height: 120px;
+        background: #000;
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .video-player {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .video-username {
+        position: absolute;
+        bottom: 5px;
+        left: 5px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 5px;
+        font-size: 0.75rem;
+    }
+
+    .video-controls {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 0 0 15px 15px;
+    }
+
+    .video-control-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-control-btn.active {
+        background: #27ae60;
+    }
+
+    .video-control-btn.inactive {
+        background: #e74c3c;
+    }
+
+    /* Ajustes responsivos para pantallas móviles */
+    @media (max-width: 768px) {
+        .number-overlay {
+            padding: 0.75rem 1.05rem;
+            border-radius: 16px;
+            background: rgba(10,16,24,0.92);
+        }
+
+        .current-number {
+            font-size: 2.8rem;
+        }
+
+        .mode-toggle .mode-chip {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+        }
+
+        .card.prize-card .card-header {
+            padding: 0.9rem 1rem;
+        }
+
+        .card.prize-card .card-body {
+            padding: 1.1rem 1rem 1.25rem;
+        }
+
+        .card.prize-card .display-4 {
+            font-size: 2rem !important;
+        }
+
+        .card.prize-card .row.g-3 {
+            row-gap: 0.7rem;
+        }
+
+        .credit-panel {
+            padding: 14px;
+            margin-bottom: 18px;
+            border-radius: 12px;
+        }
+
+        .credit-panel .credit-balance {
+            font-size: 1.7rem;
+        }
+
+        .credit-panel .input-group {
+            max-width: 100%;
+        }
+
+        .bingo-card {
+            padding: 8px;
+            margin-bottom: 16px;
+            border-radius: 12px;
+        }
+
+        .bingo-header {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .bingo-card th,
+        .bingo-card td {
+            height: 42px;
+        }
+
+        .bingo-cell {
+            height: auto;
+            min-height: 42px;
+            font-size: 0.95rem;
+            margin: 0;
+            border-radius: 6px;
+        }
+
+        .called-numbers-container h5 {
+            font-size: 1rem;
+        }
+
+        #called-numbers {
+            gap: 6px;
+        }
+
+        .called-number {
+            font-size: 0.85rem;
+            padding: 6px 10px;
+        }
+
+        .card.prize-card {
+            margin-top: 8px !important;
+            margin-bottom: 16px !important;
+            border-radius: 12px;
+        }
+
+        .card.prize-card .card-header {
+            display: none;
+        }
+
+        .card.prize-card .card-body {
+            padding: 0.95rem 1rem 1.15rem;
+            background: linear-gradient(135deg, #ffffff, #f6f9fb);
+            border-radius: 12px;
+        }
+
+        .card.prize-card .display-4 {
+            font-size: 1.85rem !important;
+            margin-bottom: 0.35rem !important;
+        }
+
+        .card.prize-card .text-muted.small {
+            font-size: 0.78rem;
+        }
+
+        .card.prize-card .row.g-3 {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card.prize-card .row.g-3 > div {
+            width: 100%;
+        }
+
+        .card.prize-card .p-3 {
+            padding: 0.65rem 0.8rem !important;
+            margin-bottom: 0 !important;
+        }
+
+        .progress-info .progress {
+            height: 8px;
+        }
+
+        .card.shadow.mb-4,
+        .card.mt-4 {
+            margin-bottom: 1rem !important;
+        }
+
+        .card .card-body {
+            padding: 1rem;
+        }
+
+        .card .card-header {
+            padding: 0.9rem 1rem;
+        }
+
+        .game-status-badge {
+            font-size: 0.85rem;
+            padding: 0.45rem 0.8rem;
+        }
+
+        .btn.btn-lg {
+            padding: 0.65rem 1rem;
+            font-size: 0.95rem;
+        }
+
+        .btn.btn-warning.btn-lg {
+            padding: 0.7rem 1.1rem;
+        }
+
+        .card .form-control,
+        .card .form-select {
+            padding: 0.55rem 0.75rem;
+            font-size: 0.92rem;
+        }
+
+        .credit-panel {
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            background: rgba(44, 62, 80, 0.12);
+            color: #2C3E50;
+        }
+
+        .credit-panel .d-flex {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.65rem;
+        }
+
+        .credit-panel h5 {
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .credit-panel .credit-balance {
+            font-size: 1.65rem;
+        }
+
+        .credit-panel small {
+            font-size: 0.78rem;
+        }
+
+        .credit-panel .input-group {
+            max-width: 100% !important;
+        }
+
+        h3.mb-3 {
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 12px !important;
+        }
+
+        .current-number-summary {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .summary-box {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            color: #fff;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        .summary-label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.85;
+            margin-bottom: 0.25rem;
+        }
+
+        .summary-value {
+            display: block;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .summary-prize::before {
+            content: '$';
+            margin-right: 2px;
+        }
+
+        .summary-credit::before {
+            content: '$';
+            margin-right: 2px;
+        }
+
+        .summary-pattern {
+            font-size: 1rem;
+            line-height: 1.2;
+            text-transform: none;
+        }
+
+        .compact-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .compact-badges .badge {
+            margin: 0;
+        }
+
+        #cards-container {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 12px;
+            overflow-x: auto;
+            margin: 0 -12px 18px;
+            padding: 0 12px 8px;
+        }
+
+        #cards-container > [class*="col-"] {
+            flex: 0 0 208px;
+            max-width: 208px;
+            padding: 0;
+        }
+
+        .player-list .list-group-item {
+            padding: 0.55rem 0.75rem;
+            font-size: 0.92rem;
+        }
+
+        .card-header h3 {
+            font-size: 1.05rem;
+        }
+
+        .pattern-icon i {
+            font-size: 2.2rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .current-number {
+            font-size: 2.4rem;
+        }
+
+        .number-overlay {
+            min-width: 110px;
+            padding: 0.6rem 0.9rem;
+        }
+
+        .card.prize-card .card-header h4 {
+            font-size: 1.05rem;
+        }
+
+        .credit-panel h5 {
+            font-size: 1rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .credit-panel small {
+            font-size: 0.8rem;
+        }
+
+        .bingo-card th,
+        .bingo-card td {
+            padding: 6px 3px;
+            font-size: 0.9rem;
+        }
+
+        .bingo-cell {
+            font-size: 1rem;
+        }
+
+        .card .card-body {
+            padding: 0.85rem;
+        }
+
+        .card .card-header {
+            padding: 0.75rem 0.9rem;
+        }
+
+        #cards-container > [class*="col-"] {
+            flex: 0 0 190px;
+            max-width: 190px;
+        }
+    }
+
+    .video-toggle-btn {
+        position: fixed;
+        bottom: 12px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, var(--accent-color), #c0392b);
+        color: white;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4);
+        transition: all 0.3s;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-toggle-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 7px 25px rgba(231, 76, 60, 0.6);
+    }
+
+    .video-toggle-btn.active {
+        background: linear-gradient(145deg, #27ae60, #229954);
+        box-shadow: 0 5px 20px rgba(39, 174, 96, 0.4);
+    }
+
+    .participants-count {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ffc107;
+        color: #000;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .chat-fab-btn {
+        position: fixed;
+        bottom: 180px;
+        right: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #3498db, #2c82c9);
+        color: #fff;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 5px 18px rgba(52, 152, 219, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        z-index: 998;
+    }
+
+    .chat-fab-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 22px rgba(52, 152, 219, 0.45);
+    }
+
+    .chat-fab-btn i {
+        font-size: 1.4rem;
+    }
+
+    .chat-fab-btn .badge-notification {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: #e74c3c;
+        color: #fff;
+        border-radius: 50%;
+        min-width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(231, 76, 60, 0.45);
+    }
+
+    @media (max-width: 768px) {
+        .chat-fab-btn {
+            bottom: 165px;
+            right: 18px;
+            width: 50px;
+            height: 50px;
+        }
+        .chat-fab-btn i {
+            font-size: 1.25rem;
+        }
+    }
+
+    /* Tooltip de modo actual */
+    .panel-mode-indicator {
+        position: absolute;
+        top: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+
+    .video-call-panel:hover .panel-mode-indicator {
+        opacity: 1;
+    }
+
+    /* Scrollbar personalizado para el panel */
+    .video-call-body::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .video-call-body::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.2);
+        border-radius: 3px;
+    }
+
+    .video-call-body::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.3);
+        border-radius: 3px;
+    }
+
+    .video-call-body::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.5);
+    }
+
+    @media (max-width: 768px) {
+        .video-call-panel {
+            width: calc(100% - 40px) !important;
+            max-width: 350px !important;
+            max-height: 300px !important;
+            right: 20px !important;
+            left: auto !important;
+            bottom: 96px;
+        }
+
+        .video-call-panel.mode-compact {
+            width: 280px !important;
+            max-height: 200px !important;
+        }
+
+        .video-call-panel.pos-bottom-left,
+        .video-call-panel.pos-bottom-right,
+        .video-call-panel.pos-top-left,
+        .video-call-panel.pos-top-right {
+            right: 20px !important;
+            left: auto !important;
+        }
+
+        .video-call-panel.pos-top-left,
+        .video-call-panel.pos-top-right {
+            top: 70px;
+        }
+
+        .video-toggle-btn {
+            bottom: 96px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+        }
+
+        #remote-videos-container {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .remote-video-wrapper {
+            height: 60px;
+            min-width: 0;
+        }
+        
+        #local-video-container {
+            height: 80px;
+        }
+        
+        #remote-videos-container {
+            max-height: 120px;
+        }
+        
+        .video-control-btn {
+            width: 35px;
+            height: 35px;
+            font-size: 0.85rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .video-header-btn {
+            width: 24px;
+            height: 24px;
+            font-size: 0.7rem;
+        }
+
+        .video-call-header {
+            padding: 10px;
+        }
+
+        .video-call-header-title {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="game-room-mobile container-fluid px-0">
+    <div class="game-room-header">
+        <div class="header-actions">
+            <span>
+                {% if game.is_finished %}
+                <span class="badge bg-danger game-status-badge">
+                    <i class="fas fa-flag-checkered me-1"></i>
+                    Juego terminado - 
+                    {% if winners|length > 1 %}
+                        Ganadores: {{ winners|length }} (
+                        {% for winner in winners %}{{ winner.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        )
+                    {% elif winners|length == 1 %}
+                        Ganador: {{ winners.0.username }}
+                    {% elif game.winner %}
+                        Ganador: {{ game.winner.username }}
+                    {% else %}
+                        ---
+                    {% endif %}
+                </span>
+                {% elif game.is_started %}
+                    {% if game.is_auto_calling %}
+                    <span class="badge bg-success game-status-badge">
+                        <i class="fas fa-robot me-1"></i>
+                        Llamada automática: cada {{ game.auto_call_interval }} segundos
+                    </span>
+                    {% else %}
+                    <span class="badge bg-primary game-status-badge">
+                        <i class="fas fa-play me-1"></i>
+                        Juego en progreso
+                    </span>
+                    {% endif %}
+                {% else %}
+                <span class="badge bg-secondary game-status-badge">
+                    <i class="fas fa-hourglass-start me-1"></i>
+                    Juego no iniciado
+                </span>
+                {% endif %}
+            </span>
+            <div class="utility-icons">
+                <button class="utility-button" data-bs-toggle="modal" data-bs-target="#infoModal" title="Información del juego">
+                    <i class="fas fa-info"></i>
+                </button>
+                <button class="utility-button" data-bs-toggle="modal" data-bs-target="#calledNumbersModal" title="Números llamados">
+                    <i class="fas fa-list-ol"></i>
+                </button>
+                {% if request.user == game.organizer and not game.is_finished %}
+                <button class="utility-button" data-bs-toggle="modal" data-bs-target="#organizerControlsModal" title="Controles del organizador">
+                    <i class="fas fa-user-shield"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="compact-info-bar">
+            <div class="compact-info-item">
+            <span><i class="fas fa-trophy me-1"></i>Premio</span>
+                <div class="value">
+                    <span class="currency-prefix">$</span>
+                    <span id="current-prize-display">{{ game.current_prize|default:0|floatformat:2 }}</span>
+                </div>
+            </div>
+            <div class="compact-info-item">
+                <span><i class="fas fa-tag me-1"></i>Precio Cartón</span>
+                <div class="value">${{ game.card_price|floatformat:2 }}</div>
+            </div>
+            <div class="compact-info-item">
+            <span><i class="fas fa-ticket-alt me-1"></i>Cartones</span>
+                <div class="value" id="total-cards-display">{{ game.total_cards_sold }}</div>
+            </div>
+            <div class="compact-info-item">
+            <span><i class="fas fa-bullseye me-1"></i>Meta</span>
+                <div class="value" id="next-prize-target">{{ game.next_prize_target|default:"-" }}</div>
+                <small class="text-muted mt-1" id="progress-text">
+                    {% if game.next_prize_target %}
+                        {{ game.total_cards_sold }}/{{ game.next_prize_target }}
+                    {% else %}
+                        Sin meta
+                    {% endif %}
+                </small>
+            </div>
+            <div class="compact-info-item">
+                <span><i class="fas fa-th-large me-1"></i>Modalidad</span>
+                <div class="value" id="header-pattern">{{ game.get_winning_pattern_display }}</div>
+            </div>
+        </div>
+        {% if game.next_prize_target %}
+        <div class="progress-mini">
+            <div class="progress-bar" id="progress-bar" style="width: {{ game.progress_percentage }}%;"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="marking-mode-compact">
+        <span class="mode-title">Marcado</span>
+        <div class="mode-toggle">
+            <span class="mode-chip mode-chip-auto{% if not player.is_manual_marking %} active{% endif %}" id="mode-chip-auto">Auto</span>
+            <label class="mode-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="marking-mode-toggle" {% if player.is_manual_marking %}checked{% endif %}>
+                <span class="mode-switch-track"></span>
+            </label>
+            <span class="mode-chip mode-chip-manual{% if player.is_manual_marking %} active{% endif %}" id="mode-chip-manual">Manual</span>
+        </div>
+    </div>
+
+    <div class="player-cards-meta mt-2 px-2">
+        <div class="meta-left">
+            <i class="fas fa-ticket-alt me-1"></i>
+            <span class="label text-uppercase">Cartones</span>
+        </div>
+        <div class="meta-right">
+            <span class="badge bg-dark card-counter" id="player-card-counter">{{ player.cards|length }}/{{ game.max_cards_per_player }}</span>
+            <div class="connected-indicator is-inactive" id="connected-indicator">
+                <i class="fas fa-signal"></i>
+                <span class="indicator-label text-uppercase">Conectados</span>
+                <span class="connected-count-badge" id="connected-count">0</span>
+            </div>
+        </div>
+    </div>
+    {% get_pattern_mask game as pattern_mask %}
+    {{ pattern_mask|json_script:"pattern-mask-data" }}
+    <div class="cards-wrapper">
+        <div class="number-overlay" id="number-overlay">
+            <span class="overlay-label">Número</span>
+            <div class="current-number" id="current-number">
+                {% if game.current_number %}{{ game.current_number }}{% else %}---{% endif %}
+            </div>
+        </div>
+        <div id="number-status" class="visually-hidden" aria-live="polite"></div>
+        <div class="cards-carousel mt-1" id="cards-container">
+            {% for card in player.cards %}
+            <div class="bingo-card">
+                <div class="bingo-header">Cartón {{ forloop.counter }}</div>
+                <table class="table table-bordered text-center mb-0">
+                    <tr>
+                        <th class="bingo-letter">B</th>
+                        <th class="bingo-letter">I</th>
+                        <th class="bingo-letter">N</th>
+                        <th class="bingo-letter">G</th>
+                        <th class="bingo-letter">O</th>
+                    </tr>
+                    {% for row in card %}
+                    <tr>
+                        {% for num in row %}
+                        <td class="bingo-cell{% if pattern_mask|get_item:forloop.parentloop.counter0|get_item:forloop.counter0 %} pattern-required{% endif %}
+                            {% if num in game.called_numbers %} called{% endif %}
+                            {% if num == 0 %} free-cell{% endif %}
+                            {% if player.is_manual_marking and num != 0 %} clickable-cell{% endif %}"
+                            id="cell-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                            data-number="{{ num }}"
+                            data-card="{{ forloop.parentloop.parentloop.counter }}"
+                            data-row="{{ forloop.parentloop.counter }}"
+                            data-col="{{ forloop.counter }}">
+                            {% if num == 0 %}KUSU{% else %}{{ num }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% empty %}
+            <div class="bingo-card empty-state" id="empty-cards-placeholder">
+                <div class="bingo-header">Sin cartones</div>
+                <div class="p-4 text-center text-muted">
+                    Aún no has comprado cartones. Usa la barra inferior para adquirirlos.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mobile-info-panels">
+        <div class="info-panel info-panel-called">
+            <div class="panel-header">
+                <span><i class="fas fa-list-ol me-2"></i>Números llamados</span>
+                <button class="btn btn-sm btn-outline-light panel-link" type="button" data-bs-toggle="modal" data-bs-target="#calledNumbersModal">
+                    Ver todos
+                </button>
+            </div>
+            {% with last_numbers=game.called_numbers|slice:'-5:' %}
+            <div class="numbers-list" id="mobile-called-numbers">
+                {% if last_numbers %}
+                    {% for num in last_numbers reversed %}
+                    <span>{{ num }}</span>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            <p class="numbers-empty mb-0{% if last_numbers %} d-none{% endif %}" id="mobile-no-numbers">Aún no hay números llamados.</p>
+            {% endwith %}
+        </div>
+
+        <div class="info-panel info-panel-pattern">
+            <div class="panel-header">
+                <span><i class="fas fa-chess-board me-2"></i>Patrón ganador</span>
+            </div>
+            <div class="pattern-mini-grid">
+                {% for row in pattern_mask %}
+                    {% for cell in row %}
+                    <span class="pattern-mini-cell{% if cell %} required{% endif %}"></span>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+            <p class="pattern-mini-caption mb-0">{{ game.get_winning_pattern_display }}</p>
+        </div>
+    </div>
+
+    <div class="compact-sections mt-3">
+        <details class="compact-section" id="called-numbers-section">
+            <summary>
+                <span><i class="fas fa-list-ol me-2"></i>Números llamados</span>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </summary>
+            <div class="section-content called-numbers-container">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted" id="called-total-main">Total: {{ game.called_numbers|length }}/75</small>
+                    <span class="badge bg-primary" id="called-latest-main">{% if game.current_number %}Último: {{ game.current_number }}{% else %}Aún ninguno{% endif %}</span>
+                </div>
+                <div id="called-numbers" class="d-flex flex-wrap">
+                    {% for num in game.called_numbers %}
+                    <span class="called-number {% if num == game.current_number %}newest{% endif %}">{{ num }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </details>
+
+        <details class="compact-section">
+            <summary>
+                <span><i class="fas fa-chess-board me-2"></i>Patrón ganador</span>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </summary>
+            <div class="section-content text-center">
+                {% if game.winning_pattern == 'CUSTOM' and game.custom_pattern %}
+                    <h6 class="text-uppercase text-muted mb-3">Patrón Personalizado</h6>
+                    <div class="pattern-display mb-3">
+                        <table class="pattern-grid mx-auto">
+                            {% for row in game.custom_pattern %}
+                            <tr>
+                                {% for cell in row %}
+                                <td class="pattern-cell {% if cell == 1 %}required{% endif %}">
+                                    {% if cell == 1 %}✓{% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                    <p class="text-muted small">Las casillas marcadas (✓) son necesarias para ganar.</p>
+                {% else %}
+                    <div class="pattern-icon mb-3">
+                        {% if game.winning_pattern == 'HORIZONTAL' %}
+                            <i class="fas fa-grip-lines fa-3x"></i>
+                            <p class="mt-2">Línea horizontal completa</p>
+                        {% elif game.winning_pattern == 'VERTICAL' %}
+                            <i class="fas fa-grip-lines-vertical fa-3x"></i>
+                            <p class="mt-2">Línea vertical completa</p>
+                        {% elif game.winning_pattern == 'DIAGONAL' %}
+                            <i class="fas fa-times fa-3x"></i>
+                            <p class="mt-2">Línea diagonal (X)</p>
+                        {% elif game.winning_pattern == 'FULL' %}
+                            <i class="fas fa-border-all fa-3x"></i>
+                            <p class="mt-2">Cartón completo</p>
+                        {% elif game.winning_pattern == 'CORNERS' %}
+                            <i class="fas fa-vector-square fa-3x"></i>
+                            <p class="mt-2">Cuatro esquinas</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </details>
+
+        {% if announcements %}
+        <details class="compact-section">
+            <summary>
+                <span><i class="fas fa-bullhorn me-2"></i>Anuncios</span>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </summary>
+            <div class="section-content">
+                <div id="gameRoomAnnouncementCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="8000">
+                    <div class="carousel-inner" style="border-radius: 12px;">
+                        {% for announcement in announcements %}
+                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                            <div class="announcement-card-game-room">
+                                {% if announcement.video_url and announcement.video_url|length > 0 %}
+                                    <div class="announcement-media">
+                                        {% with embed_url=announcement.video_url|get_embed_url %}
+                                        {% if embed_url %}
+                                        <iframe {% if forloop.first %}src="{{ embed_url }}"{% else %}data-src="{{ embed_url }}"{% endif %}
+                                                frameborder="0"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                allowfullscreen
+                                                referrerpolicy="strict-origin-when-cross-origin"
+                                                title="Video promocional"
+                                                style="width: 100%; height: 100%; border: none;"></iframe>
+                                        {% else %}
+                                        <div style="padding: 20px; text-align: center; color: #fff;">
+                                            <p>Error: No se pudo generar la URL de embed para el video.</p>
+                                            <p>URL original: {{ announcement.video_url }}</p>
+                                        </div>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                {% elif announcement.image %}
+                                    <div class="announcement-media">
+                                        <img src="{{ announcement.image.url }}"
+                                             alt="{{ announcement.message|truncatewords:5 }}"
+                                             onerror="this.parentElement.style.display='none';">
+                                    </div>
+                                {% endif %}
+                                <h5 class="card-title mb-2">{{ announcement.message }}</h5>
+                                {% if announcement.announcement_type == 'PROMOTION' %}
+                                    {% if announcement.related_game %}
+                                        <a href="{% url 'game_room' announcement.related_game.id %}" class="btn btn-sm btn-primary mt-2">Ir al Juego</a>
+                                    {% elif announcement.related_raffle %}
+                                        <a href="{% url 'raffle_detail' announcement.related_raffle.id %}" class="btn btn-sm btn-primary mt-2">Ir a la Rifa</a>
+                                    {% endif %}
+                                {% elif announcement.external_link %}
+                                    <a href="{{ announcement.external_link }}" class="btn btn-sm btn-secondary mt-2" target="_blank">Ver más</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if announcements.count > 1 %}
+                    <button class="carousel-control-prev" type="button" data-bs-target="#gameRoomAnnouncementCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Anterior</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#gameRoomAnnouncementCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Siguiente</span>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </details>
+        {% endif %}
+
+    </div>
+</div>
+
+<div class="footer-spacer d-md-none"></div>
+
+<div class="mobile-footer control-dock">
+    <div class="control-balance">
+        <span class="label">Saldo</span>
+        <span class="credit-balance">{{ request.user.credit_balance|floatformat:2 }}</span>
+    </div>
+    <div class="control-buy">
+        <input type="number"
+               class="form-control quantity-input"
+               value="1"
+               min="1"
+               id="buy-card-quantity"
+               aria-label="Cantidad de cartones">
+        <button id="buy-card-btn"
+                class="btn btn-accent buy-card-btn"
+                {% if player.cards|length >= game.max_cards_per_player or game.is_started or game.is_finished %}disabled{% endif %}>
+            <i class="fas fa-shopping-cart me-1"></i>
+            Comprar
+        </button>
+    </div>
+</div>
+
+<div class="bingo-win-effect" id="bingo-effect">
+    <div class="bingo-text">¡BINGO!</div>
+</div>
+
+<button class="video-toggle-btn" id="video-toggle-btn" title="Videollamada grupal">
+    <i class="fas fa-video"></i>
+    <span class="participants-count" id="participants-count">0</span>
+</button>
+
+<button class="chat-fab-btn" id="chat-fab-btn" title="Chat de la sala">
+    <i class="fas fa-comments"></i>
+    <span class="badge-notification d-none" id="chat-unread-badge"></span>
+</button>
+
+<div class="video-call-panel pos-bottom-right mode-full" id="video-call-panel">
+    <div class="panel-mode-indicator" id="panel-mode-indicator">📺 Modo Completo</div>
+    <div class="video-call-header">
+        <div class="video-call-header-title">
+            <i class="fas fa-users"></i>
+            <strong id="current-room-name">Salas de Video</strong>
+        </div>
+        <div class="video-call-header-actions">
+            <button class="video-header-btn" id="toggle-size-btn" title="Cambiar tamaño (Completo/Compacto)">
+                <i class="fas fa-compress-arrows-alt"></i>
+            </button>
+            <button class="video-header-btn" id="change-position-btn" title="Cambiar posición">
+                <i class="fas fa-arrows-alt"></i>
+            </button>
+            <button class="video-header-btn" id="minimize-panel-btn" title="Minimizar">
+                <i class="fas fa-minus"></i>
+            </button>
+            <button class="video-header-btn" id="close-video-panel" title="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    <div id="room-selector" class="p-3" style="background: rgba(0,0,0,0.2);">
+        <label class="text-white mb-2"><i class="fas fa-door-open"></i> Seleccionar Sala:</label>
+        <select class="form-select mb-2" id="video-room-select">
+            <option value="">-- Selecciona una sala --</option>
+            {% for vg in video_groups %}
+            <option value="{{ vg.id }}"
+                    data-channel="{{ vg.agora_channel_name }}"
+                    data-name="{{ vg.name }}"
+                    data-public="{{ vg.is_public }}"
+                    data-has-password="{% if vg.password %}true{% else %}false{% endif %}">
+                {{ vg.name }}
+                {% if vg.is_public %}
+                    🌐 Pública
+                {% else %}
+                    🔒 Privada
+                {% endif %}
+                ({{ vg.participants.count }} participantes)
+            </option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-success w-100 mb-2" id="join-selected-room">
+            <i class="fas fa-sign-in-alt"></i> Unirse a Sala
+        </button>
+        <button class="btn btn-sm btn-info w-100" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+            <i class="fas fa-plus"></i> Crear Sala Privada
+        </button>
+    </div>
+    <div class="video-call-body" id="video-body" style="display: none;">
+        <div id="local-video-container">
+            <div id="local-player" class="video-player"></div>
+            <div class="video-username">Tú ({{ user.username }})</div>
+        </div>
+        <div id="remote-videos-container"></div>
+    </div>
+    <div class="video-controls" id="video-controls-panel" style="display: none;">
+        <button class="video-control-btn active" id="toggle-camera" title="Cámara">
+            <i class="fas fa-video"></i>
+        </button>
+        <button class="video-control-btn active" id="toggle-mic" title="Micrófono">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <button class="video-control-btn inactive" id="leave-call" title="Salir">
+            <i class="fas fa-phone-slash"></i>
+        </button>
+    </div>
+</div>
+
+{% if request.user == game.organizer and not game.is_finished %}
+<div class="modal fade" id="organizerControlsModal" tabindex="-1" aria-labelledby="organizerControlsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="organizerControlsLabel">
+                    <i class="fas fa-user-shield me-2"></i>Controles del organizador
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- DEBUG: Información del organizador -->
+                {% if request.user == game.organizer %}
+                <div class="alert alert-success mb-3">
+                    <strong>✅ Eres el organizador de este juego</strong>
+                </div>
+                {% else %}
+                <div class="alert alert-danger mb-3">
+                    <strong>❌ NO eres el organizador</strong>
+                </div>
+                {% endif %}
+                
+                <!-- DEBUG: Estado del juego -->
+                <div class="alert alert-info mb-3">
+                    <small>
+                        <strong>Estado del juego:</strong><br>
+                        Iniciado: {% if game.is_started %}✅ SÍ{% else %}❌ NO{% endif %}<br>
+                        Terminado: {% if game.is_finished %}✅ SÍ{% else %}❌ NO{% endif %}<br>
+                        Organizador: {{ game.organizer.username }}
+                    </small>
+                </div>
+                
+                <div class="alert alert-info py-3 px-3 bg-opacity-10 border-0">
+                    <h6 class="mb-2 text-uppercase text-muted">Ingresos por Ventas (Bloqueado)</h6>
+                    <p class="fs-4 fw-bold mb-1 text-white" id="held-balance-display">${{ game.held_balance|floatformat:2 }}</p>
+                    <small class="text-muted">Se liberarán al finalizar el juego según la comisión configurada.</small>
+                </div>
+                <div class="d-grid gap-2 mb-3" id="game-controls">
+                    {% if not game.is_started %}
+                    <!-- OPCIÓN DE EDITAR CONFIGURACIÓN -->
+                    <div class="alert alert-success mb-3 p-3" style="border: 2px solid #28a745;">
+                        <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i>Puedes editar la configuración del juego</h6>
+                        <a href="{% url 'edit_game_config' game.id %}" class="btn btn-primary btn-lg w-100" style="background-color: #007bff !important; border-color: #007bff !important; color: white !important; font-size: 1.1rem; font-weight: bold; padding: 15px;">
+                            <i class="fas fa-edit me-2"></i>Editar Configuración (Añadir/Modificar Niveles Progresivos)
+                        </a>
+                        <small class="text-muted d-block mt-2">Haz clic aquí para añadir o modificar los niveles progresivos del juego</small>
+                    </div>
+                    <button id="start-game-btn" class="btn btn-danger btn-lg game-control-btn">
+                        <i class="fas fa-play me-2"></i>Iniciar Juego
+                    </button>
+                    {% else %}
+                    <!-- DEBUG INFO - Juego iniciado -->
+                    <div class="alert alert-info mb-2">
+                        <small>El juego ya inició. No se puede editar configuración.</small>
+                    </div>
+                        {% if game.is_auto_calling %}
+                        <button id="stop-auto-call-btn" class="btn btn-warning btn-lg game-control-btn">
+                            <i class="fas fa-stop me-2"></i>Detener Llamada Automática
+                        </button>
+                        {% else %}
+                        <button id="start-auto-call-btn" class="btn btn-success btn-lg game-control-btn">
+                            <i class="fas fa-robot me-2"></i>Iniciar Llamada Automática
+                        </button>
+                        <button id="manual-call-btn" class="btn btn-primary btn-lg game-control-btn">
+                            <i class="fas fa-phone-volume me-2"></i>Llamar Número
+                        </button>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                <a href="{% url 'organizer_printable_cards' %}" class="btn btn-outline-info w-100 mb-3">Administrar Cartones Imprimibles</a>
+                <div class="border rounded p-3 bg-dark bg-opacity-50">
+                    <h6 class="text-uppercase text-muted mb-3">Activar Cartón Imprimible</h6>
+                    <form action="{% url 'activate_printable_card' game.id %}" method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="user_id" class="form-label">Jugador</label>
+                            <select name="user_id" id="user_id" class="form-select">
+                                {% for p in game.player_set.all %}
+                                <option value="{{ p.user.id }}">{{ p.user.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="card_id" class="form-label">ID del Cartón</label>
+                            <input type="text" name="card_id" id="card_id" class="form-control" placeholder="Ej: P-ABC123">
+                        </div>
+                        <button type="submit" class="btn btn-info w-100">Activar Cartón</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="modal fade chat-modal" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable chat-modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="chatModalLabel"><i class="fas fa-comments me-2"></i>Chat de la sala</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="chat-messages">
+                    {% for message in chat_messages %}
+                    <div class="chat-message mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="message-user fw-bold">{{ message.user.username }}</span>
+                            <span class="message-time text-muted small">{{ message.timestamp|time:"H:i" }}</span>
+                        </div>
+                        <div class="message-content">{{ message.message }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <div class="input-group">
+                    <input type="text" id="chat-message-input" class="form-control" placeholder="Escribe un mensaje..." {% if game.is_finished %}disabled{% endif %}>
+                    <button id="chat-message-submit" class="btn btn-primary" {% if game.is_finished %}disabled{% endif %}>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="infoModalLabel"><i class="fas fa-info-circle me-2"></i>Información del juego</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted">Organizador</h6>
+                    <p class="mb-1"><strong>{{ game.organizer.username }}</strong></p>
+                    <small class="text-muted">Reputación: {{ game.organizer.reputation_level }}</small>
+                </div>
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted">Premio progresivo</h6>
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="fas fa-coins me-2 text-warning"></i>Premio actual: <strong id="header-prize">${{ game.current_prize|floatformat:2 }}</strong></li>
+                        <li><i class="fas fa-bullseye me-2 text-info"></i>Próxima meta: <strong id="header-next-target">{% if game.next_prize_target %}{{ game.next_prize_target }} cartones{% else %}-{% endif %}</strong></li>
+                        <li><i class="fas fa-ticket-alt me-2 text-success"></i>Cartones vendidos: <strong id="header-total-cards">{{ game.total_cards_sold }}</strong></li>
+                    </ul>
+                </div>
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted">Jugadores ({{ game.player_set.count }})</h6>
+                    <ul class="list-group player-list">
+                        {% for player in game.player_set.all %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center {% if player.user == game.organizer %}organizer{% endif %} {% if player.user == game.winner %}winner{% endif %}">
+                            <div>
+                                {{ player.user.username }}
+                                {% if player.user == request.user %}<span class="badge bg-primary ms-2">Tú</span>{% endif %}
+                                {% if player.user == game.winner %}<span class="badge bg-success ms-2">Ganador</span>{% endif %}
+                            </div>
+                            <div class="text-end">
+                                {% if player.user == game.organizer %}
+                                    <span class="badge bg-dark">Organizador</span>
+                                {% endif %}
+                                <span class="badge bg-secondary ms-1">{{ player.cards|length }} cartones</span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div>
+                    <h6 class="text-uppercase text-muted">Modalidad actual</h6>
+                    <p class="mb-0">{{ game.get_winning_pattern_display }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="calledNumbersModal" tabindex="-1" aria-labelledby="calledNumbersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="calledNumbersModalLabel"><i class="fas fa-list-ol me-2"></i>Números llamados</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="section-content called-numbers-container">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <small class="text-muted" id="called-total-modal">Total: {{ game.called_numbers|length }}/75</small>
+                        <span class="badge bg-primary" id="called-latest-modal">{% if game.current_number %}Último: {{ game.current_number }}{% else %}Aún ninguno{% endif %}</span>
+                    </div>
+                    <div id="called-numbers-modal" class="d-flex flex-wrap">
+                        {% for num in game.called_numbers %}
+                        <span class="called-number {% if num == game.current_number %}newest{% endif %}">{{ num }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Crear Sala Privada</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-private-room-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de la Sala</label>
+                        <input type="text" class="form-control" id="room-name" placeholder="Ej: Mi Familia" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña (opcional)</label>
+                        <input type="password" class="form-control" id="room-password" placeholder="Dejar vacío para sin contraseña">
+                    </div>
+                    <div class="alert alert-info">
+                        <small><i class="fas fa-info-circle me-1"></i> Solo tú y quienes tengan la contraseña podrán unirse a esta sala.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="create-room-btn">
+                    <i class="fas fa-check"></i> Crear Sala
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    // Configuraci+�n inicial
+    // ==================== Prevenir Pull-to-Refresh SOLO en iOS ====================
+    (function() {
+        // Detectar si es iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        // Solo aplicar prevención en iOS
+        if (!isIOS) return;
+        
+        let touchStartY = 0;
+        let isAtTop = false;
+        
+        function checkScrollPosition() {
+            isAtTop = (window.pageYOffset || document.documentElement.scrollTop) === 0;
+        }
+        
+        document.addEventListener('touchstart', function(e) {
+            touchStartY = e.touches[0].clientY;
+            checkScrollPosition();
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', function(e) {
+            // Permitir scroll normal si no estamos en el top
+            if (!isAtTop) return;
+            
+            // Permitir scroll en elementos que necesitan scroll interno
+            const target = e.target;
+            if (target.closest('.bingo-card, .cards-carousel, .numbers-list, .chat-messages, .modal, .carousel, [style*="overflow"]')) {
+                return;
+            }
+            
+            const currentY = e.touches[0].clientY;
+            const touchYDelta = currentY - touchStartY;
+            
+            // Solo prevenir si el usuario desliza hacia abajo desde el top
+            if (touchYDelta > 10 && isAtTop) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        window.addEventListener('scroll', checkScrollPosition, { passive: true });
+        checkScrollPosition();
+    })();
+    
+    // Variable para prevenir loops de recarga
+    window.isReloading = false;
+    
+    const gameId = {{ game.id }};
+    const currentUser = "{{ request.user.username }}";
+    const currentUserId = {{ request.user.id }};
+    const isOrganizer = {% if request.user == game.organizer %}true{% else %}false{% endif %};
+    const isGameStarted = {% if game.is_started %}true{% else %}false{% endif %};
+    const isGameFinished = {% if game.is_finished %}true{% else %}false{% endif %};
+    const isAutoCalling = {% if game.is_auto_calling %}true{% else %}false{% endif %};
+    const autoCallInterval = {{ game.auto_call_interval }};
+    const cardPrice = parseFloat("{{ game.card_price }}");
+    const maxCards = parseInt("{{ game.max_cards_per_player }}");
+    let playerCardsCount = parseInt("{{ player.cards|length }}");
+    const winningPattern = "{{ game.get_winning_pattern_display }}";
+    let currentPrize = parseFloat("{{ game.current_prize|default:0 }}");
+    let maxCardsSold = parseInt("{{ game.max_cards_sold }}");
+    
+    const patternMaskElement = document.getElementById('pattern-mask-data');
+    const patternMask = patternMaskElement ? JSON.parse(patternMaskElement.textContent) : [];
+    
+    // Variables para el modo de marcado del jugador
+    let isManualMarking = {% if player.is_manual_marking %}true{% else %}false{% endif %};
+    let playerMarkedNumbers = {{ player.marked_numbers|default:"[]"|safe }};
+    
+    // Elementos del DOM
+    const currentNumberEl = document.getElementById('current-number');
+    const numberOverlay = document.getElementById('number-overlay');
+    const buyCardBtn = document.getElementById('buy-card-btn');
+    const claimBingoBtn = document.getElementById('claim-bingo-btn');
+    const connectedIndicator = document.getElementById('connected-indicator');
+    const connectedCountEl = document.getElementById('connected-count');
+    let numberOverlayTimeout = null;
+    const chatUnreadBadge = document.getElementById('chat-unread-badge');
+    const chatModalElement = document.getElementById('chatModal');
+    const chatFabBtn = document.getElementById('chat-fab-btn');
+    let chatModalInstance = (chatModalElement && typeof bootstrap !== 'undefined' && bootstrap.Modal)
+        ? bootstrap.Modal.getOrCreateInstance(chatModalElement, {backdrop: true})
+        : null;
+    let unreadChatCount = 0;
+    let isChatModalOpen = false;
+    
+    function updateConnectedIndicator(count) {
+        if (connectedCountEl) {
+            connectedCountEl.textContent = count;
+        }
+        if (connectedIndicator) {
+            if (count > 0) {
+                connectedIndicator.classList.remove('is-inactive');
+            } else {
+                connectedIndicator.classList.add('is-inactive');
+            }
+        }
+    }
+    updateConnectedIndicator(0);
+
+    function updateChatBadge() {
+        if (!chatUnreadBadge) return;
+        if (unreadChatCount > 0) {
+            chatUnreadBadge.textContent = unreadChatCount;
+            chatUnreadBadge.classList.remove('d-none');
+        } else {
+            chatUnreadBadge.textContent = '';
+            chatUnreadBadge.classList.add('d-none');
+        }
+    }
+
+    function resetChatBadge() {
+        unreadChatCount = 0;
+        updateChatBadge();
+    }
+
+    function incrementChatBadge() {
+        unreadChatCount += 1;
+        updateChatBadge();
+    }
+
+    if (chatFabBtn && chatModalElement) {
+        chatFabBtn.addEventListener('click', () => {
+            if (!chatModalInstance && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                chatModalInstance = bootstrap.Modal.getOrCreateInstance(chatModalElement, {backdrop: true});
+            }
+            if (chatModalInstance) {
+                chatModalInstance.show();
+            } else {
+                chatModalElement.classList.add('show');
+                chatModalElement.style.display = 'flex';
+                isChatModalOpen = true;
+                resetChatBadge();
+            }
+        });
+    }
+
+    if (chatModalElement) {
+        chatModalElement.addEventListener('shown.bs.modal', () => {
+            isChatModalOpen = true;
+            resetChatBadge();
+        });
+        chatModalElement.addEventListener('hidden.bs.modal', () => {
+            isChatModalOpen = false;
+            if (!chatModalInstance) {
+                chatModalElement.classList.remove('show');
+                chatModalElement.style.display = '';
+            }
+        });
+    }
+    updateChatBadge();
+
+    // WebSocket con esquema din+�mico y autorecuperaci+�n b+�sica
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/game/${gameId}/`);
+    socket.onerror = function() {
+        try { socket.close(); } catch (_e) {}
+    };
+    socket.onclose = function() {
+        // Reintento simple: recargar para resincronizar estado en dispositivos m+�viles
+        // Solo recargar si no estamos ya en proceso de recarga
+        if (!window.isReloading) {
+            window.isReloading = true;
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        }
+    };
+    
+    // ==================== Funciones para actualizar premio y progreso ====================
+    function updatePrizeDisplay(newPrize, increaseAmount = 0) {
+        const prizeElement = document.getElementById('current-prize-display');
+        prizeElement.textContent = `${parseFloat(newPrize).toFixed(2)}`;
+        const headerPrize = document.getElementById('header-prize');
+        if (headerPrize) {
+            headerPrize.textContent = `$${parseFloat(newPrize).toFixed(2)}`;
+        }
+        const mobilePrize = document.getElementById('mobile-current-prize');
+        if (mobilePrize) {
+            mobilePrize.textContent = `${parseFloat(newPrize).toFixed(2)}`;
+        }
+
+        if (increaseAmount > 0) {
+            const increaseBadge = document.createElement('span');
+            increaseBadge.className = 'prize-increase-badge';
+            increaseBadge.textContent = `+${parseFloat(increaseAmount).toFixed(2)}`;
+            prizeElement.parentElement.appendChild(increaseBadge);
+
+            setTimeout(() => {
+                increaseBadge.remove();
+            }, 3000);
+        }
+    }
+
+    function updateProgress(currentCards, target, percentage) {
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const totalCardsDisplay = document.getElementById('total-cards-display');
+        const nextPrizeTarget = document.getElementById('next-prize-target');
+        const headerTotalCards = document.getElementById('header-total-cards');
+        const headerNextTarget = document.getElementById('header-next-target');
+        const mobileTotalCards = document.getElementById('mobile-total-cards');
+
+        if (progressBar) {
+            progressBar.style.width = `${percentage}%`;
+        }
+        if (progressText && target) {
+            progressText.textContent = `${currentCards}/${target}`;
+        }
+        if (totalCardsDisplay) {
+            totalCardsDisplay.textContent = currentCards;
+        }
+        if (nextPrizeTarget && target) {
+            nextPrizeTarget.textContent = target;
+        } else if (nextPrizeTarget) {
+            nextPrizeTarget.textContent = '-';
+        }
+        if (headerTotalCards) {
+            headerTotalCards.textContent = currentCards;
+        }
+        if (headerNextTarget && target) {
+            headerNextTarget.textContent = target;
+        } else if (headerNextTarget) {
+            headerNextTarget.textContent = '-';
+        }
+        if (mobileTotalCards) {
+            mobileTotalCards.textContent = currentCards;
+        }
+
+        maxCardsSold = currentCards;
+    }
+
+    function showToast(icon, title, text) {
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer)
+                toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+        });
+        
+        Toast.fire({ icon, title, text });
+    }
+    
+    // ==================== Funciones auxiliares ====================
+    function updateGameStatus(isStarted, isFinished, isAutoCalling, winner = null, winners = null) {
+        const statusBadge = document.querySelector('.game-status-badge');
+        
+        if (isFinished) {
+            statusBadge.className = 'badge bg-danger game-status-badge';
+            let winnerText = '---';
+            if (winners && winners.length > 1) {
+                // Múltiples ganadores
+                const winnersList = winners.join(', ');
+                winnerText = `Ganadores: ${winners.length} (${winnersList})`;
+            } else if (winners && winners.length === 1) {
+                // Un solo ganador de la lista
+                winnerText = `Ganador: ${winners[0]}`;
+            } else if (winner) {
+                // Un solo ganador (compatibilidad)
+                winnerText = `Ganador: ${winner}`;
+            }
+            statusBadge.innerHTML = '<i class="fas fa-flag-checkered me-1"></i> Juego terminado - ' + winnerText;
+        } else if (isStarted) {
+            if (isAutoCalling) {
+                statusBadge.className = 'badge bg-success game-status-badge';
+                statusBadge.innerHTML = '<i class="fas fa-robot me-1"></i> Llamada autom\u00E1tica: cada ' + autoCallInterval + ' segundos';
+            } else {
+                statusBadge.className = 'badge bg-primary game-status-badge';
+                statusBadge.innerHTML = '<i class="fas fa-play me-1"></i> Juego en progreso';
+            }
+        } else {
+            statusBadge.className = 'badge bg-secondary game-status-badge';
+            statusBadge.innerHTML = '<i class="fas fa-hourglass-start me-1"></i> Juego no iniciado';
+        }
+    }
+    
+    function updateGameControls(isStarted, isAutoCalling) {
+    if (!isOrganizer) return;
+    
+    const controlsDiv = document.getElementById('game-controls');
+    
+    if (!isStarted) {
+        controlsDiv.innerHTML = `
+            <div class="alert alert-success mb-3 p-3" style="border: 2px solid #28a745;">
+                <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i>Puedes editar la configuración del juego</h6>
+                <a href="/game/${gameId}/edit/" class="btn btn-primary btn-lg w-100" style="background-color: #007bff !important; border-color: #007bff !important; color: white !important; font-size: 1.1rem; font-weight: bold; padding: 15px;">
+                    <i class="fas fa-edit me-2"></i>Editar Configuración (Añadir/Modificar Niveles Progresivos)
+                </a>
+                <small class="text-muted d-block mt-2">Haz clic aquí para añadir o modificar los niveles progresivos del juego</small>
+            </div>
+            <button id="start-game-btn" class="btn btn-danger btn-lg game-control-btn">
+                <i class="fas fa-play me-2"></i>Iniciar Juego
+            </button>
+        `;
+        document.getElementById('start-game-btn').addEventListener('click', startGame);
+    } else {
+        if (isAutoCalling) {
+            controlsDiv.innerHTML = `
+                <button id="stop-auto-call-btn" class="btn btn-warning btn-lg game-control-btn">
+                    <i class="fas fa-stop me-2"></i>Detener Llamada Autom+�tica
+                </button>
+            `;
+            document.getElementById('stop-auto-call-btn').addEventListener('click', stopAutoCall);
+        } else {
+            controlsDiv.innerHTML = `
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <button id="start-auto-call-btn" class="btn btn-success btn-lg game-control-btn w-100">
+                            <i class="fas fa-robot me-2"></i>Llamada Autom+�tica
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button id="manual-call-btn" class="btn btn-primary btn-lg game-control-btn w-100">
+                            <i class="fas fa-hand-pointer me-2"></i>Llamar N+�mero
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Input para n+�mero manual (oculto inicialmente) -->
+                <div class="input-group mt-3" id="manual-call-input" style="display: none;">
+                    <input type="number" id="manual-number-input" class="form-control" 
+                           placeholder="Introduce un n+�mero (1-75)" min="1" max="90">
+                    <button id="confirm-manual-call" class="btn btn-success">
+                        <i class="fas fa-check"></i> Confirmar
+                    </button>
+                    <button id="cancel-manual-call" class="btn btn-danger">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            `;
+            
+            // Agregar event listeners para los nuevos botones
+            document.getElementById('start-auto-call-btn').addEventListener('click', startAutoCall);
+            
+            const manualCallBtn = document.getElementById('manual-call-btn');
+            const manualCallInput = document.getElementById('manual-call-input');
+            const confirmManualCall = document.getElementById('confirm-manual-call');
+            const cancelManualCall = document.getElementById('cancel-manual-call');
+            const manualNumberInput = document.getElementById('manual-number-input');
+            
+            manualCallBtn.addEventListener('click', function() {
+                manualCallInput.style.display = 'flex';
+                manualNumberInput.focus();
+            });
+            
+            cancelManualCall.addEventListener('click', function() {
+                manualCallInput.style.display = 'none';
+                manualNumberInput.value = '';
+            });
+            
+            confirmManualCall.addEventListener('click', callNumberManually);
+            manualNumberInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') callNumberManually();
+            });
+        }
+    }
+}
+
+    // Funci+�n para manejar la llamada manual de n+�meros
+async function callNumberManually() {
+    const numberInput = document.getElementById('manual-number-input');
+    const number = parseInt(numberInput.value);
+    
+    if (isNaN(number) || number < 1 || number > 90) {
+        showToast('error', 'Error', 'Introduce un n+�mero v+�lido entre 1 y 90');
+        return;
+    }
+    
+   /* if (game.called_numbers.includes(number)) {
+        showToast('error', 'Error', 'Este n+�mero ya ha sido llamado');
+        return;
+    }*/
+    
+    // Deshabilitar botones durante la llamada
+    const confirmBtn = document.getElementById('confirm-manual-call');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="btn-loader"></span> Llamando...';
+    
+    try {
+        const response = await fetch(`/game/${gameId}/call-number/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                number: number,
+                is_manual: true
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('manual-call-input').style.display = 'none';
+            numberInput.value = '';
+        } else {
+            showToast('error', 'Error', data.error || 'Error al llamar n+�mero');
+        }
+    } catch (error) {
+        showToast('error', 'Error', 'Error en la conexi+�n');
+    } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fas fa-check"></i> Confirmar';
+    }
+}
+
+    
+    function updateCalledNumbers(calledNumbers, currentNumber = null) {
+        const calledNumbersContainer = document.getElementById('called-numbers');
+        const calledNumbersModalContainer = document.getElementById('called-numbers-modal');
+        const totalMain = document.getElementById('called-total-main');
+        const latestMain = document.getElementById('called-latest-main');
+        const totalModal = document.getElementById('called-total-modal');
+        const latestModal = document.getElementById('called-latest-modal');
+        const mobileNumbersList = document.getElementById('mobile-called-numbers');
+        const mobileNoNumbers = document.getElementById('mobile-no-numbers');
+
+        if (calledNumbersContainer) {
+            calledNumbersContainer.innerHTML = '';
+            calledNumbers.forEach(num => {
+                const numElement = document.createElement('span');
+                numElement.className = `called-number ${num === currentNumber ? 'newest' : ''}`;
+                numElement.textContent = num;
+                calledNumbersContainer.appendChild(numElement);
+            });
+        }
+
+        if (calledNumbersModalContainer) {
+            calledNumbersModalContainer.innerHTML = '';
+            calledNumbers.forEach(num => {
+                const numElement = document.createElement('span');
+                numElement.className = `called-number ${num === currentNumber ? 'newest' : ''}`;
+                numElement.textContent = num;
+                calledNumbersModalContainer.appendChild(numElement);
+            });
+        }
+
+        if (mobileNumbersList) {
+            mobileNumbersList.innerHTML = '';
+            const recent = calledNumbers.slice(-5).reverse();
+            if (recent.length) {
+                recent.forEach(num => {
+                    const numElement = document.createElement('span');
+                    numElement.textContent = num;
+                    mobileNumbersList.appendChild(numElement);
+                });
+                if (mobileNoNumbers) {
+                    mobileNoNumbers.classList.add('d-none');
+                }
+            } else if (mobileNoNumbers) {
+                mobileNoNumbers.classList.remove('d-none');
+            }
+        }
+
+        const latestText = currentNumber ? `Último: ${currentNumber}` : 'Aún ninguno';
+        const totalText = `Total: ${calledNumbers.length}/75`;
+
+        if (totalMain) {
+            totalMain.textContent = totalText;
+        }
+        if (totalModal) {
+            totalModal.textContent = totalText;
+        }
+        if (latestMain) {
+            latestMain.textContent = latestText;
+        }
+        if (latestModal) {
+            latestModal.textContent = latestText;
+        }
+        
+        // Actualizar celdas marcadas en los cartones
+        document.querySelectorAll('.bingo-cell').forEach(cell => {
+            const num = parseInt(cell.dataset.number);
+            
+            if (num === 0) return; // Skip free cell
+            
+            if (isManualMarking) {
+                // En modo manual, solo marcar si est+� en la lista de n+�meros marcados manualmente
+                if (playerMarkedNumbers.includes(num)) {
+                    cell.classList.add('manually-marked');
+                } else {
+                    cell.classList.remove('manually-marked');
+                }
+                // No usar la clase 'called' en modo manual
+                cell.classList.remove('called');
+            } else {
+                // En modo autom+�tico, usar los n+�meros llamados
+                if (calledNumbers.includes(num)) {
+                    cell.classList.add('called');
+                } else {
+                    cell.classList.remove('called');
+                }
+                // No usar la clase 'manually-marked' en modo autom+�tico
+                cell.classList.remove('manually-marked');
+            }
+        });
+    }
+    
+    // ==================== Funciones para marcado manual ====================
+    
+    async function toggleMarkingMode() {
+        try {
+            const response = await fetch(`/game/${gameId}/toggle-player-marking/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                isManualMarking = data.is_manual_marking;
+                
+                // Actualizar UI inmediatamente
+                await updateMarkingModeUI();
+                
+                showToast('success', '+�xito', data.message);
+            } else {
+                showToast('error', 'Error', data.error || 'No se pudo cambiar el modo');
+            }
+            
+        } catch (error) {
+            showToast('error', 'Error', 'No se pudo cambiar el modo');
+        }
+    }
+    
+    async function updateMarkingModeUI() {
+        const toggle = document.getElementById('marking-mode-toggle');
+        const autoChip = document.getElementById('mode-chip-auto');
+        const manualChip = document.getElementById('mode-chip-manual');
+
+        if (toggle) {
+            toggle.checked = isManualMarking;
+        }
+
+        if (autoChip) {
+            autoChip.classList.toggle('active', !isManualMarking);
+        }
+
+        if (manualChip) {
+            manualChip.classList.toggle('active', isManualMarking);
+        }
+
+        // Si se cambi+� a modo manual, copiar n+�meros llamados autom+�ticamente
+        if (isManualMarking && playerMarkedNumbers.length === 0) {
+            // Obtener n+�meros llamados del juego
+            const calledNumbersElements = document.querySelectorAll('.called-number');
+            const calledNumbers = Array.from(calledNumbersElements).map(el => parseInt(el.textContent));
+            
+            // Copiar n+�meros llamados a n+�meros marcados manualmente
+            playerMarkedNumbers = [...calledNumbers];
+            
+            // Actualizar la base de datos
+            await updatePlayerMarkedNumbers(playerMarkedNumbers);
+        }
+        
+        // Actualizar las celdas clickeables y estado visual
+        updateClickableCells();
+    }
+    
+    function updateClickableCells() {
+        // Obtener n+�meros llamados actuales del juego
+        const calledNumbersElements = document.querySelectorAll('.called-number');
+        const calledNumbers = Array.from(calledNumbersElements).map(el => parseInt(el.textContent));
+        
+        document.querySelectorAll('.bingo-cell').forEach(cell => {
+            const num = parseInt(cell.dataset.number);
+            
+            if (num === 0) return; // Skip free cell
+            
+            if (isManualMarking) {
+                // Modo manual: SOLO hacer clickeables los n+�meros que YA han sido llamados
+                const isCalled = calledNumbers.includes(num);
+                
+                if (isCalled) {
+                    cell.classList.add('clickable-cell');
+                } else {
+                    cell.classList.remove('clickable-cell');
+                    cell.classList.add('disabled-cell');
+                    cell.style.opacity = '0.5';
+                    cell.style.cursor = 'not-allowed';
+                }
+                cell.classList.remove('called'); // Limpiar marcado autom+�tico
+                
+                // Actualizar estado visual seg+�n n+�meros marcados manualmente
+                if (playerMarkedNumbers.includes(num)) {
+                    cell.classList.add('manually-marked');
+                } else {
+                    cell.classList.remove('manually-marked');
+                }
+                
+                // A+�adir event listener si no existe Y el n+�mero ha sido llamado
+                if (!cell.hasAttribute('data-listener-added') && isCalled) {
+                    cell.addEventListener('click', function() {
+                        if (isManualMarking && this.classList.contains('clickable-cell') && !this.classList.contains('disabled-cell')) {
+                            const number = parseInt(this.dataset.number);
+                            if (number && number !== 0) {
+                                markNumberManually(number);
+                            }
+                        }
+                    });
+                    cell.setAttribute('data-listener-added', 'true');
+                }
+            } else {
+                // Modo autom+�tico: usar n+�meros llamados y remover marcado manual
+                cell.classList.remove('clickable-cell', 'manually-marked');
+                
+                // Actualizar estado visual seg+�n n+�meros llamados
+                if (calledNumbers.includes(num)) {
+                    cell.classList.add('called');
+                } else {
+                    cell.classList.remove('called');
+                }
+            }
+        });
+    }
+    
+    async function updatePlayerMarkedNumbers(numbers) {
+        try {
+            const response = await fetch(`/game/${gameId}/update-marked-numbers/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ marked_numbers: numbers })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('N+�meros marcados actualizados:', data.marked_numbers);
+            } else {
+                console.error('Error actualizando n+�meros marcados:', data.error);
+            }
+            
+        } catch (error) {
+            console.error('Error actualizando n+�meros marcados:', error);
+        }
+    }
+    
+    async function markNumberManually(number) {
+        try {
+            const response = await fetch(`/game/${gameId}/mark-number/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ number: number })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                playerMarkedNumbers = data.marked_numbers;
+                
+                // Actualizar estado visual de todas las celdas
+                updateClickableCells();
+                
+                // Mostrar feedback visual solo en la celda clickeada
+                document.querySelectorAll('.bingo-cell').forEach(cell => {
+                    const cellNum = parseInt(cell.dataset.number);
+                    if (cellNum === number && number !== 0) {
+                        cell.style.transform = 'scale(1.2)';
+                        setTimeout(() => {
+                            cell.style.transform = '';
+                        }, 200);
+                    }
+                });
+                
+                showToast('success', 'N+�mero marcado', `N+�mero ${number} ${data.action}`);
+            } else {
+                showToast('error', 'Error', data.error || 'No se pudo marcar el n+�mero');
+            }
+            
+        } catch (error) {
+            showToast('error', 'Error', 'No se pudo marcar el n+�mero');
+        }
+    }
+    
+    function updateCreditBalance(newBalance) {
+        const formatted = parseFloat(newBalance).toFixed(2);
+        document.querySelectorAll('.credit-balance, .credit-balance-mobile').forEach(el => {
+            el.textContent = formatted;
+        });
+    }
+    
+    function updateCardCounter(newCount) {
+        const counterBadge = document.getElementById('player-card-counter');
+        if (counterBadge) {
+            counterBadge.textContent = `${newCount}/${maxCards}`;
+        }
+        
+        const modalCounter = document.getElementById('header-total-cards');
+        if (modalCounter) {
+            modalCounter.textContent = newCount;
+        }
+    }
+    
+    function addNewCardToUI(cardData, cardNumber) {
+        const cardsContainer = document.getElementById('cards-container');
+        if (!cardsContainer) return;
+
+        const emptyState = cardsContainer.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+        
+        const cardWrapper = document.createElement('div');
+        cardWrapper.className = 'bingo-card';
+        
+        // Obtener los n+�meros llamados actuales del DOM
+        const calledNumbers = Array.from(document.querySelectorAll('.called-number')).map(el => parseInt(el.textContent));
+        
+        cardWrapper.innerHTML = `
+            <div class="bingo-header">Cartón ${cardNumber}</div>
+            <table class="table table-bordered text-center mb-0">
+                <tr>
+                    <th class="bingo-letter">B</th>
+                    <th class="bingo-letter">I</th>
+                    <th class="bingo-letter">N</th>
+                    <th class="bingo-letter">G</th>
+                    <th class="bingo-letter">O</th>
+                </tr>
+                ${cardData.map((row, rowIndex) => `
+                    <tr>
+                        ${row.map((num, cellIndex) => {
+                            const isCalled = calledNumbers.includes(num);
+                            const isMarkedManually = playerMarkedNumbers.includes(num);
+                            const isClickable = isManualMarking && num !== 0;
+                            const isPatternRequired = !!(patternMask?.[rowIndex]?.[cellIndex]);
+                            const classes = `bingo-cell ${isPatternRequired ? 'pattern-required' : ''} ${num === 0 ? 'free-cell' : ''} ${isClickable ? 'clickable-cell' : ''} ${isManualMarking && isMarkedManually ? 'manually-marked' : ''} ${!isManualMarking && isCalled ? 'called' : ''}`;
+                            
+                            return `
+                            <td class="${classes}" 
+                                data-number="${num}"
+                                data-card="${cardNumber}"
+                                data-row="${rowIndex}"
+                                data-col="${cellIndex}"
+                                id="cell-${cardNumber}-${rowIndex}-${cellIndex}">
+                                ${num === 0 ? 'KUSU' : num}
+                            </td>
+                        `;
+                        }).join('')}
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        
+        cardsContainer.appendChild(cardWrapper);
+        
+        // Agregar event listeners a las nuevas celdas clickeables
+        cardWrapper.querySelectorAll('.bingo-cell').forEach(cell => {
+            const number = parseInt(cell.dataset.number);
+            if (number && number !== 0) {
+                cell.addEventListener('click', function() {
+                    if (isManualMarking && this.classList.contains('clickable-cell')) {
+                        markNumberManually(number);
+                    }
+                });
+                cell.setAttribute('data-listener-added', 'true');
+            }
+        });
+    }
+
+    // Marca/desmarca un n+�mero manualmente y sincroniza con el servidor
+    async function markNumberManually(number) {
+        if (!isManualMarking) return;
+        const idx = playerMarkedNumbers.indexOf(number);
+        if (idx >= 0) {
+            playerMarkedNumbers.splice(idx, 1);
+        } else {
+            playerMarkedNumbers.push(number);
+        }
+        try {
+            await updatePlayerMarkedNumbers(playerMarkedNumbers);
+            // Refrescar estado visual seg+�n los n+�meros actualmente llamados
+            updateClickableCells();
+        } catch (_e) {
+            // Revertir en caso de error
+            if (idx >= 0) {
+                playerMarkedNumbers.push(number);
+            } else {
+                const revertIdx = playerMarkedNumbers.indexOf(number);
+                if (revertIdx >= 0) playerMarkedNumbers.splice(revertIdx, 1);
+            }
+        }
+    }
+
+    // ==================== Manejador de WebSocket ====================
+    socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        //game = data; // Actualiza la variable global del juego
+
+        
+        switch(data.type) {
+            case 'game_status':
+                handleGameStatus(data);
+                break;
+            
+            case 'game_updated':
+                // Manejar actualización de configuración del juego
+                if (data.message) {
+                    showToast('info', 'Actualización', data.message);
+                }
+                if (data.new_prize !== undefined) {
+                    updatePrizeDisplay(data.new_prize, 0);
+                }
+                if (data.new_base_prize !== undefined) {
+                    // Actualizar el premio base si se cambió
+                    const prizeDisplay = document.querySelector('.prize-display');
+                    if (prizeDisplay) {
+                        // El premio total ya se actualizó arriba, solo mostramos mensaje
+                        showToast('success', 'Premio actualizado', 
+                            `El premio base ha sido ajustado a ${data.new_base_prize} créditos`);
+                    }
+                }
+                if (data.progressive_prizes) {
+                    // Los premios progresivos se actualizaron, pero no necesitamos hacer nada visual
+                    // ya que el premio total ya se actualizó
+                }
+                break;
+                
+            case 'chat_message':
+                handleChatMessage(data);
+                break;
+
+            case 'presence_update':
+                updateConnectedIndicator(data.count || 0);
+                break;
+
+            case 'refresh_page':
+                if (data.force_refresh && !isOrganizer && !window.isReloading) {
+                    window.isReloading = true;
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                }
+                break;
+                
+            case 'number_called':
+                handleNewNumber(data);
+                break;
+
+           /* case 'number_called':
+                currentNumberEl.textContent = data.number;
+                updateCalledNumbers(data.called_numbers, data.number);
+                break;*/
+                
+            case 'game_started':
+                handleGameStarted(data);
+                break;
+                
+            case 'game_ended':
+                handleGameEnded(data);
+                break;
+                
+            case 'auto_call_toggled':
+                handleAutoCallToggled(data);
+                break;
+                
+            case 'credit_update':
+                updateCreditBalance(data.new_balance);
+                break;
+                
+            case 'prize_updated':
+                handlePrizeUpdate(data);
+                break;
+                
+            case 'card_purchased':
+                handleCardPurchased(data);
+                break;
+        }
+    };
+    
+    // ==================== Manejadores de eventos WebSocket ====================
+    function handleGameStatus(data) {
+        updateGameStatus(data.is_started, data.is_finished, data.is_auto_calling);
+        updateGameControls(data.is_started, data.is_auto_calling);
+        
+        if (data.current_number) {
+            currentNumberEl.textContent = data.current_number;
+            showNumberOverlay();
+        }
+        
+        if (data.called_numbers) {
+            updateCalledNumbers(data.called_numbers, data.current_number);
+        }
+        
+        if (data.current_prize) {
+            updatePrizeDisplay(data.current_prize);
+        }
+        
+        // Actualizar max_cards_sold si viene en los datos
+        if (data.max_cards_sold !== undefined) {
+            maxCardsSold = data.max_cards_sold;
+            if (data.next_prize_target) {
+                updateProgress(maxCardsSold, data.next_prize_target, data.progress_percentage);
+            }
+        }
+    }
+    
+    function handleChatMessage(data) {
+        const chatMessages = document.getElementById('chat-messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chat-message mb-2';
+        
+        messageDiv.innerHTML = `
+            <div class="d-flex justify-content-between">
+                <span class="message-user fw-bold">${data.user}</span>
+                <span class="message-time text-muted small">${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            </div>
+            <div class="message-content">${data.message}</div>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        if (data.user !== currentUser) {
+            if (isChatModalOpen) {
+                resetChatBadge();
+            } else {
+                incrementChatBadge();
+            }
+        }
+    }
+    
+    function speakNumber(number) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance();
+            let letter = '';
+            if (number >= 1 && number <= 15) letter = 'B';
+            else if (number >= 16 && number <= 30) letter = 'I';
+            else if (number >= 31 && number <= 45) letter = 'N';
+            else if (number >= 46 && number <= 60) letter = 'G';
+            else if (number >= 61 && number <= 75) letter = 'O';
+
+            utterance.text = 'Por la ' + letter + ', el ' + number;
+            utterance.lang = 'es-ES'; // Set language to Spanish
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function showNumberOverlay(persist = false) {
+        if (!numberOverlay || !currentNumberEl) return;
+        const value = currentNumberEl.textContent.trim();
+        if (!value || value === '---') {
+            numberOverlay.classList.remove('visible');
+            return;
+        }
+        numberOverlay.classList.add('visible');
+        if (numberOverlayTimeout) {
+            clearTimeout(numberOverlayTimeout);
+            numberOverlayTimeout = null;
+        }
+
+        if (persist || window.matchMedia('(min-width: 768px)').matches) {
+            return;
+        }
+
+        numberOverlayTimeout = setTimeout(() => {
+            numberOverlay.classList.remove('visible');
+        }, 2500);
+    }
+
+    function handleNewNumber(data) {
+        // Actualizar n+�mero actual
+        currentNumberEl.textContent = data.number;
+        currentNumberEl.style.animation = 'bounce 0.5s';
+        setTimeout(() => currentNumberEl.style.animation = '', 500);
+        showNumberOverlay();
+        
+        // Mostrar notificaci+�n
+        const numberStatus = document.getElementById('number-status');
+        if (numberStatus) {
+            numberStatus.textContent = 'Número ' + data.number + ' llamado';
+            setTimeout(() => {
+                if (numberStatus) {
+                    numberStatus.textContent = '';
+                }
+            }, 2000);
+        }
+        
+        // Actualizar n+�meros llamados
+        updateCalledNumbers(data.called_numbers, data.number);
+
+        // Cantar el n+�mero
+        speakNumber(data.number);
+
+        // Si el usuario est+� en modo manual, actualizar celdas clicables en tiempo real
+        try {
+            if (typeof updateClickableCells === 'function') {
+                updateClickableCells();
+            }
+        } catch (e) {
+            console.error('Error actualizando celdas clicables:', e);
+        }
+    }
+    
+    function handleGameStarted(data) {
+        showToast('info', '-�El juego ha comenzado!', 'No se pueden comprar m+�s cartones');
+        updateGameStatus(true, false, data.is_auto_calling);
+        updateGameControls(true, data.is_auto_calling);
+
+        // Actualizar premio y progreso
+        if (data.current_prize !== undefined) {
+            updatePrizeDisplay(data.current_prize);
+        }
+        
+        // Usar max_cards_sold en lugar de total_cards_sold para el progreso
+        if (data.max_cards_sold !== undefined && data.next_prize_target !== undefined) {
+            maxCardsSold = data.max_cards_sold;
+            updateProgress(maxCardsSold, data.next_prize_target, data.progress_percentage);
+        }
+        
+        // Deshabilitar bot+�n de compra
+        buyCardBtn.disabled = true;
+
+        // Habilitar bot+�n de cantar bingo
+        if (claimBingoBtn) {
+            claimBingoBtn.disabled = false;
+        }
+    }
+    
+    function handleGameEnded(data) {
+        // Manejar múltiples ganadores
+        const winners = data.winners || (data.winner ? [data.winner] : []);
+        const numWinners = data.num_winners || winners.length;
+        const playerPrize = data.player_prize_per_winner || (data.prize / numWinners);
+        const isCurrentUserWinner = winners.includes(currentUser);
+        
+        let message;
+        if (numWinners > 1) {
+            if (isCurrentUserWinner) {
+                message = `\u00A1Felicidades! Has ganado junto con ${numWinners - 1} otro(s) jugador(es).<br><br>Premio total: ${data.prize.toFixed(2)} cr\u00E9ditos<br>Premio dividido entre ${numWinners} ganadores: ${playerPrize.toFixed(2)} cr\u00E9ditos cada uno`;
+            } else {
+                const winnersList = winners.join(', ');
+                message = `\u00A1Hay ${numWinners} ganador(es)!<br>${winnersList}<br><br>Premio total: ${data.prize.toFixed(2)} cr\u00E9ditos<br>Premio dividido entre ${numWinners} ganadores: ${playerPrize.toFixed(2)} cr\u00E9ditos cada uno`;
+            }
+        } else {
+            const winner = winners[0] || data.winner;
+            message = isCurrentUserWinner ? 
+                `\u00A1Felicidades! Has ganado ${data.prize} cr\u00E9ditos` :
+                `\u00A1${winner} ha ganado ${data.prize} cr\u00E9ditos!`;
+        }
+        
+        // Mostrar efecto de bingo
+        const bingoEffect = document.getElementById('bingo-effect');
+        bingoEffect.style.opacity = '1';
+        setTimeout(() => {
+            bingoEffect.style.opacity = '0';
+        }, 2000);
+        
+        Swal.fire({
+            title: '-�BINGO!',
+            html: message,
+            icon: 'success',
+            confirmButtonText: 'OK'
+        });
+        
+        // Pasar todos los ganadores a updateGameStatus
+        updateGameStatus(true, true, false, winners[0] || data.winner, winners);
+        
+        // Deshabilitar controles
+        document.getElementById('chat-message-input').disabled = true;
+        document.getElementById('chat-message-submit').disabled = true;
+
+        // Deshabilitar bot+�n de cantar bingo
+        if (claimBingoBtn) {
+            claimBingoBtn.disabled = true;
+        }
+        
+        // Si es uno de los ganadores, actualizar balance
+        // El servidor enviará una notificación credit_update con el balance correcto
+        // Pero también podemos actualizar aquí si tenemos el dato
+        if (isCurrentUserWinner && data.player_prize_per_winner) {
+            // Esperar a que llegue la notificación credit_update del servidor
+            // O actualizar si tenemos el balance en los detalles
+        }
+
+        // Actualizar el saldo retenido para el organizador
+        if (isOrganizer) {
+            const heldBalanceEl = document.getElementById('held-balance-display');
+            if (heldBalanceEl) {
+                heldBalanceEl.textContent = '$' + parseFloat(data.held_balance || 0).toFixed(2);
+            }
+        }
+    }
+    
+    function handleAutoCallToggled(data) {
+        if (data.is_auto_calling) {
+            const autoMsg = 'Los n\u00FAmeros se llamar\u00E1n cada ' + autoCallInterval + ' segundos';
+            showToast('success', 'Llamada autom\u00E1tica iniciada', autoMsg);
+        } else {
+            showToast('info', 'Llamada autom\u00E1tica detenida', 'El organizador debe llamar n\u00FAmeros manualmente');
+        }
+        
+        updateGameStatus(true, false, data.is_auto_calling);
+        updateGameControls(true, data.is_auto_calling);
+    }
+
+    async function claimBingo() {
+        if (!claimBingoBtn) return;
+
+        claimBingoBtn.disabled = true;
+        claimBingoBtn.innerHTML = '<span class="btn-loader"></span> Verificando...';
+
+        try {
+            const response = await fetch(`/game/${gameId}/claim-bingo/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                // El servidor enviar+� un broadcast 'game_ended'
+            } else {
+                showToast('error', 'Error', result.error || 'No se pudo verificar el bingo');
+                claimBingoBtn.disabled = false;
+                claimBingoBtn.innerHTML = '<i class="fas fa-bullhorn me-2"></i> -�Cantar BINGO!';
+            }
+        } catch (error) {
+            showToast('error', 'Error', 'Error en la conexi+�n');
+            claimBingoBtn.disabled = false;
+            claimBingoBtn.innerHTML = '<i class="fas fa-bullhorn me-2"></i> -�Cantar BINGO!';
+        }
+    }
+    
+    function handlePrizeUpdate(data) {
+        updatePrizeDisplay(data.new_prize, data.increase_amount || 0);
+        if (data.max_cards && data.next_target) {
+            maxCardsSold = data.max_cards;
+            updateProgress(maxCardsSold, data.next_target, data.progress_percentage);
+        }
+    }
+    
+    function handleCardPurchased(data) {
+        if (data.user === currentUser || data.user === undefined) {
+            // Actualizar el balance de cr+�ditos
+            updateCreditBalance(data.new_balance);
+            
+            const oldCardCount = playerCardsCount;
+            const newCardCount = data.player_cards_count;
+            playerCardsCount = newCardCount;
+            updateCardCounter(newCardCount);
+
+            // Agregar nuevos cartones a la interfaz
+            if (data.user === undefined && data.new_cards) {
+                data.new_cards.forEach((card, index) => {
+                    addNewCardToUI(card, oldCardCount + index + 1);
+                });
+            }
+            
+            // Actualizar el estado del bot+�n basado en las nuevas condiciones
+            const canBuyMore = newCardCount < maxCards && !isGameStarted && !isGameFinished;
+            buyCardBtn.disabled = !canBuyMore;
+            
+            const quantity = data.new_cards ? data.new_cards.length : 1;
+            const totalPrice = quantity * cardPrice;
+            const successMsg = 'Se han comprado ' + quantity + ' cart\u00F3n(es) por ' + totalPrice.toFixed(2) + ' cr\u00E9ditos.';
+            showToast('success', '\u00A1Compra exitosa!', successMsg);
+        }
+        
+        // Actualizar premio si hubo aumento (para todos los jugadores)
+        if (data.prize_increased) {
+            updatePrizeDisplay(data.new_prize, data.increase_amount);
+            maxCardsSold = data.max_cards_sold;
+            if (data.next_prize_target) {
+                updateProgress(maxCardsSold, data.next_prize_target, data.progress_percentage);
+            }
+        } else if (data.max_cards_sold) {
+            // Actualizar progreso aunque no haya aumento de premio
+            maxCardsSold = data.max_cards_sold;
+            if (data.next_prize_target) {
+                updateProgress(maxCardsSold, data.next_prize_target, data.progress_percentage);
+            }
+        }
+        
+        // Actualizar held_balance para el organizador
+        if (isOrganizer && data.total_cards_sold) {
+            const heldBalanceEl = document.getElementById('held-balance-display');
+            if (heldBalanceEl && data.max_cards_sold) {
+                const totalRevenue = data.max_cards_sold * cardPrice;
+                heldBalanceEl.textContent = '$' + totalRevenue.toFixed(2);
+            }
+        }
+    }
+    
+    // ==================== Funciones de control del juego ====================
+    async function startGame() {
+        try {
+            const startBtn = document.getElementById('start-game-btn');
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<span class="btn-loader"></span> Iniciando...';
+
+            // Enviar solicitud al servidor para iniciar el juego
+            const response = await fetch(`/start-game/${gameId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // El servidor enviar+� un broadcast 'game_started'
+                // y el cliente lo manejar+�, no es necesario hacer nada m+�s aqu+�.
+                showToast('success', '-�Juego iniciado!', 'La partida ha comenzado.');
+            } else {
+                showToast('error', 'Error', result.error || 'No se pudo iniciar el juego');
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i class="fas fa-play me-2"></i>Iniciar Juego';
+            }
+        } catch (error) {
+            console.error('Error al iniciar el juego:', error);
+            showToast('error', 'Error', error.message || 'No se pudo iniciar el juego');
+            document.getElementById('start-game-btn').disabled = false;
+            document.getElementById('start-game-btn').innerHTML = '<i class="fas fa-play me-2"></i>Iniciar Juego';
+        }
+    }
+
+    async function startAutoCall() {
+        try {
+            const startBtn = document.getElementById('start-auto-call-btn');
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<span class="btn-loader"></span> Iniciando...';
+            
+            socket.send(JSON.stringify({
+                'type': 'toggle_auto_call'
+            }));
+        } catch (error) {
+            showToast('error', 'Error', 'No se pudo iniciar la llamada autom+�tica');
+        }
+    }
+    
+    async function stopAutoCall() {
+        try {
+            const stopBtn = document.getElementById('stop-auto-call-btn');
+            stopBtn.disabled = true;
+            stopBtn.innerHTML = '<span class="btn-loader"></span> Deteniendo...';
+            
+            socket.send(JSON.stringify({
+                'type': 'toggle_auto_call'
+            }));
+        } catch (error) {
+            showToast('error', 'Error', 'No se pudo detener la llamada autom+�tica');
+        }
+    }
+    
+    // ==================== Eventos del DOM ====================
+    // Comprar cart+�n
+    if (buyCardBtn) {
+        buyCardBtn.addEventListener('click', async () => {
+            const quantityInput = document.getElementById('buy-card-quantity');
+            const quantity = parseInt(quantityInput.value);
+
+            if (isNaN(quantity) || quantity < 1) {
+                showToast('error', 'Cantidad inv+�lida', 'Por favor, introduce un n+�mero v+�lido de cartones.');
+                return;
+            }
+
+            const totalPrice = quantity * cardPrice;
+
+            const confirmText = 'Vas a comprar ' + quantity + ' cart\u00F3n(es) por un total de ' + totalPrice.toFixed(2) + ' cr\u00E9ditos. \u00BFEst\u00E1s seguro?';
+            const { isConfirmed } = await Swal.fire({
+                title: '\u00BFConfirmar compra?',
+                text: confirmText,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'S\u00ED, comprar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            });
+            
+            if (!isConfirmed) return;
+            
+            buyCardBtn.disabled = true;
+            buyCardBtn.innerHTML = '<span class="btn-loader"></span> Procesando...';
+            
+            try {
+                const response = await fetch(`/game/${gameId}/buy_card/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ quantity: quantity })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    showToast('error', 'Error', result.error || 'No se pudo completar la compra');
+                    buyCardBtn.disabled = playerCardsCount >= maxCards || isGameStarted || isGameFinished;
+                    buyCardBtn.innerHTML = '<i class="fas fa-shopping-cart me-1"></i> Comprar';
+                    return;
+                }
+                
+                // La actualizaci+�n de la UI ahora se manejar+� con los datos de la respuesta
+                // para que sea instant+�neo para el usuario que compra.
+                // El broadcast de WebSocket actualizar+� a los dem+�s.
+                handleCardPurchased(result);
+                
+                // Actualizar estado del bot+�n basado en las nuevas condiciones
+                const canBuyMore = playerCardsCount < maxCards && !isGameStarted && !isGameFinished;
+                buyCardBtn.disabled = !canBuyMore;
+                
+            } catch (error) {
+                console.error('Error al comprar cart+�n:', error);
+                showToast('error', 'Error', 'No se pudo completar la compra');
+                buyCardBtn.disabled = playerCardsCount >= maxCards || isGameStarted || isGameFinished;
+            } finally {
+                // Re-habilita el bot+�n si a+�n se puede comprar
+                if (playerCardsCount < maxCards && !isGameStarted && !isGameFinished) {
+                    buyCardBtn.innerHTML = '<i class="fas fa-shopping-cart me-1"></i> Comprar';
+                }
+            }
+        });
+    }
+    
+    // Chat
+    document.querySelector('#chat-message-submit').addEventListener('click', sendChatMessage);
+    document.querySelector('#chat-message-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendChatMessage();
+    });
+    
+    function sendChatMessage() {
+        const messageInput = document.querySelector('#chat-message-input');
+        const message = messageInput.value.trim();
+        
+        if (message) {
+            socket.send(JSON.stringify({
+                'type': 'chat_message',
+                'message': message
+            }));
+            messageInput.value = '';
+        }
+    }
+    
+    // Funci+�n para obtener cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Inicializar controles del juego
+    document.addEventListener('DOMContentLoaded', () => {
+        if (isOrganizer) {
+            updateGameControls(isGameStarted, isAutoCalling);
+        }
+
+        if (claimBingoBtn) {
+            claimBingoBtn.addEventListener('click', claimBingo);
+        }
+        
+        // Inicializar UI de marcado inmediatamente
+        updateMarkingModeUI();
+        if (numberOverlay && currentNumberEl) {
+            const initialNumber = currentNumberEl.textContent.trim();
+            if (initialNumber && initialNumber !== '---') {
+                showNumberOverlay(true);
+            } else {
+                numberOverlay.classList.remove('visible');
+            }
+        }
+        
+        // Inicializar el toggle de marcado manual/autom+�tico
+        const markingToggle = document.getElementById('marking-mode-toggle');
+        const autoChip = document.getElementById('mode-chip-auto');
+        const manualChip = document.getElementById('mode-chip-manual');
+        const triggerMarkingToggle = (value) => {
+            if (!markingToggle) return;
+            if (markingToggle.checked === value) return;
+            markingToggle.checked = value;
+            markingToggle.dispatchEvent(new Event('change'));
+        };
+
+        if (markingToggle) {
+            markingToggle.addEventListener('change', toggleMarkingMode);
+            console.log('Toggle inicializado correctamente');
+        } else {
+            console.error('Toggle no encontrado en el DOM');
+        }
+
+        if (autoChip) {
+            autoChip.addEventListener('click', () => triggerMarkingToggle(false));
+        }
+
+        if (manualChip) {
+            manualChip.addEventListener('click', () => triggerMarkingToggle(true));
+        }
+        
+        // Animar n+�mero actual peri+�dicamente
+        if (!isGameFinished) {
+            setInterval(() => {
+                currentNumberEl.style.animation = 'pulse 1s';
+                setTimeout(() => currentNumberEl.style.animation = '', 1000);
+            }, 15000);
+        }
+
+        // Cargar iframes de YouTube cuando el carrusel cambia de slide
+        const carousel = document.getElementById('gameRoomAnnouncementCarousel');
+        if (carousel) {
+            function loadIframeForSlide(slideElement) {
+                if (!slideElement) return;
+                const iframe = slideElement.querySelector('iframe[data-src]');
+                if (iframe && !iframe.src) {
+                    const dataSrc = iframe.getAttribute('data-src');
+                    if (dataSrc) {
+                        iframe.src = dataSrc;
+                        iframe.removeAttribute('data-src');
+                    }
+                }
+            }
+
+            const activeSlide = carousel.querySelector('.carousel-item.active');
+            if (activeSlide) {
+                loadIframeForSlide(activeSlide);
+            }
+
+            carousel.addEventListener('slid.bs.carousel', function(event) {
+                const activeSlide = event.relatedTarget || carousel.querySelector('.carousel-item.active');
+                loadIframeForSlide(activeSlide);
+            });
+
+            carousel.addEventListener('slide.bs.carousel', function(event) {
+                const nextSlide = event.relatedTarget;
+                loadIframeForSlide(nextSlide);
+            });
+        }
+    });
+</script>
+
+<!-- SDK de Agora RTC -->
+<script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.19.0.js"></script>
+
+<script>
+    // ==================== Configuraci+�n de Agora ====================
+    const APP_ID = "{{ agora_app_id }}";
+    const GAME_ID = {{ game.id }};
+    let CHANNEL_NAME = null;
+    let CURRENT_ROOM_ID = null;
+    const USER_ID = {{ user.id }};
+    const USERNAME = "{{ user.username }}";
+    
+    let agoraClient = null;
+    let localTracks = {
+        videoTrack: null,
+        audioTrack: null
+    };
+    let remoteUsers = {};
+    let isVideoCallActive = false;
+    let isCameraOn = true;
+    let isMicOn = true;
+
+    // ==================== Elementos del DOM ====================
+    const videoToggleBtn = document.getElementById('video-toggle-btn');
+    const videoCallPanel = document.getElementById('video-call-panel');
+    const closeVideoPanel = document.getElementById('close-video-panel');
+    const roomSelector = document.getElementById('room-selector');
+    const videoBody = document.getElementById('video-body');
+    const videoControlsPanel = document.getElementById('video-controls-panel');
+    const videoRoomSelect = document.getElementById('video-room-select');
+    const joinSelectedRoomBtn = document.getElementById('join-selected-room');
+    const createRoomBtn = document.getElementById('create-room-btn');
+    const toggleCameraBtn = document.getElementById('toggle-camera');
+    const toggleMicBtn = document.getElementById('toggle-mic');
+    const leaveCallBtn = document.getElementById('leave-call');
+    const participantsCount = document.getElementById('participants-count');
+    const remoteVideosContainer = document.getElementById('remote-videos-container');
+    const currentRoomName = document.getElementById('current-room-name');
+    
+    // Nuevos controles
+    const toggleSizeBtn = document.getElementById('toggle-size-btn');
+    const changePositionBtn = document.getElementById('change-position-btn');
+    const minimizePanelBtn = document.getElementById('minimize-panel-btn');
+    const panelModeIndicator = document.getElementById('panel-mode-indicator');
+    const videoCallHeader = videoCallPanel ? videoCallPanel.querySelector('.video-call-header') : null;
+
+    // Estado del panel
+    let panelMode = 'full'; // 'full', 'compact', 'mini'
+    let panelPosition = 'bottom-right'; // 'bottom-right', 'bottom-left', 'top-right', 'top-left'
+    let isPanelMinimized = false;
+    let isDraggingPanel = false;
+    let dragPointerId = null;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let panelStartLeft = 0;
+    let panelStartTop = 0;
+
+    const presetPositionClasses = ['pos-bottom-right', 'pos-bottom-left', 'pos-top-right', 'pos-top-left'];
+
+    function applyCustomPanelPosition(left, top, persist = true) {
+        if (!videoCallPanel) return;
+        const rect = videoCallPanel.getBoundingClientRect();
+        const maxLeft = window.innerWidth - rect.width - 10;
+        const maxTop = window.innerHeight - rect.height - 10;
+        const clampedLeft = Math.min(Math.max(10, left), Math.max(10, maxLeft));
+        const clampedTop = Math.min(Math.max(70, top), Math.max(10, maxTop));
+
+        presetPositionClasses.forEach(cls => videoCallPanel.classList.remove(cls));
+        videoCallPanel.style.left = `${clampedLeft}px`;
+        videoCallPanel.style.top = `${clampedTop}px`;
+        videoCallPanel.style.right = 'auto';
+        videoCallPanel.style.bottom = 'auto';
+
+        if (persist) {
+            localStorage.setItem('videoPanelPosition', JSON.stringify({ left: clampedLeft, top: clampedTop }));
+        }
+
+        panelPosition = 'custom';
+    }
+
+    function loadSavedPanelPosition() {
+        if (!videoCallPanel) return;
+        const saved = localStorage.getItem('videoPanelPosition');
+        if (!saved) return;
+        try {
+            const { left, top } = JSON.parse(saved);
+            if (typeof left === 'number' && typeof top === 'number') {
+                applyCustomPanelPosition(left, top, false);
+            }
+        } catch (_e) {
+            // Ignorar errores de parseo
+        }
+    }
+
+    function handlePanelPointerDown(event) {
+        if (!videoCallPanel) return;
+        event.preventDefault();
+        isDraggingPanel = true;
+        dragPointerId = event.pointerId;
+        dragStartX = event.clientX;
+        dragStartY = event.clientY;
+        const rect = videoCallPanel.getBoundingClientRect();
+        panelStartLeft = rect.left;
+        panelStartTop = rect.top;
+        videoCallPanel.classList.add('dragging');
+        videoCallPanel.style.transition = 'none';
+        if (videoCallPanel.setPointerCapture && dragPointerId !== null) {
+            videoCallPanel.setPointerCapture(dragPointerId);
+        }
+    }
+
+    function handlePanelPointerMove(event) {
+        if (dragPointerId !== null && event.pointerId !== dragPointerId) return;
+        if (!isDraggingPanel) return;
+        const newLeft = panelStartLeft + (event.clientX - dragStartX);
+        const newTop = panelStartTop + (event.clientY - dragStartY);
+        applyCustomPanelPosition(newLeft, newTop);
+    }
+
+    function handlePanelPointerUp(event) {
+        if (dragPointerId !== null && event.pointerId !== dragPointerId) return;
+        if (!isDraggingPanel) return;
+        isDraggingPanel = false;
+        if (videoCallPanel.releasePointerCapture && dragPointerId !== null) {
+            try {
+                videoCallPanel.releasePointerCapture(dragPointerId);
+            } catch (_e) {}
+        }
+        dragPointerId = null;
+        videoCallPanel.classList.remove('dragging');
+        // Restaurar transición suave
+        requestAnimationFrame(() => {
+            videoCallPanel.style.transition = '';
+        });
+    }
+
+    if (videoCallHeader) {
+        videoCallHeader.addEventListener('pointerdown', handlePanelPointerDown);
+        window.addEventListener('pointermove', handlePanelPointerMove);
+        window.addEventListener('pointerup', handlePanelPointerUp);
+        window.addEventListener('pointercancel', handlePanelPointerUp);
+    }
+    loadSavedPanelPosition();
+    window.addEventListener('resize', () => {
+        if (!videoCallPanel) return;
+        if (panelPosition === 'custom') {
+            const rect = videoCallPanel.getBoundingClientRect();
+            applyCustomPanelPosition(rect.left, rect.top);
+        }
+    });
+
+    // ==================== Funciones de UI ====================
+    function toggleVideoPanel() {
+        videoCallPanel.classList.toggle('show');
+    }
+
+    function closeVideoCallPanel() {
+        // No cerrar completamente, solo ocultar (pero dejar disponible)
+        videoCallPanel.classList.remove('show');
+    }
+
+    function showRoomSelector() {
+        roomSelector.style.display = 'block';
+        videoBody.style.display = 'none';
+        videoControlsPanel.style.display = 'none';
+        currentRoomName.textContent = 'Salas de Video';
+    }
+    
+    function showPanelAndSelector() {
+        videoCallPanel.classList.add('show');
+        showRoomSelector();
+    }
+    
+    function showVideoCall() {
+        roomSelector.style.display = 'none';
+        videoBody.style.display = 'block';
+        videoControlsPanel.style.display = 'flex';
+    }
+
+    function updateParticipantsCount() {
+        const count = Object.keys(remoteUsers).length + (isVideoCallActive ? 1 : 0);
+        participantsCount.textContent = count;
+    }
+
+    // ==================== Funciones para controlar el panel ====================
+    function togglePanelSize() {
+        // Alternar entre full y compact
+        if (panelMode === 'full') {
+            panelMode = 'compact';
+            videoCallPanel.classList.remove('mode-full');
+            videoCallPanel.classList.add('mode-compact');
+            toggleSizeBtn.innerHTML = '<i class="fas fa-expand-arrows-alt"></i>';
+            toggleSizeBtn.title = 'Modo Completo';
+            panelModeIndicator.textContent = '���� Modo Compacto';
+            showToast('info', 'Modo Compacto', 'Panel reducido para mejor visibilidad');
+        } else if (panelMode === 'compact') {
+            panelMode = 'full';
+            videoCallPanel.classList.remove('mode-compact');
+            videoCallPanel.classList.add('mode-full');
+            toggleSizeBtn.innerHTML = '<i class="fas fa-compress-arrows-alt"></i>';
+            toggleSizeBtn.title = 'Modo Compacto';
+            panelModeIndicator.textContent = '���� Modo Completo';
+            showToast('info', 'Modo Completo', 'Panel en tama+�o completo');
+        }
+        // Si estaba minimizado, restaurar
+        if (isPanelMinimized) {
+            toggleMinimize();
+        }
+    }
+
+    function changePanelPosition() {
+        // Rotar entre las 4 posiciones
+        const positions = ['bottom-right', 'bottom-left', 'top-left', 'top-right'];
+        if (panelPosition === 'custom') {
+            presetPositionClasses.forEach(cls => videoCallPanel.classList.remove(cls));
+            videoCallPanel.style.left = '';
+            videoCallPanel.style.top = '';
+            videoCallPanel.style.right = '';
+            videoCallPanel.style.bottom = '';
+            panelPosition = 'bottom-right';
+        }
+        const currentIndex = positions.indexOf(panelPosition);
+        const nextIndex = (currentIndex + 1) % positions.length;
+        const nextPosition = positions[nextIndex];
+
+        // Remover clase de posici+�n anterior
+        videoCallPanel.classList.remove(`pos-${panelPosition}`);
+        // Agregar nueva clase de posici+�n
+        videoCallPanel.classList.add(`pos-${nextPosition}`);
+        
+        panelPosition = nextPosition;
+        localStorage.removeItem('videoPanelPosition');
+
+        const positionNames = {
+            'bottom-right': '������ Abajo Derecha',
+            'bottom-left': '��ִ�� Abajo Izquierda',
+            'top-left': '������ Arriba Izquierda',
+            'top-right': '������ Arriba Derecha'
+        };
+
+        showToast('info', 'Posici+�n cambiada', positionNames[nextPosition]);
+    }
+
+    function toggleMinimize() {
+        isPanelMinimized = !isPanelMinimized;
+        
+        if (isPanelMinimized) {
+            // Minimizar
+            videoCallPanel.classList.add('mode-mini');
+            videoCallPanel.classList.remove('mode-full', 'mode-compact');
+            minimizePanelBtn.innerHTML = '<i class="fas fa-window-maximize"></i>';
+            minimizePanelBtn.title = 'Restaurar';
+            panelModeIndicator.textContent = '������ Minimizado';
+        } else {
+            // Restaurar
+            videoCallPanel.classList.remove('mode-mini');
+            if (panelMode === 'full') {
+                videoCallPanel.classList.add('mode-full');
+                panelModeIndicator.textContent = '���� Modo Completo';
+            } else {
+                videoCallPanel.classList.add('mode-compact');
+                panelModeIndicator.textContent = '���� Modo Compacto';
+            }
+            minimizePanelBtn.innerHTML = '<i class="fas fa-minus"></i>';
+            minimizePanelBtn.title = 'Minimizar';
+        }
+    }
+
+    // ==================== Funciones de Agora ====================
+    async function initAgoraClient() {
+        if (agoraClient) {
+            return; // Ya est+� inicializado
+        }
+        agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+
+        // Event listeners
+        agoraClient.on("user-published", handleUserPublished);
+        agoraClient.on("user-unpublished", handleUserUnpublished);
+        agoraClient.on("user-left", handleUserLeft);
+    }
+
+    async function joinVideoCall(roomId, channelName, roomName) {
+        if (isVideoCallActive) {
+            showToast('warning', 'Ya est+�s conectado', 'Sal de la sala actual primero');
+            return;
+        }
+
+        try {
+            CHANNEL_NAME = channelName;
+            CURRENT_ROOM_ID = roomId;
+            
+            videoToggleBtn.classList.add('active');
+            showToast('info', 'Conectando...', 'Uni+�ndose a ' + roomName);
+
+            if (!agoraClient) {
+                await initAgoraClient();
+            }
+
+            // Obtener token de Agora
+            const tokenResponse = await fetch('/api/get-agora-token/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    channel_name: CHANNEL_NAME,
+                    uid: USER_ID
+                })
+            });
+
+            const tokenData = await tokenResponse.json();
+            
+            // Verificar si hay error
+            if (tokenData.error) {
+                throw new Error(tokenData.error);
+            }
+            
+            // Usar null si no hay token (modo de prueba)
+            const token = tokenData.token || null;
+
+            // Unirse al canal
+            await agoraClient.join(APP_ID, CHANNEL_NAME, token, USER_ID);
+
+            // Crear tracks locales
+            localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
+
+            // Reproducir video local
+            localTracks.videoTrack.play("local-player");
+
+            // Publicar tracks
+            await agoraClient.publish([localTracks.audioTrack, localTracks.videoTrack]);
+
+            isVideoCallActive = true;
+            currentRoomName.textContent = roomName;
+            showVideoCall();
+            updateParticipantsCount();
+            
+            // Mostrar el panel autom+�ticamente
+            videoCallPanel.classList.add('show');
+            videoToggleBtn.classList.add('active');
+            
+            // Guardar estado de videollamada para persistencia entre salas
+            saveVideoCallState();
+            
+            showToast('success', '-�Conectado!', 'Te uniste a ' + roomName);
+
+        } catch (error) {
+            console.error('Error al unirse a la videollamada:', error);
+            showToast('error', 'Error', 'No se pudo iniciar la videollamada: ' + error.message);
+            videoToggleBtn.classList.remove('active');
+        }
+    }
+
+    async function leaveVideoCall(clearState = true) {
+        if (!isVideoCallActive) return;
+
+        try {
+            // Limpiar estado guardado si se est+� cerrando intencionalmente
+            if (clearState) {
+                sessionStorage.removeItem('activeVideoCall');
+            }
+            
+            // Detener y cerrar tracks locales
+            if (localTracks.videoTrack) {
+                localTracks.videoTrack.stop();
+                localTracks.videoTrack.close();
+            }
+            if (localTracks.audioTrack) {
+                localTracks.audioTrack.stop();
+                localTracks.audioTrack.close();
+            }
+
+            // Limpiar usuarios remotos
+            Object.keys(remoteUsers).forEach(uid => {
+                const playerContainer = document.getElementById(`player-wrapper-${uid}`);
+                if (playerContainer) {
+                    playerContainer.remove();
+                }
+            });
+            remoteUsers = {};
+
+            // Salir del canal
+            await agoraClient.leave();
+
+            isVideoCallActive = false;
+            
+            // No limpiar CHANNEL_NAME y CURRENT_ROOM_ID si clearState es false (cambio de sala)
+            if (clearState) {
+                CHANNEL_NAME = null;
+                CURRENT_ROOM_ID = null;
+            }
+            
+            videoToggleBtn.classList.remove('active');
+            
+            // Mostrar selector para que puedan cambiar de sala
+            showRoomSelector();
+            updateParticipantsCount();
+            
+            if (clearState) {
+                showToast('info', 'Desconectado', 'Puedes unirte a otra sala');
+            }
+
+        } catch (error) {
+            console.error('Error al salir de la videollamada:', error);
+        }
+    }
+
+    async function toggleCamera() {
+        if (!localTracks.videoTrack) return;
+
+        try {
+            if (isCameraOn) {
+                await localTracks.videoTrack.setEnabled(false);
+                toggleCameraBtn.classList.remove('active');
+                toggleCameraBtn.classList.add('inactive');
+                toggleCameraBtn.innerHTML = '<i class="fas fa-video-slash"></i>';
+                isCameraOn = false;
+            } else {
+                await localTracks.videoTrack.setEnabled(true);
+                toggleCameraBtn.classList.remove('inactive');
+                toggleCameraBtn.classList.add('active');
+                toggleCameraBtn.innerHTML = '<i class="fas fa-video"></i>';
+                isCameraOn = true;
+            }
+        } catch (error) {
+            console.error('Error al alternar c+�mara:', error);
+        }
+    }
+
+    async function toggleMic() {
+        if (!localTracks.audioTrack) return;
+
+        try {
+            if (isMicOn) {
+                await localTracks.audioTrack.setEnabled(false);
+                toggleMicBtn.classList.remove('active');
+                toggleMicBtn.classList.add('inactive');
+                toggleMicBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+                isMicOn = false;
+            } else {
+                await localTracks.audioTrack.setEnabled(true);
+                toggleMicBtn.classList.remove('inactive');
+                toggleMicBtn.classList.add('active');
+                toggleMicBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                isMicOn = true;
+            }
+        } catch (error) {
+            console.error('Error al alternar micr+�fono:', error);
+        }
+    }
+
+    // ==================== Event Handlers de Agora ====================
+    async function handleUserPublished(user, mediaType) {
+        await agoraClient.subscribe(user, mediaType);
+        
+        if (mediaType === "video") {
+            remoteUsers[user.uid] = user;
+            
+            // Crear contenedor para el usuario remoto
+            const playerWrapper = document.createElement('div');
+            playerWrapper.id = `player-wrapper-${user.uid}`;
+            playerWrapper.className = 'remote-video-wrapper';
+            
+            const playerDiv = document.createElement('div');
+            playerDiv.id = `player-${user.uid}`;
+            playerDiv.className = 'video-player';
+            
+            const usernameDiv = document.createElement('div');
+            usernameDiv.className = 'video-username';
+            usernameDiv.textContent = `Usuario ${user.uid}`;
+            
+            playerWrapper.appendChild(playerDiv);
+            playerWrapper.appendChild(usernameDiv);
+            remoteVideosContainer.appendChild(playerWrapper);
+            
+            // Reproducir video
+            user.videoTrack.play(`player-${user.uid}`);
+            updateParticipantsCount();
+        }
+        
+        if (mediaType === "audio") {
+            user.audioTrack.play();
+        }
+    }
+
+    function handleUserUnpublished(user, mediaType) {
+        if (mediaType === "video") {
+            const playerWrapper = document.getElementById(`player-wrapper-${user.uid}`);
+            if (playerWrapper) {
+                playerWrapper.remove();
+            }
+        }
+    }
+
+    function handleUserLeft(user) {
+        delete remoteUsers[user.uid];
+        const playerWrapper = document.getElementById(`player-wrapper-${user.uid}`);
+        if (playerWrapper) {
+            playerWrapper.remove();
+        }
+        updateParticipantsCount();
+    }
+
+    // ==================== Event Listeners ====================
+    // Helper: unirse a la sala actualmente seleccionada en el selector
+    async function joinCurrentlySelectedRoom() {
+        const selectedOption = videoRoomSelect.options[videoRoomSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            showToast('warning', 'Selecciona una sala', 'Debes elegir una sala para unirte');
+            return;
+        }
+        const roomId = selectedOption.value;
+        const channelName = selectedOption.dataset.channel;
+        const roomName = selectedOption.dataset.name;
+        const hasPassword = selectedOption.dataset.hasPassword === 'true';
+        if (hasPassword) {
+            const { value: password } = await Swal.fire({
+                title: '���� Sala Privada',
+                html: `<p class="mb-3">La sala <strong>${roomName}</strong> requiere contrase+�a para acceder.</p>`,
+                input: 'password',
+                inputLabel: 'Introduce la contrase+�a',
+                inputPlaceholder: 'Contrase+�a',
+                inputAttributes: {
+                    autocapitalize: 'off',
+                    autocorrect: 'off'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Unirse',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#E74C3C',
+                cancelButtonColor: '#6c757d',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'Debes ingresar una contrase+�a';
+                    }
+                }
+            });
+            if (!password) {
+                return;
+            }
+            
+            // Validar contrase+�a con el servidor
+            try {
+                const verifyResponse = await fetch(`/api/video-groups/${roomId}/verify-password/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ password: password })
+                });
+                
+                const verifyData = await verifyResponse.json();
+                
+                if (!verifyData.valid) {
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Contrase+�a incorrecta',
+                        text: verifyData.error || 'La contrase+�a ingresada no es correcta',
+                        confirmButtonColor: '#E74C3C'
+                    });
+                    return;
+                }
+            } catch (error) {
+                console.error('Error verificando contrase+�a:', error);
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo verificar la contrase+�a. Intenta nuevamente.',
+                    confirmButtonColor: '#E74C3C'
+                });
+                return;
+            }
+        }
+        await joinVideoCall(roomId, channelName, roomName);
+        
+        // Asegurar que el panel se muestre despu+�s de conectarse
+        if (!videoCallPanel.classList.contains('show')) {
+            videoCallPanel.classList.add('show');
+            videoToggleBtn.classList.add('active');
+        }
+    }
+
+    // Preseleccionar la primera sala disponible si existe
+    (function preselectFirstRoom() {
+        if (videoRoomSelect && videoRoomSelect.options.length > 1) {
+            // opci+�n 0 es el placeholder
+            videoRoomSelect.selectedIndex = 1;
+        }
+    })();
+
+    // Click del bot+�n flotante: SIEMPRE mostrar el selector de salas
+    videoToggleBtn.addEventListener('click', async () => {
+        // Si ya est+� visible y hay una llamada activa, no hacer nada
+        if (videoCallPanel.classList.contains('show') && isVideoCallActive) {
+            return;
+        }
+        
+        // Si est+� visible y NO hay llamada activa, ocultar
+        if (videoCallPanel.classList.contains('show') && !isVideoCallActive) {
+            toggleVideoPanel();
+            return;
+        }
+        
+        // Mostrar panel con selector de salas
+        showPanelAndSelector();
+    });
+    closeVideoPanel.addEventListener('click', closeVideoCallPanel);
+    toggleCameraBtn.addEventListener('click', toggleCamera);
+    toggleMicBtn.addEventListener('click', toggleMic);
+    leaveCallBtn.addEventListener('click', leaveVideoCall);
+    
+    // Nuevos controles del panel
+    toggleSizeBtn.addEventListener('click', togglePanelSize);
+    changePositionBtn.addEventListener('click', changePanelPosition);
+    minimizePanelBtn.addEventListener('click', toggleMinimize);
+    
+    // Unirse a sala seleccionada desde el bot+�n del panel
+    joinSelectedRoomBtn.addEventListener('click', joinCurrentlySelectedRoom);
+    
+    // Crear sala privada
+    createRoomBtn.addEventListener('click', async () => {
+        const roomName = document.getElementById('room-name').value.trim();
+        const roomPassword = document.getElementById('room-password').value;
+        
+        if (!roomName) {
+            showToast('error', 'Nombre requerido', 'Debes proporcionar un nombre para la sala');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/videocallgroups/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    name: roomName,
+                    game_id: GAME_ID,
+                    is_public: false,
+                    password: roomPassword
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createRoomModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Recargar p+�gina para mostrar la nueva sala
+            showToast('success', 'Sala creada', 'Recargando...');
+            if (!window.isReloading) {
+                window.isReloading = true;
+                setTimeout(() => location.reload(), 1500);
+            }
+            
+        } catch (error) {
+            console.error('Error al crear sala:', error);
+            showToast('error', 'Error', 'No se pudo crear la sala: ' + error.message);
+        }
+    });
+
+    // ==================== Persistencia de Videollamada ====================
+    // Guardar estado de videollamada cuando est+� activa
+    function saveVideoCallState() {
+        if (isVideoCallActive && CHANNEL_NAME && CURRENT_ROOM_ID) {
+            sessionStorage.setItem('activeVideoCall', JSON.stringify({
+                channelName: CHANNEL_NAME,
+                roomId: CURRENT_ROOM_ID,
+                roomName: currentRoomName ? currentRoomName.textContent : 'Sala activa',
+                isCameraOn: isCameraOn,
+                isMicOn: isMicOn,
+                gameId: GAME_ID,
+                pageType: 'game'
+            }));
+            console.log('Estado de videollamada guardado');
+        }
+    }
+    
+    // Restaurar videollamada si existe una activa en la misma sala
+    async function restoreVideoCallIfActive() {
+        const savedState = sessionStorage.getItem('activeVideoCall');
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                
+                // Restaurar videollamada si existe, permitiendo persistencia entre p+�ginas
+                // Funciona independientemente de si vienes de otra p+�gina (lobby, rifa, perfil, etc.)
+                if (state.roomId && state.channelName) {
+                    // Verificar si la sala a+�n existe
+                    const response = await fetch(`/api/videocallgroups/`);
+                    const data = await response.json();
+                    const room = data.groups.find(g => g.id === parseInt(state.roomId));
+                    
+                    if (room) {
+                        // Restaurar la videollamada autom+�ticamente
+                        // Esto permite mantener la conexi+�n al cambiar entre cualquier p+�gina
+                        console.log('Restaurando videollamada activa desde navegaci+�n...');
+                        CHANNEL_NAME = state.channelName;
+                        CURRENT_ROOM_ID = state.roomId;
+                        
+                        // Reconectar a la videollamada (mantiene conexi+�n entre p+�ginas)
+                        await joinVideoCall(state.roomId, state.channelName, state.roomName || room.name);
+                    } else {
+                        // La sala ya no existe, limpiar estado
+                        sessionStorage.removeItem('activeVideoCall');
+                    }
+                }
+            } catch (error) {
+                console.error('Error restaurando videollamada:', error);
+                sessionStorage.removeItem('activeVideoCall');
+            }
+        }
+    }
+    
+    // Guardar estado peri+�dicamente cuando hay videollamada activa
+    setInterval(() => {
+        if (isVideoCallActive) {
+            saveVideoCallState();
+        }
+    }, 5000);
+    
+    // Intentar restaurar videollamada al cargar la p+�gina
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            restoreVideoCallIfActive();
+        }, 1000); // Esperar un segundo para que todo est+� inicializado
+    });
+    
+    // IMPORTANTE: NO desconectar la videollamada cuando navegas entre p+�ginas
+    // Solo limpiar cuando realmente quieras salir de la videollamada
+    // Usar pagehide en lugar de beforeunload para mejor control
+    window.addEventListener('pagehide', async (e) => {
+        // Solo limpiar si la p+�gina se est+� descargando permanentemente
+        // Si es persistente=true, la p+�gina se est+� ocultando pero puede volver (no limpiar)
+        if (e.persisted === false && isVideoCallActive) {
+            // La p+�gina se est+� descargando, pero NO limpiar la videollamada
+            // Guardar estado para reconexi+�n autom+�tica
+            console.log('P+�gina descarg+�ndose, guardando estado de videollamada...');
+            saveVideoCallState();
+            // NO desconectar - dejar que la conexi+�n se mantenga en el estado guardado
+            // La reconexi+�n autom+�tica se har+� cuando vuelvas a una p+�gina
+        }
+    });
+    
+    // NO usar beforeunload - puede ejecutarse incluso cuando no se cierra la p+�gina
+    // Solo limpiar expl+�citamente cuando el usuario presiona "Salir"
+</script>
+{% endblock %}

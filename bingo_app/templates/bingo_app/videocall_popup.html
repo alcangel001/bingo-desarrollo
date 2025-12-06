@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Videollamada</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Estilos del panel de videollamada adaptados para la ventana emergente */
+    </style>
+</head>
+<body>
+    <!-- Panel de videollamada flotante -->
+<div class="video-call-panel pos-bottom-right mode-full show" id="video-call-panel">
+    <div class="panel-mode-indicator" id="panel-mode-indicator">📺 Modo Completo</div>
+    <div class="video-call-header">
+        <div class="video-call-header-title">
+            <i class="fas fa-users"></i>
+            <strong id="current-room-name">Salas de Video</strong>
+        </div>
+        <div class="video-call-header-actions">
+            <!-- Botón cambiar tamaño -->
+            <button class="video-header-btn" id="toggle-size-btn" title="Cambiar tamaño (Completo/Compacto)">
+                <i class="fas fa-compress-arrows-alt"></i>
+            </button>
+            <!-- Botón cambiar posición -->
+            <button class="video-header-btn" id="change-position-btn" title="Cambiar posición">
+                <i class="fas fa-arrows-alt"></i>
+            </button>
+            <!-- Botón minimizar -->
+            <button class="video-header-btn" id="minimize-panel-btn" title="Minimizar">
+                <i class="fas fa-minus"></i>
+            </button>
+            <!-- Botón cerrar -->
+            <button class="video-header-btn" id="close-video-panel" title="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Selector de salas -->
+    <div id="room-selector" class="p-3" style="background: rgba(0,0,0,0.2);">
+        <label class="text-white mb-2"><i class="fas fa-door-open"></i> Seleccionar Sala:</label>
+        <select class="form-select mb-2" id="video-room-select">
+            <option value="">-- Selecciona una sala --</option>
+            {% for vg in video_groups %}
+            <option value="{{ vg.id }}" 
+                    data-channel="{{ vg.agora_channel_name }}" 
+                    data-name="{{ vg.name }}"
+                    data-public="{{ vg.is_public }}"
+                    data-has-password="{% if vg.password %}true{% else %}false{% endif %}">
+                {{ vg.name }} 
+                {% if vg.is_public %}
+                    🌐 Pública
+                {% else %}
+                    🔒 Privada
+                {% endif %}
+                ({{ vg.participants.count }} participantes)
+            </option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-success w-100 mb-2" id="join-selected-room">
+            <i class="fas fa-sign-in-alt"></i> Unirse a Sala
+        </button>
+        <button class="btn btn-sm btn-info w-100" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+            <i class="fas fa-plus"></i> Crear Sala Privada
+        </button>
+    </div>
+    
+    <div class="video-call-body" id="video-body" style="display: none;">
+        <!-- Tu video -->
+        <div id="local-video-container">
+            <div id="local-player" class="video-player"></div>
+            <div class="video-username">Tú ({{ user.username }})</div>
+        </div>
+
+        <!-- Videos remotos -->
+        <div id="remote-videos-container"></div>
+    </div>
+
+    <!-- Controles de video -->
+    <div class="video-controls" id="video-controls-panel" style="display: none;">
+        <button class="video-control-btn active" id="toggle-camera" title="Cámara">
+            <i class="fas fa-video"></i>
+        </button>
+        <button class="video-control-btn active" id="toggle-mic" title="Micrófono">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <button class="video-control-btn inactive" id="leave-call" title="Salir">
+            <i class="fas fa-phone-slash"></i>
+        </button>
+    </div>
+</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.19.0.js"></script>
+    <script>
+        // ==================== Configuración de Agora ====================
+    const APP_ID = "{{ agora_app_id }}";
+    const GAME_ID = null; // No estamos en un juego específico
+    let CHANNEL_NAME = null;
+    let CURRENT_ROOM_ID = null;
+    const USER_ID = {{ user.id }};
+    const USERNAME = "{{ user.username }}";
+    
+    let agoraClient = null;
+    let localTracks = {
+        videoTrack: null,
+        audioTrack: null
+    };
+    let remoteUsers = {};
+    let isVideoCallActive = false;
+    let isCameraOn = true;
+    let isMicOn = true;
+
+    // ==================== Elementos del DOM ====================
+    const videoCallPanel = document.getElementById('video-call-panel');
+    const closeVideoPanel = document.getElementById('close-video-panel');
+    const roomSelector = document.getElementById('room-selector');
+    const videoBody = document.getElementById('video-body');
+    const videoControlsPanel = document.getElementById('video-controls-panel');
+    const videoRoomSelect = document.getElementById('video-room-select');
+    const joinSelectedRoomBtn = document.getElementById('join-selected-room');
+    const createRoomBtn = document.getElementById('create-room-btn');
+    const toggleCameraBtn = document.getElementById('toggle-camera');
+    const toggleMicBtn = document.getElementById('toggle-mic');
+    const leaveCallBtn = document.getElementById('leave-call');
+    const participantsCount = document.getElementById('participants-count');
+    const remoteVideosContainer = document.getElementById('remote-videos-container');
+    const currentRoomName = document.getElementById('current-room-name');
+    
+    // Nuevos controles
+    const toggleSizeBtn = document.getElementById('toggle-size-btn');
+    const changePositionBtn = document.getElementById('change-position-btn');
+    const minimizePanelBtn = document.getElementById('minimize-panel-btn');
+    const panelModeIndicator = document.getElementById('panel-mode-indicator');
+
+    // Estado del panel
+    let panelMode = 'full'; // 'full', 'compact', 'mini'
+    let panelPosition = 'bottom-right'; // 'bottom-right', 'bottom-left', 'top-right', 'top-left'
+    let isPanelMinimized = false;
+
+    // ==================== Funciones de UI ====================
+    function showRoomSelector() {
+        roomSelector.style.display = 'block';
+        videoBody.style.display = 'none';
+        videoControlsPanel.style.display = 'none';
+        currentRoomName.textContent = 'Salas de Video';
+    }
+    
+    function showVideoCall() {
+        roomSelector.style.display = 'none';
+        videoBody.style.display = 'block';
+        videoControlsPanel.style.display = 'flex';
+    }
+
+    // ==================== Funciones de Agora ====================
+    async function initAgoraClient() {
+        if (agoraClient) {
+            return; // Ya está inicializado
+        }
+        agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+
+        // Event listeners
+        agoraClient.on("user-published", handleUserPublished);
+        agoraClient.on("user-unpublished", handleUserUnpublished);
+        agoraClient.on("user-left", handleUserLeft);
+    }
+
+    async function joinVideoCall(roomId, channelName, roomName) {
+        // Si ya está en una sala, salir primero antes de unirse a otra
+        if (isVideoCallActive && CHANNEL_NAME !== channelName) {
+            await leaveVideoCall(false); // No limpiar completamente, solo salir del canal
+        }
+        
+        // Si ya está en la misma sala, no hacer nada
+        if (isVideoCallActive && CHANNEL_NAME === channelName) {
+            return;
+        }
+
+        try {
+            CHANNEL_NAME = channelName;
+            CURRENT_ROOM_ID = roomId;
+
+            if (!agoraClient) {
+                await initAgoraClient();
+            }
+
+            const tokenResponse = await fetch('/api/get-agora-token/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    channel_name: CHANNEL_NAME,
+                    uid: USER_ID
+                })
+            });
+
+            const tokenData = await tokenResponse.json();
+            
+            if (tokenData.error) {
+                throw new Error(tokenData.error);
+            }
+            
+            const token = tokenData.token || null;
+
+            await agoraClient.join(APP_ID, CHANNEL_NAME, token, USER_ID);
+
+            // Solo crear tracks si no existen
+            if (!localTracks.audioTrack) {
+            localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            }
+            if (!localTracks.videoTrack) {
+            localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
+            }
+
+            localTracks.videoTrack.play("local-player");
+
+            await agoraClient.publish([localTracks.audioTrack, localTracks.videoTrack]);
+
+            isVideoCallActive = true;
+            currentRoomName.textContent = roomName;
+            showVideoCall();
+            
+            // Guardar estado para persistencia
+            sessionStorage.setItem('videocall_active_state', JSON.stringify({
+                channelName: CHANNEL_NAME,
+                roomId: CURRENT_ROOM_ID,
+                roomName: roomName,
+                isActive: true
+            }));
+
+        } catch (error) {
+            console.error('Error al unirse a la videollamada:', error);
+            alert('Error al unirse a la videollamada: ' + error.message);
+        }
+    }
+
+    async function leaveVideoCall(clearTracks = true) {
+        if (!isVideoCallActive) return;
+
+        try {
+            // Limpiar usuarios remotos
+            Object.keys(remoteUsers).forEach(uid => {
+                const playerWrapper = document.getElementById(`player-wrapper-${uid}`);
+                if (playerWrapper) {
+                    playerWrapper.remove();
+                }
+            });
+            remoteUsers = {};
+
+            // Salir del canal
+            if (agoraClient) {
+                await agoraClient.leave();
+            }
+
+            // Solo limpiar tracks si se especifica (para permitir cambio de sala)
+            if (clearTracks) {
+            if (localTracks.videoTrack) {
+                localTracks.videoTrack.stop();
+                localTracks.videoTrack.close();
+                    localTracks.videoTrack = null;
+            }
+            if (localTracks.audioTrack) {
+                localTracks.audioTrack.stop();
+                localTracks.audioTrack.close();
+                    localTracks.audioTrack = null;
+                }
+            }
+
+            isVideoCallActive = false;
+            CHANNEL_NAME = null;
+            CURRENT_ROOM_ID = null;
+            
+            // Limpiar estado guardado solo cuando se sale explícitamente
+            sessionStorage.removeItem('videocall_active_state');
+            
+            showRoomSelector();
+
+        } catch (error) {
+            console.error('Error al salir de la videollamada:', error);
+        }
+    }
+
+    async function handleUserPublished(user, mediaType) {
+        await agoraClient.subscribe(user, mediaType);
+        
+        if (mediaType === "video") {
+            remoteUsers[user.uid] = user;
+            
+            const playerWrapper = document.createElement('div');
+            playerWrapper.id = `player-wrapper-${user.uid}`;
+            playerWrapper.className = 'remote-video-wrapper';
+            
+            const playerDiv = document.createElement('div');
+            playerDiv.id = `player-${user.uid}`;
+            playerDiv.className = 'video-player';
+            
+            const usernameDiv = document.createElement('div');
+            usernameDiv.className = 'video-username';
+            usernameDiv.textContent = `Usuario ${user.uid}`;
+            
+            playerWrapper.appendChild(playerDiv);
+            playerWrapper.appendChild(usernameDiv);
+            remoteVideosContainer.appendChild(playerWrapper);
+            
+            user.videoTrack.play(`player-${user.uid}`);
+        }
+        
+        if (mediaType === "audio") {
+            user.audioTrack.play();
+        }
+    }
+
+    function handleUserLeft(user) {
+        delete remoteUsers[user.uid];
+        const playerWrapper = document.getElementById(`player-wrapper-${user.uid}`);
+        if (playerWrapper) {
+            playerWrapper.remove();
+        }
+    }
+
+    // ==================== Event Listeners ====================
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Inicializar cliente de Agora
+        await initAgoraClient();
+        
+        // Verificar si hay una videollamada activa que se pueda restaurar
+        const savedState = sessionStorage.getItem('videocall_active_state');
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                if (state.isActive && state.channelName && state.roomId) {
+                    // Intentar reconectar a la videollamada activa
+                    console.log('Restaurando videollamada activa...');
+                    CHANNEL_NAME = state.channelName;
+                    CURRENT_ROOM_ID = state.roomId;
+                    
+                    // Reconectar sin pedir confirmación
+                    await joinVideoCall(state.roomId, state.channelName, state.roomName || 'Sala activa');
+                }
+            } catch (error) {
+                console.error('Error restaurando videollamada:', error);
+                sessionStorage.removeItem('videocall_active_state');
+            }
+        }
+        
+        // Cargar salas de video disponibles
+        await loadVideoRooms();
+        
+        // Event listeners para controles
+        joinSelectedRoomBtn.addEventListener('click', async () => {
+            await joinCurrentlySelectedRoom();
+        });
+        
+        toggleCameraBtn.addEventListener('click', toggleCamera);
+        toggleMicBtn.addEventListener('click', toggleMic);
+        leaveCallBtn.addEventListener('click', async () => {
+            if (confirm('¿Estás seguro de que quieres salir de la videollamada?')) {
+                await leaveVideoCall();
+            }
+        });
+        
+        closeVideoPanel.addEventListener('click', async () => {
+            if (isVideoCallActive) {
+                if (confirm('¿Quieres salir de la videollamada y cerrar el panel?')) {
+                    await leaveVideoCall();
+                    // Limpiar sessionStorage antes de cerrar
+                    sessionStorage.removeItem('videocall_active_state');
+                    if (window.opener) {
+                        try {
+                            window.opener.sessionStorage.removeItem('videocall_popup_open');
+                        } catch (e) {
+                            // Ignorar
+                        }
+                    }
+                    window.close();
+                }
+            } else {
+                if (window.opener) {
+                    try {
+                        window.opener.sessionStorage.removeItem('videocall_popup_open');
+                    } catch (e) {
+                        // Ignorar
+                    }
+                }
+                window.close();
+            }
+        });
+        
+        // IMPORTANTE: NO usar beforeunload para desconectar la videollamada
+        // El popup es completamente independiente de la ventana principal
+        // La videollamada debe persistir aunque se navegue en la ventana principal
+        // Solo se desconectará cuando el usuario cierre el popup explícitamente
+        
+        // Notificar a la ventana principal que el popup está abierto
+        if (window.opener) {
+            try {
+                window.opener.sessionStorage.setItem('videocall_popup_open', 'true');
+            } catch (e) {
+                // Puede fallar si están en diferentes dominios, pero no es crítico
+            }
+        }
+        
+        // Solo limpiar cuando el popup se cierra realmente (no cuando la ventana principal navega)
+        // Usar pagehide que es más confiable que beforeunload
+        window.addEventListener('pagehide', async (e) => {
+            // Solo limpiar si es persistente=false (la página se está descargando)
+            // Si es persistente=true, la página se está ocultando pero puede volver
+            if (e.persisted === false && isVideoCallActive) {
+                // El popup se está cerrando realmente
+                console.log('Popup cerrando, limpiando videollamada...');
+                try {
+                    if (localTracks.videoTrack) {
+                        localTracks.videoTrack.stop();
+                        localTracks.videoTrack.close();
+                    }
+                    if (localTracks.audioTrack) {
+                        localTracks.audioTrack.stop();
+                        localTracks.audioTrack.close();
+                    }
+                    if (agoraClient) {
+                        await agoraClient.leave();
+                    }
+                    sessionStorage.removeItem('videocall_active_state');
+                } catch (error) {
+                    console.error('Error limpiando videollamada:', error);
+                }
+            }
+        });
+        
+        // Notificar cuando se cierra para limpiar sessionStorage de la ventana principal
+        window.addEventListener('unload', () => {
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener.sessionStorage.removeItem('videocall_popup_open');
+                } catch (e) {
+                    // Ignorar errores
+                }
+            }
+        });
+    });
+    
+    // ==================== Funciones Auxiliares ====================
+    async function loadVideoRooms() {
+        try {
+            const response = await fetch('/api/videocallgroups/');
+            const data = await response.json();
+            
+            // Limpiar opciones actuales excepto la primera (placeholder)
+            while (videoRoomSelect.options.length > 1) {
+                videoRoomSelect.remove(1);
+            }
+            
+            // Agregar salas disponibles
+            data.groups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group.id;
+                option.dataset.channel = group.agora_channel_name;
+                option.dataset.name = group.name;
+                option.dataset.hasPassword = group.password ? 'true' : 'false';
+                option.textContent = `${group.name} ${group.is_public ? '🌐 Pública' : '🔒 Privada'} (${group.participants_count} participantes)`;
+                videoRoomSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error cargando salas de video:', error);
+        }
+    }
+    
+    async function joinCurrentlySelectedRoom() {
+        const selectedOption = videoRoomSelect.options[videoRoomSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            alert('Selecciona una sala para unirte');
+            return;
+        }
+        
+        const roomId = selectedOption.value;
+        const channelName = selectedOption.dataset.channel;
+        const roomName = selectedOption.dataset.name;
+        const hasPassword = selectedOption.dataset.hasPassword === 'true';
+        
+        if (hasPassword) {
+            const { value: password } = await Swal.fire({
+                title: '🔒 Sala Privada',
+                html: `<p class="mb-3">La sala <strong>${roomName}</strong> requiere contraseña para acceder.</p>`,
+                input: 'password',
+                inputLabel: 'Introduce la contraseña',
+                inputPlaceholder: 'Contraseña',
+                showCancelButton: true,
+                confirmButtonText: 'Unirse',
+                cancelButtonText: 'Cancelar'
+            });
+            
+            if (!password) return;
+            
+            // Verificar contraseña
+            try {
+                const verifyResponse = await fetch(`/api/video-groups/${roomId}/verify-password/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ password: password })
+                });
+                
+                const verifyData = await verifyResponse.json();
+                if (!verifyData.valid) {
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Contraseña incorrecta',
+                        text: 'La contraseña ingresada no es correcta.'
+                    });
+                    return;
+                }
+            } catch (error) {
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo verificar la contraseña. Intenta nuevamente.'
+                });
+                return;
+            }
+        }
+        
+        await joinVideoCall(roomId, channelName, roomName);
+    }
+    
+    function toggleCamera() {
+        if (!localTracks.videoTrack) return;
+        
+        if (isCameraOn) {
+            localTracks.videoTrack.setEnabled(false);
+            toggleCameraBtn.classList.remove('active');
+            toggleCameraBtn.classList.add('inactive');
+            isCameraOn = false;
+        } else {
+            localTracks.videoTrack.setEnabled(true);
+            toggleCameraBtn.classList.add('active');
+            toggleCameraBtn.classList.remove('inactive');
+            isCameraOn = true;
+        }
+    }
+    
+    function toggleMic() {
+        if (!localTracks.audioTrack) return;
+        
+        if (isMicOn) {
+            localTracks.audioTrack.setEnabled(false);
+            toggleMicBtn.classList.remove('active');
+            toggleMicBtn.classList.add('inactive');
+            isMicOn = false;
+        } else {
+            localTracks.audioTrack.setEnabled(true);
+            toggleMicBtn.classList.add('active');
+            toggleMicBtn.classList.remove('inactive');
+            isMicOn = true;
+        }
+    }
+    
+    function handleUserUnpublished(user, mediaType) {
+        if (mediaType === "video") {
+            const playerWrapper = document.getElementById(`player-wrapper-${user.uid}`);
+            if (playerWrapper) {
+                playerWrapper.remove();
+            }
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    </script>
+</body>
+</html>

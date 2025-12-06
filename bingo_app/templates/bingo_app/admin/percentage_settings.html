@@ -1,0 +1,322 @@
+{% extends "bingo_app/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 admin-page">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3><i class="fas fa-percentage me-2"></i>Configuración de Porcentajes</h3>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <!-- Configuración de Tarifas con Toggles -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-primary mb-3"><i class="fas fa-toggle-on me-2"></i>Configuración de Tarifas</h5>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card border-primary">
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="game_creation_fee_enabled" 
+                                           id="game_creation_fee_enabled" 
+                                           {% if settings.game_creation_fee_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="game_creation_fee_enabled">
+                                        <strong>Activar Tarifa de Creación de Juego</strong>
+                                    </label>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="game_creation_fee" class="form-control" 
+                                           value="{{ form.game_creation_fee.value|default:settings.game_creation_fee }}" 
+                                           step="0.01" min="0" id="game_creation_fee_input">
+                                </div>
+                                <small class="text-muted">Costo fijo para crear un nuevo juego</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="platform_commission_enabled" 
+                                           id="platform_commission_enabled" 
+                                           {% if settings.platform_commission_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="platform_commission_enabled">
+                                        <strong>Activar Comisión por Cartón</strong>
+                                    </label>
+                                </div>
+                                <div class="input-group">
+                                    <input type="number" name="platform_commission" class="form-control" 
+                                           value="{{ form.platform_commission.value|default:settings.platform_commission }}" 
+                                           step="0.01" min="0" max="100" id="platform_commission_input">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="text-muted">Porcentaje sobre ventas de cartones</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Precios de Promoción -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Precio de Promoción con Imagen</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" name="image_promotion_price" class="form-control" 
+                                   value="{{ form.image_promotion_price.value|default:settings.image_promotion_price }}" 
+                                   step="0.01" min="0" required>
+                        </div>
+                        <small class="text-muted">Costo en créditos para promocionar con imagen</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Precio de Promoción con Video</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" name="video_promotion_price" class="form-control" 
+                                   value="{{ form.video_promotion_price.value|default:settings.video_promotion_price }}" 
+                                   step="0.01" min="0" required>
+                        </div>
+                        <small class="text-muted">Costo en créditos para promocionar con video</small>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Para atraer usuarios:</strong> Desactiva las tarifas al inicio y actívalas gradualmente.
+                    <br><strong>Comisión por Cartón:</strong> Se cobra sobre las ventas de cartones durante el juego.
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Los <strong>Precios de Promoción</strong> son los costos en créditos que deben pagar los usuarios 
+                    para promocionar sus eventos con imágenes o videos.
+                </div>
+
+                <hr class="my-4">
+
+                <!-- 🎮 CONTROL DE FUNCIONALIDADES DEL USUARIO -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-success mb-3">
+                            <i class="fas fa-gamepad me-2"></i>🎮 Control de Funcionalidades del Usuario
+                            <span class="badge bg-warning text-dark">⭐ IMPORTANTE</span>
+                        </h5>
+                        <div class="alert alert-success">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>⚠️ Estas opciones controlan QUÉ ven los usuarios en el lobby.</strong>
+                            <br>Si desactivas un sistema, el enlace DESAPARECERÁ del menú de navegación.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card border-info">
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="credits_purchase_enabled" 
+                                           id="credits_purchase_enabled" 
+                                           {% if settings.credits_purchase_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="credits_purchase_enabled">
+                                        <strong>💰 Activar Compra de Créditos</strong>
+                                    </label>
+                                </div>
+                                <small class="text-muted">Permitir a los usuarios solicitar compra de créditos</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-info">
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="credits_withdrawal_enabled" 
+                                           id="credits_withdrawal_enabled" 
+                                           {% if settings.credits_withdrawal_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="credits_withdrawal_enabled">
+                                        <strong>💸 Activar Retiro de Créditos</strong>
+                                    </label>
+                                </div>
+                                <small class="text-muted">Permitir a los usuarios solicitar retiros</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card border-warning" style="border-width: 3px;">
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="referral_system_enabled" 
+                                           id="referral_system_enabled" 
+                                           {% if settings.referral_system_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="referral_system_enabled">
+                                        <strong>🤝 Activar Sistema de Referidos ⭐</strong>
+                                    </label>
+                                </div>
+                                <small class="text-muted">
+                                    <strong>¡AQUÍ ESTÁ!</strong> Activa/desactiva el enlace "Referidos" en el menú
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-warning" style="border-width: 3px;">
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="promotions_enabled" 
+                                           id="promotions_enabled" 
+                                           {% if settings.promotions_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="promotions_enabled">
+                                        <strong>🎁 Activar Promociones y Bonos ⭐</strong>
+                                    </label>
+                                </div>
+                                <small class="text-muted">
+                                    <strong>¡AQUÍ ESTÁ!</strong> Activa/desactiva el enlace "Promociones" en el menú
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Errores:</strong>
+                    <ul class="mb-0">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Guardar Cambios
+                </button>
+                <a href="{% url 'lobby' %}" class="btn btn-secondary ms-2">
+                    <i class="fas fa-arrow-left me-2"></i>Volver
+                </a>
+            </form>
+        </div>
+        <div class="card-footer text-muted">
+            Última actualización: {{ settings.last_updated|date:"d M Y H:i" }} por {{ settings.updated_by.username|default:"Sistema" }}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Seleccionar todos los inputs
+    const inputs = [
+        document.querySelector('input[name="platform_commission"]'),
+        document.querySelector('input[name="image_promotion_price"]'),
+        document.querySelector('input[name="video_promotion_price"]')
+    ];
+    
+    function validateInput(input) {
+        const value = parseFloat(input.value) || 0;
+        const name = input.name;
+        
+        if (name === 'platform_commission') {
+            // Comisión debe estar entre 0 y 100
+            if (value < 0 || value > 100) {
+                input.classList.add('is-invalid');
+            } else {
+                input.classList.remove('is-invalid');
+            }
+        } else {
+            // Precios deben ser positivos
+            if (value < 0) {
+                input.classList.add('is-invalid');
+            } else {
+                input.classList.remove('is-invalid');
+            }
+        }
+    }
+    
+    // Event listeners para validación
+    inputs.forEach(input => {
+        input.addEventListener('change', function() {
+            validateInput(this);
+        });
+        input.addEventListener('input', function() {
+            validateInput(this);
+        });
+    });
+    
+    // Validar al cargar la página
+    inputs.forEach(validateInput);
+});
+</script>
+
+<style>
+.input-group-text {
+    min-width: 40px;
+    justify-content: center;
+}
+.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Funcionalidad de los toggles
+    const gameCreationToggle = document.getElementById('game_creation_fee_enabled');
+    const gameCreationInput = document.getElementById('game_creation_fee_input');
+    const commissionToggle = document.getElementById('platform_commission_enabled');
+    const commissionInput = document.getElementById('platform_commission_input');
+    
+    function toggleGameCreationFee() {
+        if (gameCreationToggle.checked) {
+            gameCreationInput.disabled = false;
+            gameCreationInput.parentElement.parentElement.style.opacity = '1';
+        } else {
+            gameCreationInput.disabled = true;
+            gameCreationInput.parentElement.parentElement.style.opacity = '0.5';
+        }
+    }
+    
+    function toggleCommission() {
+        if (commissionToggle.checked) {
+            commissionInput.disabled = false;
+            commissionInput.parentElement.parentElement.style.opacity = '1';
+        } else {
+            commissionInput.disabled = true;
+            commissionInput.parentElement.parentElement.style.opacity = '0.5';
+        }
+    }
+    
+    // Aplicar estado inicial
+    toggleGameCreationFee();
+    toggleCommission();
+    
+    // Agregar event listeners
+    gameCreationToggle.addEventListener('change', toggleGameCreationFee);
+    commissionToggle.addEventListener('change', toggleCommission);
+});
+</script>
+{% endblock %}

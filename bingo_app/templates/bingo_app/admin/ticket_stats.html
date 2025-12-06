@@ -1,0 +1,269 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Estadísticas de Tickets{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
+<style>
+    .admin-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    .admin-card .card-title {
+        color: #000000 !important;
+    }
+    .admin-card .card-text {
+        color: #000000 !important;
+    }
+    .admin-card .form-label {
+        color: #000000 !important;
+    }
+    .admin-card .form-text {
+        color: #6c757d !important;
+    }
+    .admin-card .form-control {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ced4da !important;
+    }
+    .admin-card .form-check-label {
+        color: #000000 !important;
+    }
+    .admin-card .btn {
+        color: #ffffff !important;
+    }
+    .admin-card .alert {
+        background-color: #d1ecf1 !important;
+        color: #0c5460 !important;
+        border: 1px solid #bee5eb !important;
+    }
+    .admin-card .badge {
+        color: #ffffff !important;
+    }
+    .admin-card .text-muted {
+        color: #6c757d !important;
+    }
+    .stats-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    .stats-card .card-title {
+        color: #000000 !important;
+    }
+    .stats-card .text-muted {
+        color: #6c757d !important;
+    }
+    .stats-card th {
+        color: #000000 !important;
+    }
+    .stats-card td {
+        color: #000000 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 admin-page">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card admin-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-chart-bar"></i> Estadísticas del Sistema de Tickets
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Estadísticas Generales -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ total_tickets }}</h4>
+                                    <p class="mb-0">Total Tickets</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ used_tickets }}</h4>
+                                    <p class="mb-0">Tickets Usados</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ available_tickets }}</h4>
+                                    <p class="mb-0">Tickets Disponibles</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ expired_tickets }}</h4>
+                                    <p class="mb-0">Tickets Expirados</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Tickets por Tipo -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-tags"></i> Tickets por Tipo
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if tickets_by_type %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Tipo</th>
+                                                        <th>Cantidad</th>
+                                                        <th>Porcentaje</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for ticket_type in tickets_by_type %}
+                                                    <tr>
+                                                        <td>
+                                                            {% if ticket_type.ticket_type == 'DAILY_MORNING' %}
+                                                                <i class="fas fa-sun text-warning"></i> Matutino
+                                                            {% elif ticket_type.ticket_type == 'DAILY_AFTERNOON' %}
+                                                                <i class="fas fa-sun text-orange"></i> Vespertino
+                                                            {% elif ticket_type.ticket_type == 'DAILY_EVENING' %}
+                                                                <i class="fas fa-moon text-primary"></i> Nocturno
+                                                            {% elif ticket_type.ticket_type == 'REFERRAL' %}
+                                                                <i class="fas fa-users text-success"></i> Referido
+                                                            {% elif ticket_type.ticket_type == 'PROMOTION' %}
+                                                                <i class="fas fa-gift text-info"></i> Promoción
+                                                            {% else %}
+                                                                {{ ticket_type.ticket_type }}
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>{{ ticket_type.count }}</td>
+                                                        <td>
+                                                            {% widthratio ticket_type.count total_tickets 100 %}%
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">No hay tickets registrados</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Usuarios -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-users"></i> Top 10 Usuarios con Más Tickets
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if top_users %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Usuario</th>
+                                                        <th>Total</th>
+                                                        <th>Usados</th>
+                                                        <th>Disponibles</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for user in top_users %}
+                                                    <tr>
+                                                        <td>{{ user.user__username }}</td>
+                                                        <td>{{ user.total }}</td>
+                                                        <td class="text-success">{{ user.used }}</td>
+                                                        <td class="text-info">{{ user.available }}</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">No hay usuarios con tickets</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estadísticas Adicionales -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-chart-line"></i> Estadísticas Adicionales
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-primary">{{ recent_tickets }}</h4>
+                                                <p class="mb-0">Tickets Creados (Últimos 30 días)</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-success">
+                                                    {% if total_tickets > 0 %}
+                                                        {% widthratio used_tickets total_tickets 100 %}%
+                                                    {% else %}
+                                                        0%
+                                                    {% endif %}
+                                                </h4>
+                                                <p class="mb-0">Tasa de Uso</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-info">
+                                                    {% if total_tickets > 0 %}
+                                                        {% widthratio available_tickets total_tickets 100 %}%
+                                                    {% else %}
+                                                        0%
+                                                    {% endif %}
+                                                </h4>
+                                                <p class="mb-0">Tickets Disponibles</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-4">
+                        <a href="{% url 'admin_ticket_settings' %}" class="btn btn-secondary">
+                            <i class="fas fa-cog"></i> Configuración de Tickets
+                        </a>
+                        <a href="{% url 'admin_daily_schedule' %}" class="btn btn-primary">
+                            <i class="fas fa-clock"></i> Gestionar Horarios
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

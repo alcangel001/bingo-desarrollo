@@ -1,0 +1,28 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}Asignar Cartón {{ card.unique_id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Asignar Cartón {{ card.unique_id }}</h1>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="user_id">Seleccionar Usuario</label>
+                    <select name="user_id" id="user_id" class="form-control">
+                        <option value="">--- Desasignar ---</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}" {% if card.owner == user %}selected{% endif %}>{{ user.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Guardar Asignación</button>
+                <a href="{% url 'manage_printable_cards' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

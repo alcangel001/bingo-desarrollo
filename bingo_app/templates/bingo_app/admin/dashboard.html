@@ -1,0 +1,753 @@
+{% extends "bingo_app/base.html" %}
+
+{% block title %}{{ title|default:"Dashboard de Administrador" }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4"> {# Changed from container-fluid to container #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">{{ title }}</h1>
+        <div>
+            <a href="{% url 'system_health_dashboard' %}" class="btn btn-info">
+                <i class="fas fa-heartbeat"></i> Salud del Sistema
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        {% if start_date and end_date %}
+            Mostrando datos desde el {{ start_date|date:"d/m/Y" }} hasta el {{ end_date|date:"d/m/Y" }}.
+        {% elif start_date %}
+            Mostrando datos desde el {{ start_date|date:"d/m/Y" }}.
+        {% elif end_date %}
+            Mostrando datos hasta el {{ end_date|date:"d/m/Y" }}.
+        {% else %}
+            Mostrando todos los datos históricos.
+        {% endif %}
+        {% if start_date or end_date %}
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-secondary ms-2">Limpiar filtro</a>
+        {% endif %}
+    </div>
+
+    <!-- Filtros de fecha -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="{% url 'admin_dashboard' %}">
+                <div class="row align-items-end">
+                    <div class="col-md-5">
+                        <label for="start_date" class="form-label">Fecha de inicio</label>
+                        <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="end_date" class="form-label">Fecha de fin</label>
+                        <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Análisis de IA -->
+    {% if ai_available and ai_analysis %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-robot"></i> Análisis Inteligente de IA
+                        {% if ai_type == 'gemini' %}
+                            <span class="badge bg-success ms-2" title="Usando IA real (Gemini)">🤖 IA Real</span>
+                        {% elif ai_type == 'local' %}
+                            <span class="badge bg-warning ms-2" title="Usando asistente local (basado en reglas)">⚙️ Asistente Local</span>
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-light text-dark">
+                        <i class="fas fa-circle text-success"></i> {{ ai_analysis.health_status|title }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar {% if ai_analysis.health_score >= 70 %}bg-success{% elif ai_analysis.health_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ ai_analysis.health_score }}%"
+                                     aria-valuenow="{{ ai_analysis.health_score }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    Salud del Sistema: {{ ai_analysis.health_score }}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-3">{{ ai_analysis.summary }}</p>
+                    
+                    {% if ai_analysis.alerts %}
+                    <div class="mb-3">
+                        <h6><i class="fas fa-exclamation-circle"></i> Alertas Prioritarias:</h6>
+                        {% for alert in ai_analysis.alerts %}
+                        <div class="alert alert-{{ alert.type }} alert-dismissible fade show" role="alert">
+                            <strong>{{ alert.title }}:</strong> {{ alert.message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if ai_analysis.recommendations %}
+                    <div class="mb-3">
+                        <h6><i class="fas fa-lightbulb"></i> Recomendaciones:</h6>
+                        <ul class="list-group">
+                            {% for rec in ai_analysis.recommendations %}
+                            <li class="list-group-item">
+                                <strong>{{ rec.title }}</strong>
+                                <span class="badge bg-{% if rec.impact == 'alto' %}danger{% elif rec.impact == 'medio' %}warning{% else %}info{% endif %} float-end">{{ rec.impact|title }}</span>
+                                <p class="mb-1 small">{{ rec.description }}</p>
+                                <small class="text-muted"><i class="fas fa-arrow-right"></i> {{ rec.action }}</small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif not ai_available %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                <strong>Asistente Inteligente:</strong> El sistema está analizando las métricas del dashboard. Si no ves el análisis, actualiza la página.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Alertas del sistema -->
+    {% if alerts %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4><i class="fas fa-exclamation-triangle text-warning"></i> Alertas del Sistema</h4>
+            {% for alert in alerts %}
+            <div class="alert alert-card alert-{{ alert.type }}" role="alert">
+                <h5 class="alert-heading">{{ alert.message }}</h5>
+                <p class="mb-0">{{ alert.action }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Panel de Acciones Rápidas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-tools"></i> Panel de Acciones Rápidas</h5>
+                    <form method="post" action="{% url 'reset_dashboards' %}" class="d-inline" onsubmit="return confirm('⚠️ Esta acción reiniciará los dashboards y borrará datos históricos (juegos, rifas, transacciones, etc.). ¿Seguro que quieres continuar?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-light btn-sm">
+                            <i class="fas fa-history"></i> Reiniciar Dashboard
+                        </button>
+                    </form>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'credit_requests_list' %}" class="btn btn-success w-100">
+                                <i class="fas fa-credit-card"></i><br>
+                                <small>Procesar Créditos</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'all_withdrawal_requests' %}" class="btn btn-warning w-100">
+                                <i class="fas fa-money-bill-wave"></i><br>
+                                <small>Procesar Retiros</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'user_management' %}" class="btn btn-info w-100">
+                                <i class="fas fa-users-cog"></i><br>
+                                <small>Gestionar Usuarios</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'manage_announcements' %}" class="btn btn-secondary w-100">
+                                <i class="fas fa-bullhorn"></i><br>
+                                <small>Anuncios</small>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'transaction_history' %}" class="btn btn-primary w-100">
+                                <i class="fas fa-chart-line"></i><br>
+                                <small>Ver Transacciones</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'percentage_settings' %}" class="btn btn-dark w-100">
+                                <i class="fas fa-cogs"></i><br>
+                                <small>Configuración</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'user_management' %}" class="btn btn-danger w-100">
+                                <i class="fas fa-shield-alt"></i><br>
+                                <small>Modo Seguridad</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-light w-100" onclick="window.location.reload()">
+                                <i class="fas fa-sync-alt"></i><br>
+                                <small>Actualizar</small>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Financieras Principales -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Ingresos de Plataforma</h5>
+                    <p class="stat-number">${{ platform_revenue|floatformat:2 }}</p>
+                    <i class="fas fa-dollar-sign card-icon"></i>
+                    <small class="text-white-50">Comisiones + Tarifas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Entradas del Sistema</h5>
+                    <p class="stat-number">${{ daily_income|floatformat:2 }}</p>
+                    <i class="fas fa-arrow-up card-icon"></i>
+                    <small class="text-white-50">Ingresos + Créditos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Salidas del Sistema</h5>
+                    <p class="stat-number">${{ daily_expenses|floatformat:2 }}</p>
+                    <i class="fas fa-arrow-down card-icon"></i>
+                    <small class="text-white-50">Premios + Retiros</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card {% if system_balance >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">Balance del Sistema</h5>
+                    <p class="stat-number">${{ system_balance|floatformat:2 }}</p>
+                    <i class="fas fa-balance-scale card-icon"></i>
+                    <small class="text-white-50">Entradas - Salidas</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas de Liquidez -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Liquidez Total</h5>
+                    <p class="stat-number">${{ total_balance|floatformat:2 }}</p>
+                    <i class="fas fa-coins card-icon"></i>
+                    <small class="text-white-50">Saldos en circulación</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Saldo Bloqueado</h5>
+                    <p class="stat-number">${{ total_blocked|floatformat:2 }}</p>
+                    <i class="fas fa-lock card-icon"></i>
+                    <small class="text-white-50">Créditos bloqueados</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-secondary">
+                <div class="card-body">
+                    <h5 class="card-title">En Escrow</h5>
+                    <p class="stat-number">${{ total_escrow|floatformat:2 }}</p>
+                    <i class="fas fa-gamepad card-icon"></i>
+                    <small class="text-white-50">Juegos activos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card {% if liquidity_ratio >= 50 %}bg-success{% else %}bg-warning{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">Ratio de Liquidez</h5>
+                    <p class="stat-number">{{ liquidity_ratio|floatformat:1 }}%</p>
+                    <i class="fas fa-percentage card-icon"></i>
+                    <small class="text-white-50">Liquidez / Total</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas de Usuarios y Control -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Usuarios Registrados</h5>
+                    <p class="stat-number">{{ registered_users }}</p>
+                    <i class="fas fa-users card-icon"></i>
+                    <small class="text-white-50">Total de cuentas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Usuarios Activos (7d)</h5>
+                    <p class="stat-number">{{ active_users }}</p>
+                    <i class="fas fa-user-clock card-icon"></i>
+                    <small class="text-white-50">Con actividad reciente</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Usuarios Nuevos (7d)</h5>
+                    <p class="stat-number">{{ new_users_week }}</p>
+                    <i class="fas fa-user-plus card-icon"></i>
+                    <small class="text-white-50">Registros recientes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Usuarios Bloqueados</h5>
+                    <p class="stat-number">{{ blocked_users }}</p>
+                    <i class="fas fa-user-slash card-icon"></i>
+                    <small class="text-white-50">Cuentas suspendidas</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas de Actividad y Control -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Juegos Activos</h5>
+                    <p class="stat-number">{{ active_games }}</p>
+                    <i class="fas fa-gamepad card-icon"></i>
+                    <small class="text-white-50">En progreso</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Juegos con Problemas</h5>
+                    <p class="stat-number">{{ problematic_games }}</p>
+                    <i class="fas fa-exclamation-triangle card-icon"></i>
+                    <small class="text-white-50">Sin actividad 24h</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Retiros Pendientes</h5>
+                    <p class="stat-number">{{ pending_withdrawals_count }}</p>
+                    <i class="fas fa-hourglass-half card-icon"></i>
+                    <small class="text-white-50">${{ pending_withdrawals|floatformat:2 }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Tiempo Promedio Retiros</h5>
+                    <p class="stat-number">{{ avg_withdrawal_hours|floatformat:1 }}h</p>
+                    <i class="fas fa-clock card-icon"></i>
+                    <small class="text-white-50">Última semana</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas de Seguridad -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Saldos Altos</h5>
+                    <p class="stat-number">{{ high_balance_users }}</p>
+                    <i class="fas fa-coins card-icon"></i>
+                    <small class="text-white-50">Usuarios > $1000</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card {% if suspicious_transactions > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">Transacciones Sospechosas</h5>
+                    <p class="stat-number">{{ suspicious_transactions }}</p>
+                    <i class="fas fa-shield-alt card-icon"></i>
+                    <small class="text-white-50">> $500 esta semana</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-secondary">
+                <div class="card-body">
+                    <h5 class="card-title">Comisión Promedio</h5>
+                    <p class="stat-number">${{ avg_commission|floatformat:2 }}</p>
+                    <i class="fas fa-percentage card-icon"></i>
+                    <small class="text-white-50">Por juego</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card dashboard-card bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Tasa de Aprobación</h5>
+                    <p class="stat-number">{{ approval_ratio|floatformat:1 }}%</p>
+                    <i class="fas fa-check-circle card-icon"></i>
+                    <small class="text-white-50">Retiros aprobados</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Ingresos de la plataforma (últimos 30 días)</h5>
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Nuevos usuarios (últimos 30 días)</h5>
+                    <canvas id="userChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tablas de Datos -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    Top 10 Jugadores (por ganancias)
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for player in top_players %}
+                        <li class="list-group-item"><a href="#">{{ player.username }}</a> - ${{ player.total_winnings|floatformat:2 }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    Top 10 Organizadores (por juegos creados)
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for organizer in top_organizers %}
+                        <li class="list-group-item">{{ organizer.username }} - {{ organizer.games_created }} juegos</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    Últimas 20 Transacciones
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Tipo</th>
+                                <th>Monto</th>
+                                <th>Descripción</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in latest_transactions %}
+                                <tr>
+                                    <td><a href="#">{{ tx.user.username }}</a></td>
+                                    <td>{{ tx.get_transaction_type_display }}</td>
+                                    <td>${{ tx.amount|floatformat:2 }}</td>
+                                    <td>{{ tx.description }}</td>
+                                    <td>{{ tx.created_at|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Gráfico de Ingresos
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: {{ revenue_labels|safe }},
+            datasets: [{
+                label: 'Ingresos de Plataforma',
+                data: {{ revenue_data|safe }},
+                backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                borderColor: 'rgba(40, 167, 69, 1)',
+                borderWidth: 1,
+                fill: true,
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            responsive: true
+        }
+    });
+
+    // Gráfico de Usuarios
+    const userCtx = document.getElementById('userChart').getContext('2d');
+    new Chart(userCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ user_labels|safe }},
+            datasets: [{
+                label: 'Nuevos Usuarios',
+                data: {{ user_data|safe }},
+                backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                borderColor: 'rgba(0, 123, 255, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            responsive: true
+        }
+    });
+});
+</script>
+
+<!-- Widget de Chatbot de IA -->
+{% if ai_available %}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+    <button class="btn btn-primary btn-lg rounded-circle shadow-lg" 
+            type="button" 
+            data-bs-toggle="modal" 
+            data-bs-target="#aiChatbotModal"
+            title="Asistente de IA">
+        <i class="fas fa-robot"></i>
+    </button>
+</div>
+
+<!-- Modal del Chatbot -->
+<div class="modal fade" id="aiChatbotModal" tabindex="-1" aria-labelledby="aiChatbotModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="aiChatbotModalLabel">
+                    <i class="fas fa-robot"></i> Asistente de IA
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="aiChatMessages" style="height: 400px; overflow-y: auto; padding: 15px; background: #f8f9fa; border-radius: 5px; margin-bottom: 15px; border: 1px solid #dee2e6;">
+                    <div class="alert alert-info mb-3" style="color: #212529 !important; background-color: #d1ecf1 !important;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong style="color: #000000 !important;">Hola, soy tu asistente de IA.</strong> <span style="color: #212529 !important;">Puedes preguntarme sobre:</span>
+                        <ul class="mb-0 mt-2" style="color: #212529 !important;">
+                            <li style="color: #000000 !important;">Estado del sistema</li>
+                            <li style="color: #000000 !important;">Análisis de métricas</li>
+                            <li style="color: #000000 !important;">Recomendaciones</li>
+                            <li style="color: #000000 !important;">Cualquier aspecto del dashboard</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <input type="text" 
+                           class="form-control" 
+                           id="aiChatInput" 
+                           placeholder="Escribe tu pregunta aquí..."
+                           onkeypress="if(event.key === 'Enter') sendAIMessage()">
+                    <button class="btn btn-primary" type="button" onclick="sendAIMessage()">
+                        <i class="fas fa-paper-plane"></i> Enviar
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="generateAIReport('daily')">
+                    <i class="fas fa-file-alt"></i> Reporte Diario
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="generateAIReport('weekly')">
+                    <i class="fas fa-calendar-week"></i> Reporte Semanal
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addAIMessage(message, isUser = false) {
+    const messagesDiv = document.getElementById('aiChatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `mb-3 ${isUser ? 'text-end' : ''}`;
+    
+    const card = document.createElement('div');
+    if (isUser) {
+        card.className = 'card bg-primary text-white';
+        card.style.maxWidth = '80%';
+        card.style.marginLeft = 'auto';
+    } else {
+        card.className = 'card bg-white border';
+        card.style.maxWidth = '80%';
+        card.style.marginLeft = '0';
+    }
+    
+    const cardBody = document.createElement('div');
+    cardBody.className = 'card-body';
+    if (isUser) {
+        cardBody.style.color = '#ffffff';
+        cardBody.style.backgroundColor = '#0d6efd';
+    } else {
+        cardBody.style.color = '#000000';
+        cardBody.style.backgroundColor = '#ffffff';
+    }
+    // Convertir markdown básico a HTML y mejorar legibilidad
+    let formattedMessage = message.replace(/\n/g, '<br>');
+    formattedMessage = formattedMessage.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formattedMessage = formattedMessage.replace(/#{1,6}\s(.*?)(<br>|$)/g, '<strong style="font-size: 1.2em; display: block; margin-top: 10px;">$1</strong>');
+    cardBody.innerHTML = `<div style="color: inherit; font-weight: 500; line-height: 1.6;">${formattedMessage}</div>`;
+    
+    card.appendChild(cardBody);
+    messageDiv.appendChild(card);
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function sendAIMessage() {
+    const input = document.getElementById('aiChatInput');
+    const question = input.value.trim();
+    
+    if (!question) return;
+    
+    addAIMessage(question, true);
+    input.value = '';
+    
+    // Mostrar loading
+    addAIMessage('<i class="fas fa-spinner fa-spin"></i> Pensando...', false);
+    
+    fetch('{% url "ai_chatbot_api" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ question: question })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Remover mensaje de loading
+        const messagesDiv = document.getElementById('aiChatMessages');
+        messagesDiv.removeChild(messagesDiv.lastChild);
+        
+        if (data.success) {
+            addAIMessage(data.response.answer, false);
+            if (data.response.suggested_actions && data.response.suggested_actions.length > 0) {
+                let actions = '<strong>Acciones sugeridas:</strong><ul>';
+                data.response.suggested_actions.forEach(action => {
+                    actions += `<li>${action}</li>`;
+                });
+                actions += '</ul>';
+                addAIMessage(actions, false);
+            }
+        } else {
+            addAIMessage('❌ Error: ' + (data.error || 'Error desconocido'), false);
+        }
+    })
+    .catch(error => {
+        const messagesDiv = document.getElementById('aiChatMessages');
+        messagesDiv.removeChild(messagesDiv.lastChild);
+        addAIMessage('❌ Error de conexión: ' + error, false);
+    });
+}
+
+function generateAIReport(type) {
+    const messagesDiv = document.getElementById('aiChatMessages');
+    addAIMessage(`<i class="fas fa-spinner fa-spin"></i> Generando reporte ${type}...`, false);
+    
+    fetch(`{% url "ai_generate_report" %}?type=${type}`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        messagesDiv.removeChild(messagesDiv.lastChild);
+        if (data.success) {
+            const reportDiv = document.createElement('div');
+            reportDiv.className = 'card bg-light mb-3';
+            reportDiv.style.border = '1px solid #dee2e6';
+            reportDiv.innerHTML = `<div class="card-body" style="color: #000000; background-color: #f8f9fa; padding: 20px;"><pre style="white-space: pre-wrap; color: #000000; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6; margin: 0;">${data.report}</pre></div>`;
+            messagesDiv.appendChild(reportDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        } else {
+            addAIMessage('❌ Error: ' + (data.error || 'Error generando reporte'), false);
+        }
+    })
+    .catch(error => {
+        messagesDiv.removeChild(messagesDiv.lastChild);
+        addAIMessage('❌ Error de conexión: ' + error, false);
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

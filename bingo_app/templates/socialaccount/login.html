@@ -1,0 +1,35 @@
+{% extends "bingo_app/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Social Network Login" %}{% endblock %}
+
+{% block content %}
+<div class="container text-center" style="padding-top: 5rem; padding-bottom: 5rem;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <h4 class="mt-3">{% trans "Redirigiendo para iniciar sesión..." %}</h4>
+    <p class="text-muted">Por favor, espera un momento.</p>
+    
+    {% if form.errors %}
+        <div class="alert alert-danger mt-3">
+            <p>{% trans "Ha ocurrido un error. Por favor, intenta de nuevo." %}</p>
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <form id="social-login-form" method="post" style="display: none;">
+        {% csrf_token %}
+        <button type="submit">{% trans "Continue" %}</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Automatically submit the form to redirect to the social provider
+        document.getElementById('social-login-form').submit();
+    });
+</script>
+{% endblock %}
