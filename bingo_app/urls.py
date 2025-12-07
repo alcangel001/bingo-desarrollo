@@ -125,6 +125,15 @@ urlpatterns = [
     path('organizer/accounts-receivable/create/', views.create_account_receivable, name='create_account_receivable'),
     path('organizer/accounts-receivable/<int:account_id>/', views.account_receivable_detail, name='account_receivable_detail'),
     path('organizer/accounts-receivable/<int:account_id>/add-payment/', views.add_payment_to_account, name='add_payment_to_account'),
+    # Sistema de Franquicias - Configuración de Precios
+    path('admin-panel/package-prices/', views.edit_package_prices, name='edit_package_prices'),
+    path('admin-panel/package-prices/reset/', views.reset_package_prices, name='reset_package_prices'),
+    # Sistema de Franquicias - Gestión (Super Admin)
+    path('admin-panel/franchises/', views.franchise_list, name='franchise_list'),
+    path('admin-panel/franchises/create/', views.franchise_create, name='franchise_create'),
+    path('admin-panel/franchises/<int:franchise_id>/', views.franchise_detail, name='franchise_detail'),
+    path('admin-panel/franchises/<int:franchise_id>/edit/', views.franchise_edit, name='franchise_edit'),
+    path('admin-panel/franchises/<int:franchise_id>/change-image/', views.franchise_change_image, name='franchise_change_image'),
 ]
 
 

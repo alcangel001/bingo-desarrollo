@@ -1,0 +1,116 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Franquicias{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-store"></i> Gestión de Franquicias
+            </h1>
+            
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card text-center" style="background-color: var(--card-bg);">
+                        <div class="card-body">
+                            <h3>{{ total_franchises }}</h3>
+                            <p class="text-muted mb-0">Total Franquicias</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center" style="background-color: var(--card-bg);">
+                        <div class="card-body">
+                            <h3>{{ active_franchises }}</h3>
+                            <p class="text-muted mb-0">Franquicias Activas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center" style="background-color: var(--card-bg);">
+                        <div class="card-body">
+                            <a href="{% url 'franchise_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Crear Nueva Franquicia
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card" style="background-color: var(--card-bg);">
+                <div class="card-body">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Propietario</th>
+                                <th>Paquete</th>
+                                <th>Precio/Mes</th>
+                                <th>Comisión</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for franchise in franchises %}
+                            <tr>
+                                <td>
+                                    <strong>{{ franchise.name }}</strong><br>
+                                    <small class="text-muted">{{ franchise.slug }}</small>
+                                </td>
+                                <td>{{ franchise.owner.username }}</td>
+                                <td>{{ franchise.package_template.name }}</td>
+                                <td>${{ franchise.monthly_price }}</td>
+                                <td>{{ franchise.commission_rate }}%</td>
+                                <td>
+                                    {% if franchise.is_active %}
+                                        <span class="badge bg-success">Activa</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactiva</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'franchise_detail' franchise.id %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                    <a href="{% url 'franchise_edit' franchise.id %}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center">
+                                    <p class="text-muted">No hay franquicias creadas aún.</p>
+                                    <a href="{% url 'franchise_create' %}" class="btn btn-primary">
+                                        <i class="fas fa-plus"></i> Crear Primera Franquicia
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

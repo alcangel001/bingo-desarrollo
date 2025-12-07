@@ -245,6 +245,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'bingo_app.middleware.FranchiseMiddleware',  # Middleware para detectar franquicia
+    'bingo_app.middleware.FlashMessageMiddleware',  # Middleware para mensajes flash
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'bingo_app.middleware.FlashMessageMiddleware',

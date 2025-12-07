@@ -1,0 +1,163 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Detalles de Franquicia: {{ franchise.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-store"></i> {{ franchise.name }}
+            </h1>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center" style="background-color: var(--card-bg);">
+                        <div class="card-body">
+                            <h3>{{ total_games }}</h3>
+                            <p class="text-muted mb-0">Juegos</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center" style="background-color: var(--card-bg);">
+                        <div class="card-body">
+                            <h3>{{ total_raffles }}</h3>
+                            <p class="text-muted mb-0">Rifas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center" style="background-color: var(--card-bg);">
+                        <div class="card-body">
+                            <h3>{{ total_users }}</h3>
+                            <p class="text-muted mb-0">Usuarios</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center" style="background-color: var(--card-bg);">
+                        <div class="card-body">
+                            <h3>{{ total_credit_requests }}</h3>
+                            <p class="text-muted mb-0">Solicitudes Crédito</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card" style="background-color: var(--card-bg);">
+                        <div class="card-header">
+                            <h5>Información General</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-dark">
+                                <tr>
+                                    <th>Nombre:</th>
+                                    <td>{{ franchise.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Slug:</th>
+                                    <td>{{ franchise.slug }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Propietario:</th>
+                                    <td>{{ franchise.owner.username }} ({{ franchise.owner.email }})</td>
+                                </tr>
+                                <tr>
+                                    <th>Paquete:</th>
+                                    <td>{{ franchise.package_template.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Precio Mensual:</th>
+                                    <td>${{ franchise.monthly_price }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Comisión:</th>
+                                    <td>{{ franchise.commission_rate }}%</td>
+                                </tr>
+                                <tr>
+                                    <th>Estado:</th>
+                                    <td>
+                                        {% if franchise.is_active %}
+                                            <span class="badge bg-success">Activa</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactiva</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Fecha de Creación:</th>
+                                    <td>{{ franchise.created_at|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Suscripción:</th>
+                                    <td>
+                                        {% if franchise.subscription_end_date %}
+                                            Hasta: {{ franchise.subscription_end_date|date:"d/m/Y" }}
+                                        {% else %}
+                                            <span class="badge bg-info">Indefinida</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card" style="background-color: var(--card-bg);">
+                        <div class="card-header">
+                            <h5>Acciones</h5>
+                        </div>
+                        <div class="card-body">
+                            <a href="{% url 'franchise_edit' franchise.id %}" class="btn btn-warning btn-block mb-2">
+                                <i class="fas fa-edit"></i> Editar Información
+                            </a>
+                            <a href="{% url 'franchise_change_image' franchise.id %}" class="btn btn-info btn-block mb-2">
+                                <i class="fas fa-image"></i> Cambiar Logo/Imagen
+                            </a>
+                            <a href="{% url 'franchise_list' %}" class="btn btn-secondary btn-block">
+                                <i class="fas fa-arrow-left"></i> Volver a Lista
+                            </a>
+                        </div>
+                    </div>
+
+                    {% if franchise.logo %}
+                    <div class="card mt-3" style="background-color: var(--card-bg);">
+                        <div class="card-header">
+                            <h5>Logo</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <img src="{{ franchise.logo.url }}" alt="Logo" class="img-fluid" style="max-height: 200px;">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if franchise.image %}
+                    <div class="card mt-3" style="background-color: var(--card-bg);">
+                        <div class="card-header">
+                            <h5>Imagen</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <img src="{{ franchise.image.url }}" alt="Imagen" class="img-fluid" style="max-height: 200px;">
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

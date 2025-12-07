@@ -27,6 +27,10 @@ fi
 echo "Setting up PercentageSettings..."
 python manage.py setup_percentage_settings || echo "PercentageSettings setup failed, but continuing..."
 
+# Setup Package Templates (required for franchise system)
+echo "Setting up Package Templates..."
+python manage.py setup_package_templates || echo "Package Templates setup failed, but continuing..."
+
 # Create superuser (non-blocking)
 echo "Attempting to create or update superuser..."
 python manage.py createsu || echo "Superuser creation failed, but continuing..."

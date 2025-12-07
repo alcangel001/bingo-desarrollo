@@ -41,7 +41,7 @@ from .forms import (
 )
 from .models import (
     User, Game, Player, ChatMessage, Raffle, Ticket,
-    Transaction, Message, CreditRequest, PercentageSettings, UserBlockHistory, WithdrawalRequest, BankAccount, CreditRequestNotification, WithdrawalRequestNotification, PrintableCard, Announcement, VideoCallGroup, BingoTicket, DailyBingoSchedule, BingoTicketSettings, AccountsReceivable, AccountsReceivablePayment
+    Transaction, Message, CreditRequest, PercentageSettings, UserBlockHistory, WithdrawalRequest, BankAccount, CreditRequestNotification, WithdrawalRequestNotification, PrintableCard, Announcement, VideoCallGroup, BingoTicket, DailyBingoSchedule, BingoTicketSettings, AccountsReceivable, AccountsReceivablePayment, PackageTemplate, Franchise, FranchiseManual
 )
 from .serializers import VideoCallGroupSerializer
 from .smart_assistant import smart_assistant
@@ -4922,3 +4922,267 @@ def add_payment_to_account(request, account_id):
     else:
         errors = form.errors.as_json()
         return JsonResponse({'success': False, 'errors': errors}, status=400)
+
+
+@staff_member_required
+def edit_package_prices(request):
+    """
+    Vista para editar precios de los paquetes preconfigurados
+    """
+    templates = PackageTemplate.objects.all().order_by('package_type')
+    
+    if request.method == 'POST':
+        for template in templates:
+            price_key = f'price_{template.package_type}'
+            commission_key = f'commission_{template.package_type}'
+            
+            if price_key in request.POST:
+                try:
+                    new_price = Decimal(request.POST[price_key])
+                    if new_price < 0:
+                        messages.error(request, f'El precio no puede ser negativo para {template.name}')
+                        continue
+                    template.current_monthly_price = new_price
+                except (ValueError, Exception) as e:
+                    messages.error(request, f'Precio inválido para {template.name}: {str(e)}')
+            
+            if commission_key in request.POST:
+                try:
+                    new_commission = Decimal(request.POST[commission_key])
+                    if new_commission < 0 or new_commission > 100:
+                        messages.error(request, f'La comisión debe estar entre 0 y 100 para {template.name}')
+                        continue
+                    template.current_commission_rate = new_commission
+                except (ValueError, Exception) as e:
+                    messages.error(request, f'Comisión inválida para {template.name}: {str(e)}')
+            
+            template.save()
+        
+        messages.success(request, 'Precios actualizados correctamente')
+        return redirect('edit_package_prices')
+    
+    return render(request, 'bingo_app/admin/edit_package_prices.html', {
+        'templates': templates
+    })
+
+
+@staff_member_required
+@require_POST
+def reset_package_prices(request):
+    """
+    Restaura los precios a los valores por defecto
+    """
+    templates = PackageTemplate.objects.all()
+    for template in templates:
+        template.current_monthly_price = template.default_monthly_price
+        template.current_commission_rate = template.default_commission_rate
+        template.save()
+    
+    messages.success(request, 'Precios restaurados a los valores por defecto')
+    return redirect('edit_package_prices')
+
+
+# ============================================================================
+# VISTAS DE GESTIÓN DE FRANQUICIAS (SUPER ADMIN)
+# ============================================================================
+
+@staff_member_required
+def franchise_list(request):
+    """
+    Lista todas las franquicias (solo super admin)
+    """
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permisos para ver esta página')
+        return redirect('home')
+    
+    franchises = Franchise.objects.all().select_related('owner', 'package_template').order_by('-created_at')
+    
+    # Estadísticas
+    total_franchises = franchises.count()
+    active_franchises = franchises.filter(is_active=True).count()
+    
+    return render(request, 'bingo_app/admin/franchise_list.html', {
+        'franchises': franchises,
+        'total_franchises': total_franchises,
+        'active_franchises': active_franchises,
+    })
+
+
+@staff_member_required
+def franchise_create(request):
+    """
+    Crear una nueva franquicia (solo super admin)
+    """
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permisos para crear franquicias')
+        return redirect('home')
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        slug = request.POST.get('slug')
+        owner_username = request.POST.get('owner_username')
+        package_template_id = request.POST.get('package_template')
+        
+        # Validaciones
+        if not all([name, slug, owner_username, package_template_id]):
+            messages.error(request, 'Todos los campos son obligatorios')
+            return redirect('franchise_create')
+        
+        # Verificar que el slug no exista
+        if Franchise.objects.filter(slug=slug).exists():
+            messages.error(request, 'Este slug ya está en uso')
+            return redirect('franchise_create')
+        
+        # Buscar el usuario propietario
+        try:
+            owner = User.objects.get(username=owner_username)
+        except User.DoesNotExist:
+            messages.error(request, f'Usuario "{owner_username}" no encontrado')
+            return redirect('franchise_create')
+        
+        # Verificar que el usuario no tenga ya una franquicia
+        if hasattr(owner, 'owned_franchise'):
+            messages.error(request, f'El usuario "{owner_username}" ya tiene una franquicia asignada')
+            return redirect('franchise_create')
+        
+        # Obtener el paquete
+        try:
+            package_template = PackageTemplate.objects.get(id=package_template_id)
+        except PackageTemplate.DoesNotExist:
+            messages.error(request, 'Paquete no encontrado')
+            return redirect('franchise_create')
+        
+        # Crear la franquicia
+        try:
+            franchise = Franchise.objects.create(
+                name=name,
+                slug=slug,
+                owner=owner,
+                package_template=package_template,
+                monthly_price=package_template.current_monthly_price,
+                commission_rate=package_template.current_commission_rate,
+                created_by=request.user,
+                is_active=True
+            )
+            
+            # Asignar la franquicia al usuario
+            owner.franchise = franchise
+            owner.is_organizer = True
+            owner.save()
+            
+            # Crear el manual vacío
+            FranchiseManual.objects.create(
+                franchise=franchise,
+                content='',
+                updated_by=request.user
+            )
+            
+            messages.success(request, f'Franquicia "{name}" creada exitosamente')
+            return redirect('franchise_detail', franchise_id=franchise.id)
+        except Exception as e:
+            messages.error(request, f'Error al crear la franquicia: {str(e)}')
+            return redirect('franchise_create')
+    
+    # GET: Mostrar formulario
+    packages = PackageTemplate.objects.filter(is_active=True).order_by('package_type')
+    return render(request, 'bingo_app/admin/franchise_create.html', {
+        'packages': packages
+    })
+
+
+@staff_member_required
+def franchise_detail(request, franchise_id):
+    """
+    Ver detalles de una franquicia (solo super admin)
+    """
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permisos para ver esta página')
+        return redirect('home')
+    
+    franchise = get_object_or_404(Franchise, id=franchise_id)
+    
+    # Estadísticas de la franquicia
+    total_games = Game.objects.filter(franchise=franchise).count()
+    total_raffles = Raffle.objects.filter(franchise=franchise).count()
+    total_users = User.objects.filter(franchise=franchise).count()
+    total_credit_requests = CreditRequest.objects.filter(franchise=franchise).count()
+    total_withdrawal_requests = WithdrawalRequest.objects.filter(franchise=franchise).count()
+    
+    return render(request, 'bingo_app/admin/franchise_detail.html', {
+        'franchise': franchise,
+        'total_games': total_games,
+        'total_raffles': total_raffles,
+        'total_users': total_users,
+        'total_credit_requests': total_credit_requests,
+        'total_withdrawal_requests': total_withdrawal_requests,
+    })
+
+
+@staff_member_required
+def franchise_edit(request, franchise_id):
+    """
+    Editar una franquicia (solo super admin)
+    """
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permisos para editar franquicias')
+        return redirect('home')
+    
+    franchise = get_object_or_404(Franchise, id=franchise_id)
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        slug = request.POST.get('slug')
+        is_active = request.POST.get('is_active') == 'on'
+        
+        # Validaciones
+        if not name or not slug:
+            messages.error(request, 'Nombre y slug son obligatorios')
+            return redirect('franchise_edit', franchise_id=franchise_id)
+        
+        # Verificar que el slug no esté en uso por otra franquicia
+        if Franchise.objects.filter(slug=slug).exclude(id=franchise_id).exists():
+            messages.error(request, 'Este slug ya está en uso por otra franquicia')
+            return redirect('franchise_edit', franchise_id=franchise_id)
+        
+        # Actualizar
+        franchise.name = name
+        franchise.slug = slug
+        franchise.is_active = is_active
+        franchise.save()
+        
+        messages.success(request, f'Franquicia "{name}" actualizada exitosamente')
+        return redirect('franchise_detail', franchise_id=franchise_id)
+    
+    # GET: Mostrar formulario
+    return render(request, 'bingo_app/admin/franchise_edit.html', {
+        'franchise': franchise
+    })
+
+
+@staff_member_required
+def franchise_change_image(request, franchise_id):
+    """
+    Cambiar logo o imagen de una franquicia (solo super admin)
+    """
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permisos para cambiar imágenes')
+        return redirect('home')
+    
+    franchise = get_object_or_404(Franchise, id=franchise_id)
+    
+    if request.method == 'POST':
+        if 'logo' in request.FILES:
+            franchise.logo = request.FILES['logo']
+            franchise.save()
+            messages.success(request, 'Logo actualizado exitosamente')
+        
+        if 'image' in request.FILES:
+            franchise.image = request.FILES['image']
+            franchise.save()
+            messages.success(request, 'Imagen actualizada exitosamente')
+        
+        return redirect('franchise_detail', franchise_id=franchise_id)
+    
+    return render(request, 'bingo_app/admin/franchise_change_image.html', {
+        'franchise': franchise
+    })

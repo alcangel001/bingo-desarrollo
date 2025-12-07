@@ -1,0 +1,127 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Configuración de Precios de Paquetes{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-dollar-sign"></i> Configuración de Precios de Paquetes
+            </h1>
+            <p class="text-muted mb-4">
+                Edita los precios mensuales y comisiones de cada paquete. Los cambios se aplicarán a nuevas franquicias.
+            </p>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" class="mb-4">
+                {% csrf_token %}
+                
+                <div class="row">
+                    {% for template in templates %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card" style="background-color: var(--card-bg); border: 2px solid var(--accent-color);">
+                            <div class="card-header" style="background-color: var(--accent-color);">
+                                <h3 class="mb-0">
+                                    {% if template.package_type == 'BASIC_BINGO' %}
+                                        <i class="fas fa-dice"></i> 🎲 BÁSICO BINGO
+                                    {% elif template.package_type == 'PRO_BINGO' %}
+                                        <i class="fas fa-crown"></i> 🎲 PRO BINGO
+                                    {% elif template.package_type == 'BASIC_RAFFLE' %}
+                                        <i class="fas fa-ticket-alt"></i> 🎫 BÁSICO RIFA
+                                    {% elif template.package_type == 'PRO_RAFFLE' %}
+                                        <i class="fas fa-trophy"></i> 🎫 PRO RIFA
+                                    {% endif %}
+                                </h3>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">{{ template.description }}</p>
+                                
+                                <div class="mb-3">
+                                    <label for="price_{{ template.package_type }}" class="form-label">
+                                        <strong>Precio Mensual ($)</strong>
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control" 
+                                        id="price_{{ template.package_type }}" 
+                                        name="price_{{ template.package_type }}" 
+                                        value="{{ template.current_monthly_price }}" 
+                                        step="0.01" 
+                                        min="0"
+                                        required>
+                                    <small class="text-muted">
+                                        Precio por defecto: ${{ template.default_monthly_price }}
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="commission_{{ template.package_type }}" class="form-label">
+                                        <strong>Comisión (%)</strong>
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control" 
+                                        id="commission_{{ template.package_type }}" 
+                                        name="commission_{{ template.package_type }}" 
+                                        value="{{ template.current_commission_rate }}" 
+                                        step="0.01" 
+                                        min="0" 
+                                        max="100"
+                                        required>
+                                    <small class="text-muted">
+                                        Comisión por defecto: {{ template.default_commission_rate }}%
+                                    </small>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <h5 class="mb-2">Funcionalidades (Preconfiguradas):</h5>
+                                    <ul class="list-unstyled">
+                                        <li>{% if template.bingos_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Bingos</li>
+                                        <li>{% if template.raffles_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Rifas</li>
+                                        <li>{% if template.accounts_receivable_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Cuentas por Cobrar</li>
+                                        <li>{% if template.video_calls_bingos_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Video Llamadas (Bingos)</li>
+                                        <li>{% if template.video_calls_raffles_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Video Llamadas (Rifas)</li>
+                                        <li>{% if template.custom_manual_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manual Personalizable</li>
+                                        <li>{% if template.notifications_push_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Notificaciones Push</li>
+                                        <li>{% if template.advanced_reports_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Reportes Avanzados</li>
+                                        <li>{% if template.advanced_promotions_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Promociones Avanzadas</li>
+                                        <li>{% if template.banners_enabled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Banners/Anuncios</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary btn-lg ms-2">
+                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+            </form>
+
+            <form method="post" action="{% url 'reset_package_prices' %}" class="mt-3">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-warning" onclick="return confirm('¿Estás seguro de que quieres restaurar todos los precios a los valores por defecto?');">
+                    <i class="fas fa-undo"></i> Restaurar Precios por Defecto
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

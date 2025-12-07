@@ -107,6 +107,17 @@ class User(AbstractUser):
 
     def unread_notifications(self, limit=5):
         return self.credit_notifications.filter(is_read=False).order_by('-created_at')[:limit]
+    
+    # Relación con franquicia (para usuarios que pertenecen a una franquicia)
+    franchise = models.ForeignKey(
+        'Franchise',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users',
+        verbose_name="Franquicia",
+        help_text="Franquicia a la que pertenece este usuario (si aplica)"
+    )
 
     def __str__(self):
         return self.username
@@ -119,6 +130,15 @@ class CreditRequest(models.Model):
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    franchise = models.ForeignKey(
+        'Franchise',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='credit_requests',
+        verbose_name="Franquicia",
+        help_text="Franquicia a la que pertenece esta solicitud"
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     proof = models.FileField(upload_to='credit_proofs/')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
@@ -156,6 +176,15 @@ class Game(models.Model):
     # Basic game info
     name = models.CharField(max_length=100)
     organizer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='organized_games')
+    franchise = models.ForeignKey(
+        'Franchise',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='games',
+        verbose_name="Franquicia",
+        help_text="Franquicia a la que pertenece este juego"
+    )
     password = models.CharField(max_length=50, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -857,6 +886,15 @@ class Raffle(models.Model):
     ]
     
     organizer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='organized_raffles')
+    franchise = models.ForeignKey(
+        'Franchise',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='raffles',
+        verbose_name="Franquicia",
+        help_text="Franquicia a la que pertenece esta rifa"
+    )
     title = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     ticket_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -1224,6 +1262,15 @@ class WithdrawalRequest(models.Model):
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='withdrawal_requests')
+    franchise = models.ForeignKey(
+        'Franchise',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='withdrawal_requests',
+        verbose_name="Franquicia",
+        help_text="Franquicia a la que pertenece esta solicitud"
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
     bank_name = models.CharField(max_length=100)
     account_number = models.CharField(max_length=50)
@@ -1256,6 +1303,15 @@ class BankAccount(models.Model):
         max_length=100, 
         verbose_name="Título/Nombre",
         help_text="Ej: Banco de Venezuela, Zelle, PayPal, Binance, etc."
+    )
+    franchise = models.ForeignKey(
+        'Franchise',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bank_accounts',
+        verbose_name="Franquicia",
+        help_text="Franquicia a la que pertenece esta cuenta bancaria"
     )
     details = models.TextField(
         verbose_name="Detalles completos",
@@ -1830,3 +1886,313 @@ class AccountsReceivablePayment(models.Model):
                 raise ValidationError(
                     f"El monto del abono (${self.amount}) no puede exceder el saldo pendiente (${remaining})"
                 )
+
+
+# ============================================================================
+# SISTEMA DE FRANQUICIAS
+# ============================================================================
+
+class PackageTemplate(models.Model):
+    """
+    Plantillas preconfiguradas de paquetes para franquicias.
+    No se pueden eliminar, solo editar precios.
+    """
+    PACKAGE_TYPES = [
+        ('BASIC_BINGO', 'Básico Bingo'),
+        ('PRO_BINGO', 'PRO Bingo'),
+        ('BASIC_RAFFLE', 'Básico Rifa'),
+        ('PRO_RAFFLE', 'PRO Rifa'),
+    ]
+    
+    package_type = models.CharField(
+        max_length=20, 
+        choices=PACKAGE_TYPES, 
+        unique=True,
+        verbose_name="Tipo de Paquete"
+    )
+    name = models.CharField(
+        max_length=100,
+        verbose_name="Nombre del Paquete"
+    )
+    description = models.TextField(
+        help_text="Descripción del paquete",
+        verbose_name="Descripción"
+    )
+    
+    # Precios (EDITABLES por el super admin)
+    default_monthly_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        help_text="Precio mensual por defecto (puedes cambiarlo)",
+        verbose_name="Precio Mensual por Defecto"
+    )
+    current_monthly_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        help_text="Precio mensual actual (el que se usa)",
+        verbose_name="Precio Mensual Actual"
+    )
+    default_commission_rate = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        help_text="Comisión por defecto (puedes cambiarla)",
+        verbose_name="Comisión por Defecto (%)"
+    )
+    current_commission_rate = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2,
+        help_text="Comisión actual (la que se usa)",
+        verbose_name="Comisión Actual (%)"
+    )
+    
+    # Funcionalidades (PRECONFIGURADAS, no editables desde aquí)
+    bingos_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Bingos Habilitado"
+    )
+    raffles_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Rifas Habilitado"
+    )
+    accounts_receivable_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Cuentas por Cobrar Habilitado"
+    )
+    video_calls_bingos_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Video Llamadas (Bingos) Habilitado"
+    )
+    video_calls_raffles_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Video Llamadas (Rifas) Habilitado"
+    )
+    custom_manual_enabled = models.BooleanField(
+        default=True,
+        verbose_name="Manual Personalizable Habilitado"
+    )
+    notifications_push_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Notificaciones Push Habilitado"
+    )
+    advanced_reports_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Reportes Avanzados Habilitado"
+    )
+    advanced_promotions_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Promociones Avanzadas Habilitado"
+    )
+    banners_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Banners/Anuncios Habilitado"
+    )
+    
+    # Metadata
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Activo"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Creación"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Fecha de Actualización"
+    )
+    
+    class Meta:
+        verbose_name = 'Plantilla de Paquete'
+        verbose_name_plural = 'Plantillas de Paquetes'
+        ordering = ['package_type']
+    
+    def __str__(self):
+        return f"{self.name} - ${self.current_monthly_price}/mes + {self.current_commission_rate}%"
+    
+    def save(self, *args, **kwargs):
+        # Si es la primera vez, copiar default a current
+        if not self.pk:
+            self.current_monthly_price = self.default_monthly_price
+            self.current_commission_rate = self.default_commission_rate
+        super().save(*args, **kwargs)
+    
+    def reset_to_default(self):
+        """Restaura los precios a los valores por defecto"""
+        self.current_monthly_price = self.default_monthly_price
+        self.current_commission_rate = self.default_commission_rate
+        self.save()
+
+
+class Franchise(models.Model):
+    """
+    Modelo para representar una franquicia del sistema.
+    Cada franquicia es independiente y tiene su propio organizador/administrador.
+    """
+    name = models.CharField(
+        max_length=200,
+        verbose_name="Nombre de la Franquicia",
+        help_text="Nombre que se mostrará en la plataforma"
+    )
+    slug = models.SlugField(
+        max_length=200,
+        unique=True,
+        verbose_name="Slug",
+        help_text="URL amigable (ej: mi-franquicia)"
+    )
+    logo = models.ImageField(
+        upload_to='franchises/logos/',
+        null=True,
+        blank=True,
+        verbose_name="Logo",
+        help_text="Logo de la franquicia"
+    )
+    image = models.ImageField(
+        upload_to='franchises/images/',
+        null=True,
+        blank=True,
+        verbose_name="Imagen",
+        help_text="Imagen principal de la franquicia"
+    )
+    
+    # Relación con el organizador/administrador de la franquicia
+    owner = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='owned_franchise',
+        verbose_name="Propietario",
+        help_text="Usuario que administra esta franquicia"
+    )
+    
+    # Relación con el paquete contratado
+    package_template = models.ForeignKey(
+        PackageTemplate,
+        on_delete=models.PROTECT,
+        related_name='franchises',
+        verbose_name="Paquete Contratado",
+        help_text="Paquete que tiene contratado esta franquicia"
+    )
+    
+    # Estado de la suscripción
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Activa",
+        help_text="Indica si la franquicia está activa"
+    )
+    subscription_start_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Inicio de Suscripción"
+    )
+    subscription_end_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Fin de Suscripción",
+        help_text="Si es None, la suscripción es indefinida"
+    )
+    
+    # Precio y comisión actuales (se copian del paquete al crear, pero pueden cambiar)
+    monthly_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Precio Mensual",
+        help_text="Precio mensual que paga esta franquicia"
+    )
+    commission_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name="Tasa de Comisión (%)",
+        help_text="Porcentaje de comisión que se cobra"
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Creación"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Fecha de Actualización"
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_franchises',
+        verbose_name="Creado por",
+        help_text="Super admin que creó esta franquicia"
+    )
+    
+    class Meta:
+        verbose_name = 'Franquicia'
+        verbose_name_plural = 'Franquicias'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} - {self.owner.username}"
+    
+    @property
+    def has_active_subscription(self):
+        """Verifica si la suscripción está activa"""
+        if not self.is_active:
+            return False
+        if self.subscription_end_date is None:
+            return True
+        return timezone.now() < self.subscription_end_date
+    
+    @property
+    def current_package_features(self):
+        """Retorna las funcionalidades del paquete actual"""
+        return {
+            'bingos_enabled': self.package_template.bingos_enabled,
+            'raffles_enabled': self.package_template.raffles_enabled,
+            'accounts_receivable_enabled': self.package_template.accounts_receivable_enabled,
+            'video_calls_bingos_enabled': self.package_template.video_calls_bingos_enabled,
+            'video_calls_raffles_enabled': self.package_template.video_calls_raffles_enabled,
+            'custom_manual_enabled': self.package_template.custom_manual_enabled,
+            'notifications_push_enabled': self.package_template.notifications_push_enabled,
+            'advanced_reports_enabled': self.package_template.advanced_reports_enabled,
+            'advanced_promotions_enabled': self.package_template.advanced_promotions_enabled,
+            'banners_enabled': self.package_template.banners_enabled,
+        }
+
+
+class FranchiseManual(models.Model):
+    """
+    Manual personalizable para cada franquicia.
+    Solo disponible si el paquete tiene custom_manual_enabled = True
+    """
+    franchise = models.OneToOneField(
+        Franchise,
+        on_delete=models.CASCADE,
+        related_name='manual',
+        verbose_name="Franquicia"
+    )
+    content = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="Contenido del Manual",
+        help_text="Contenido HTML del manual personalizado"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Creación"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Fecha de Actualización"
+    )
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='updated_manuals',
+        verbose_name="Actualizado por"
+    )
+    
+    class Meta:
+        verbose_name = 'Manual de Franquicia'
+        verbose_name_plural = 'Manuales de Franquicias'
+    
+    def __str__(self):
+        return f"Manual - {self.franchise.name}"

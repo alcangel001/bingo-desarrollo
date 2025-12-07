@@ -1,0 +1,67 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Cambiar Imágenes: {{ franchise.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">
+                <i class="fas fa-image"></i> Cambiar Logo/Imagen: {{ franchise.name }}
+            </h1>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card" style="background-color: var(--card-bg);">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="logo" class="form-label">Logo de la Franquicia</label>
+                            <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                            <small class="text-muted">Imagen pequeña que representa la franquicia (recomendado: 200x200px)</small>
+                            {% if franchise.logo %}
+                            <div class="mt-2">
+                                <p>Logo actual:</p>
+                                <img src="{{ franchise.logo.url }}" alt="Logo actual" class="img-thumbnail" style="max-width: 200px;">
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="image" class="form-label">Imagen Principal</label>
+                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                            <small class="text-muted">Imagen principal de la franquicia (recomendado: 1920x1080px)</small>
+                            {% if franchise.image %}
+                            <div class="mt-2">
+                                <p>Imagen actual:</p>
+                                <img src="{{ franchise.image.url }}" alt="Imagen actual" class="img-thumbnail" style="max-width: 400px;">
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Guardar Imágenes
+                            </button>
+                            <a href="{% url 'franchise_detail' franchise.id %}" class="btn btn-secondary btn-lg ms-2">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

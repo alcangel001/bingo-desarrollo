@@ -8,7 +8,7 @@ from .models import (
     User, Game, Player, ChatMessage, PercentageSettings, Raffle,
     FlashMessage, Message, CreditRequest, WithdrawalRequest, Transaction,
     BankAccount, PrintableCard, Announcement, BingoTicket, DailyBingoSchedule, BingoTicketSettings,
-    AccountsReceivable, AccountsReceivablePayment
+    AccountsReceivable, AccountsReceivablePayment, PackageTemplate, Franchise, FranchiseManual
 )
 
 # --- Admin para el Modelo de Usuario ---
@@ -276,3 +276,62 @@ class AccountsReceivablePaymentAdmin(admin.ModelAdmin):
         ('Información del Pago', {'fields': ('account_receivable', 'amount', 'payment_method', 'proof', 'notes')}),
         ('Fecha', {'fields': ('created_at',)}),
     )
+
+# --- Admin para Sistema de Franquicias ---
+@admin.register(PackageTemplate)
+class PackageTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'package_type', 'current_monthly_price', 'current_commission_rate', 'is_active', 'created_at')
+    list_filter = ('package_type', 'is_active', 'created_at')
+    search_fields = ('name', 'description')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Información Básica', {'fields': ('package_type', 'name', 'description', 'is_active')}),
+        ('Precios', {
+            'fields': (
+                'default_monthly_price', 'current_monthly_price',
+                'default_commission_rate', 'current_commission_rate'
+            ),
+            'description': 'Los precios actuales son los que se usan para nuevas franquicias. Puedes editarlos desde el panel de administración.'
+        }),
+        ('Funcionalidades', {
+            'fields': (
+                'bingos_enabled', 'raffles_enabled', 'accounts_receivable_enabled',
+                'video_calls_bingos_enabled', 'video_calls_raffles_enabled',
+                'custom_manual_enabled', 'notifications_push_enabled',
+                'advanced_reports_enabled', 'advanced_promotions_enabled', 'banners_enabled'
+            ),
+            'description': 'Estas funcionalidades están preconfiguradas y no se pueden editar desde aquí.'
+        }),
+        ('Fechas', {'fields': ('created_at', 'updated_at')}),
+    )
+    
+    def has_delete_permission(self, request, obj=None):
+        # No permitir eliminar plantillas preconfiguradas
+        return False
+
+@admin.register(Franchise)
+class FranchiseAdmin(admin.ModelAdmin):
+    list_display = ('name', 'owner', 'package_template', 'monthly_price', 'commission_rate', 'is_active', 'has_active_subscription', 'created_at')
+    list_filter = ('is_active', 'package_template', 'created_at')
+    search_fields = ('name', 'slug', 'owner__username', 'owner__email')
+    readonly_fields = ('created_at', 'updated_at', 'subscription_start_date')
+    fieldsets = (
+        ('Información Básica', {'fields': ('name', 'slug', 'logo', 'image', 'owner', 'is_active')}),
+        ('Paquete y Precios', {'fields': ('package_template', 'monthly_price', 'commission_rate')}),
+        ('Suscripción', {'fields': ('subscription_start_date', 'subscription_end_date')}),
+        ('Metadata', {'fields': ('created_by', 'created_at', 'updated_at')}),
+    )
+    raw_id_fields = ('owner', 'created_by', 'package_template')
+
+@admin.register(FranchiseManual)
+class FranchiseManualAdmin(admin.ModelAdmin):
+    list_display = ('franchise', 'updated_at', 'updated_by')
+    list_filter = ('updated_at',)
+    search_fields = ('franchise__name', 'content')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Información', {'fields': ('franchise',)}),
+        ('Contenido', {'fields': ('content',)}),
+        ('Metadata', {'fields': ('updated_by', 'created_at', 'updated_at')}),
+    )
+    raw_id_fields = ('franchise', 'updated_by')

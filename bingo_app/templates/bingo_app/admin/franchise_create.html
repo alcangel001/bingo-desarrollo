@@ -1,0 +1,83 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Crear Nueva Franquicia{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">
+                <i class="fas fa-store"></i> Crear Nueva Franquicia
+            </h1>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card" style="background-color: var(--card-bg);">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Nombre de la Franquicia *</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                            <small class="text-muted">Nombre que se mostrará en la plataforma</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="slug" class="form-label">Slug (URL) *</label>
+                            <input type="text" class="form-control" id="slug" name="slug" required>
+                            <small class="text-muted">URL amigable (ej: mi-franquicia). Solo letras, números y guiones.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="owner_username" class="form-label">Usuario Propietario *</label>
+                            <input type="text" class="form-control" id="owner_username" name="owner_username" required>
+                            <small class="text-muted">Username del usuario que será el propietario/administrador de esta franquicia</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="package_template" class="form-label">Paquete *</label>
+                            <select class="form-select" id="package_template" name="package_template" required>
+                                <option value="">Selecciona un paquete</option>
+                                {% for package in packages %}
+                                <option value="{{ package.id }}">
+                                    {{ package.name }} - ${{ package.current_monthly_price }}/mes + {{ package.current_commission_rate }}%
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Paquete que tendrá contratado esta franquicia</small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <strong>Nota:</strong> Al crear la franquicia, el usuario propietario será automáticamente:
+                            <ul class="mb-0">
+                                <li>Asignado como organizador</li>
+                                <li>Vinculado a esta franquicia</li>
+                                <li>Capaz de gestionar sus propios créditos y retiros</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Crear Franquicia
+                            </button>
+                            <a href="{% url 'franchise_list' %}" class="btn btn-secondary btn-lg ms-2">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
