@@ -413,9 +413,17 @@ def franchise_landing(request, franchise_slug):
     Muestra la imagen personalizada y permite registrarse
     """
     try:
-        franchise = Franchise.objects.get(slug=franchise_slug, is_active=True)
+        # Intentar buscar por slug (case-insensitive)
+        franchise = Franchise.objects.get(slug__iexact=franchise_slug, is_active=True)
     except Franchise.DoesNotExist:
-        messages.error(request, 'Franquicia no encontrada o inactiva')
+        # Intentar buscar sin verificar is_active para dar más información
+        try:
+            franchise_inactive = Franchise.objects.get(slug__iexact=franchise_slug)
+            messages.error(request, f'La franquicia "{franchise_inactive.name}" existe pero está inactiva. Contacta al administrador.')
+        except Franchise.DoesNotExist:
+            # Listar todas las franquicias activas para debugging
+            all_franchises = Franchise.objects.filter(is_active=True).values_list('slug', 'name')
+            messages.error(request, f'Franquicia con slug "{franchise_slug}" no encontrada. Franquicias activas: {", ".join([f"{name} ({slug})" for slug, name in all_franchises])}')
         return redirect('register')
     
     return render(request, 'bingo_app/franchise_landing.html', {

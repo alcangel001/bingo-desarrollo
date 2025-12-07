@@ -154,6 +154,14 @@
                 <div class="card-body">
                     <table class="table table-dark">
                         <tr>
+                            <th>Nombre:</th>
+                            <td>{{ franchise.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Slug (Código):</th>
+                            <td><code>{{ franchise.slug }}</code></td>
+                        </tr>
+                        <tr>
                             <th>Paquete:</th>
                             <td>{{ franchise.package_template.name }}</td>
                         </tr>
@@ -172,6 +180,7 @@
                                     <span class="badge bg-success">Activa</span>
                                 {% else %}
                                     <span class="badge bg-danger">Inactiva</span>
+                                    <br><small class="text-warning">⚠️ Tu franquicia está inactiva. Contacta al administrador para activarla.</small>
                                 {% endif %}
                             </td>
                         </tr>
@@ -190,19 +199,27 @@
                     <p class="text-muted">
                         Comparte este enlace con tus clientes para que se registren automáticamente en tu franquicia.
                     </p>
+                    {% if not franchise.is_active %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Tu franquicia está inactiva.</strong> El enlace no funcionará hasta que un administrador active tu franquicia.
+                    </div>
+                    {% endif %}
                     <div class="input-group mb-3">
                         <input type="text" 
                                class="form-control" 
                                id="registration-link" 
                                value="https://web-production-14f41.up.railway.app/franchise/{{ franchise.slug }}/" 
                                readonly>
-                        <button class="btn btn-primary" type="button" onclick="copyRegistrationLink()">
+                        <button class="btn btn-primary" type="button" onclick="copyRegistrationLink()" {% if not franchise.is_active %}disabled{% endif %}>
                             <i class="fas fa-copy"></i> Copiar
                         </button>
                     </div>
                     <small class="text-muted">
                         <i class="fas fa-info-circle"></i> 
                         Este enlace lleva a una página atractiva con la imagen de tu franquicia antes del registro.
+                        <br>
+                        <strong>Slug de tu franquicia:</strong> <code>{{ franchise.slug }}</code>
                     </small>
                     <div class="mt-2">
                         <small class="text-muted">
