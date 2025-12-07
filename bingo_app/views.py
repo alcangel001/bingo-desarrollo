@@ -407,6 +407,21 @@ def home(request):
     else:
         return redirect('login')
 
+def franchise_landing(request, franchise_slug):
+    """
+    Página de bienvenida/landing para una franquicia
+    Muestra la imagen personalizada y permite registrarse
+    """
+    try:
+        franchise = Franchise.objects.get(slug=franchise_slug, is_active=True)
+    except Franchise.DoesNotExist:
+        messages.error(request, 'Franquicia no encontrada o inactiva')
+        return redirect('register')
+    
+    return render(request, 'bingo_app/franchise_landing.html', {
+        'franchise': franchise
+    })
+
 @login_required
 def lobby(request):
     # Obtener la franquicia del usuario (si tiene)

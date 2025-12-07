@@ -1,0 +1,223 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}{{ franchise.name }} - Únete a nuestros Bingos{% endblock %}
+
+{% block extra_css %}
+<style>
+    .franchise-landing {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 2rem;
+        position: relative;
+        {% if franchise.image %}
+        background-image: url('{{ franchise.image.url }}');
+        {% else %}
+        background-image: url('{% static "images/bingo_login_background_v2.png" %}');
+        {% endif %}
+        background-size: cover;
+        background-position: center center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+    }
+    
+    .franchise-landing::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1;
+    }
+    
+    .landing-content {
+        position: relative;
+        z-index: 2;
+        max-width: 800px;
+        width: 100%;
+    }
+    
+    .franchise-logo {
+        max-width: 200px;
+        max-height: 200px;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    
+    .franchise-name {
+        font-size: 3.5rem;
+        font-weight: bold;
+        color: white;
+        text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+        margin-bottom: 1rem;
+    }
+    
+    .franchise-tagline {
+        font-size: 1.5rem;
+        color: #ECF0F1;
+        text-shadow: 1px 1px 5px rgba(0,0,0,0.8);
+        margin-bottom: 2rem;
+    }
+    
+    .cta-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 2rem;
+    }
+    
+    .btn-register {
+        background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+        border: none;
+        padding: 1rem 3rem;
+        font-size: 1.3rem;
+        font-weight: bold;
+        border-radius: 50px;
+        color: white;
+        text-decoration: none;
+        box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4);
+        transition: all 0.3s;
+    }
+    
+    .btn-register:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(231, 76, 60, 0.6);
+        color: white;
+    }
+    
+    .btn-login {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid white;
+        padding: 1rem 3rem;
+        font-size: 1.3rem;
+        font-weight: bold;
+        border-radius: 50px;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+    
+    .btn-login:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+        transform: translateY(-3px);
+    }
+    
+    .features {
+        margin-top: 3rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        text-align: left;
+    }
+    
+    .feature-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem;
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: #E74C3C;
+    }
+    
+    .feature-title {
+        color: white;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .feature-description {
+        color: #ECF0F1;
+        font-size: 0.9rem;
+    }
+    
+    @media (max-width: 768px) {
+        .franchise-name {
+            font-size: 2.5rem;
+        }
+        
+        .franchise-tagline {
+            font-size: 1.2rem;
+        }
+        
+        .cta-buttons {
+            flex-direction: column;
+        }
+        
+        .btn-register, .btn-login {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="franchise-landing">
+    <div class="landing-content">
+        {% if franchise.logo %}
+        <img src="{{ franchise.logo.url }}" alt="{{ franchise.name }}" class="franchise-logo">
+        {% endif %}
+        
+        <h1 class="franchise-name">{{ franchise.name }}</h1>
+        <p class="franchise-tagline">¡Únete a los mejores bingos y rifas en línea!</p>
+        
+        <div class="cta-buttons">
+            <a href="{% url 'register' %}?franchise={{ franchise.slug }}" class="btn-register">
+                <i class="fas fa-user-plus me-2"></i>Regístrate Ahora
+            </a>
+            <a href="{% url 'login' %}" class="btn-login">
+                <i class="fas fa-sign-in-alt me-2"></i>Ya tengo cuenta
+            </a>
+        </div>
+        
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-dice"></i>
+                </div>
+                <div class="feature-title">Bingos Emocionantes</div>
+                <div class="feature-description">Participa en bingos con premios increíbles todos los días</div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-ticket-alt"></i>
+                </div>
+                <div class="feature-title">Rifas Premium</div>
+                <div class="feature-description">Gana fabulosos premios en nuestras rifas especiales</div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-gift"></i>
+                </div>
+                <div class="feature-title">Bonos y Promociones</div>
+                <div class="feature-description">Aprovecha nuestras promociones exclusivas y bonos</div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="feature-title">100% Seguro</div>
+                <div class="feature-description">Tu información y transacciones están completamente protegidas</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

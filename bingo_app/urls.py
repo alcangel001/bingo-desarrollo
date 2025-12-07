@@ -27,6 +27,7 @@ from .views import (
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('franchise/<slug:franchise_slug>/', views.franchise_landing, name='franchise_landing'),
     path('register/', views.register, name='register'),
     path('login/', views.custom_login_view, name='login'),
     path('lobby/', views.lobby, name='lobby'),

@@ -194,11 +194,21 @@
                         <input type="text" 
                                class="form-control" 
                                id="registration-link" 
-                               value="https://web-production-14f41.up.railway.app/register/?franchise={{ franchise.slug }}" 
+                               value="https://web-production-14f41.up.railway.app/franchise/{{ franchise.slug }}/" 
                                readonly>
                         <button class="btn btn-primary" type="button" onclick="copyRegistrationLink()">
                             <i class="fas fa-copy"></i> Copiar
                         </button>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        Este enlace lleva a una página atractiva con la imagen de tu franquicia antes del registro.
+                    </small>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <strong>Enlace directo al registro:</strong><br>
+                            <code>https://web-production-14f41.up.railway.app/register/?franchise={{ franchise.slug }}</code>
+                        </small>
                     </div>
                     <div class="alert alert-success" id="copy-success" style="display: none;">
                         <i class="fas fa-check-circle"></i> ¡Enlace copiado al portapapeles!
