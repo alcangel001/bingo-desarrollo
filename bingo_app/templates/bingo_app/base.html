@@ -837,43 +837,69 @@
                 return;
             }
             
-            try {
-                if (!this.initAudioContext()) {
-                    console.error('🔊 FallbackNotificationSounds: No se pudo inicializar AudioContext');
-                    return;
+            // Función auxiliar para reproducir un sonido
+            const playSound = (frequency, duration, waveType = 'sine', volume = 0.8) => {
+                try {
+                    if (!this.initAudioContext()) {
+                        console.error('🔊 FallbackNotificationSounds: No se pudo inicializar AudioContext');
+                        return;
+                    }
+                    
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.value = frequency;
+                    oscillator.type = waveType;
+                    
+                    // Configurar volumen más alto
+                    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + duration);
+                } catch (error) {
+                    console.error('🔊 FallbackNotificationSounds: Error:', error);
                 }
-                
-                const oscillator = this.audioContext.createOscillator();
-                const gainNode = this.audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(this.audioContext.destination);
-                
-                // Diferentes frecuencias para diferentes tipos
-                const frequencies = {
-                    'credit_purchase': 800,
-                    'credit_request': 700,  // Nueva solicitud de créditos
-                    'withdrawal_request': 600,
-                    'new_message': 1000,
-                    'admin_notification': 400,
-                    'game_notification': 1200,
-                    'default': 1200
-                };
-                
-                oscillator.frequency.value = frequencies[type] || frequencies.default;
-                oscillator.type = 'sine';
-                
-                // Configurar volumen
-                gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.3, this.audioContext.currentTime + 0.01);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
-                
-                oscillator.start(this.audioContext.currentTime);
-                oscillator.stop(this.audioContext.currentTime + 0.3);
-                
-                console.log('🔊 FallbackNotificationSounds: Sonido reproducido exitosamente');
-            } catch (error) {
-                console.error('🔊 FallbackNotificationSounds: Error:', error);
+            };
+            
+            // Reproducir según el tipo
+            switch(type) {
+                case 'credit_request':
+                    console.log('🔊 FallbackNotificationSounds: Reproduciendo ALERTA de créditos (4 veces)');
+                    // Repetir 4 veces con intervalos
+                    playSound(900, 0.4, 'square', 0.8);
+                    setTimeout(() => playSound(900, 0.4, 'square', 0.8), 300);
+                    setTimeout(() => playSound(900, 0.4, 'square', 0.8), 600);
+                    setTimeout(() => playSound(900, 0.4, 'square', 0.8), 900);
+                    break;
+                case 'withdrawal_request':
+                    console.log('🔊 FallbackNotificationSounds: Reproduciendo ALERTA de retiros (4 veces)');
+                    // Repetir 4 veces con intervalos
+                    playSound(800, 0.5, 'square', 0.8);
+                    setTimeout(() => playSound(800, 0.5, 'square', 0.8), 300);
+                    setTimeout(() => playSound(800, 0.5, 'square', 0.8), 600);
+                    setTimeout(() => playSound(800, 0.5, 'square', 0.8), 900);
+                    break;
+                case 'credit_purchase':
+                    playSound(800, 0.3, 'sine', 0.8);
+                    setTimeout(() => playSound(800, 0.3, 'sine', 0.8), 200);
+                    break;
+                case 'new_message':
+                    playSound(1000, 0.2, 'triangle', 0.6);
+                    break;
+                case 'admin_notification':
+                    playSound(500, 0.6, 'square', 0.8);
+                    setTimeout(() => playSound(500, 0.6, 'square', 0.8), 400);
+                    break;
+                case 'game_notification':
+                    playSound(1200, 0.3, 'sawtooth', 0.7);
+                    break;
+                default:
+                    playSound(1200, 0.3, 'sine', 0.7);
             }
         }
         
