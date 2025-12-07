@@ -408,6 +408,7 @@ def home(request):
         return redirect('login')
 
 def franchise_landing(request, franchise_slug):
+    # Trigger deploy - Railway
     """
     Página de bienvenida/landing para una franquicia
     Muestra la imagen personalizada y permite registrarse
