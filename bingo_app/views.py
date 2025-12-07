@@ -1082,32 +1082,46 @@ def request_credits(request):
             credit_request.save()
 
             # --- INICIO DE LA CORRECCIÓN ---
-            # 1. Crear notificaciones en la base de datos para superusuarios
-            admins_and_organizers = User.objects.filter(is_superuser=True)
-            for user in admins_and_organizers:
+            # 1. Crear notificaciones en la base de datos
+            # Si la solicitud pertenece a una franquicia, notificar al propietario de la franquicia
+            # Si no, notificar a los superusuarios
+            if credit_request.franchise and credit_request.franchise.owner:
+                # Notificar al propietario de la franquicia
+                franchise_owner = credit_request.franchise.owner
                 CreditRequestNotification.objects.create(
-                    user=user,
+                    user=franchise_owner,
                     credit_request=credit_request
                 )
+                notification_url = reverse('franchise_owner_credit_requests')
+                print(f"🔊 request_credits: Notificación para propietario de franquicia: {franchise_owner.username}")
+            else:
+                # Notificar a superusuarios (solicitudes sin franquicia)
+                admins_and_organizers = User.objects.filter(is_superuser=True)
+                for user in admins_and_organizers:
+                    CreditRequestNotification.objects.create(
+                        user=user,
+                        credit_request=credit_request
+                    )
+                notification_url = reverse('credit_requests_list')
+                print(f"🔊 request_credits: Notificación para superusuarios")
 
-            # 2. Notificar a los administradores via WebSocket
+            # 2. Notificar via WebSocket
             try:
                 channel_layer = get_channel_layer()
-                # La URL debe apuntar a la lista de solicitudes, no a una específica
-                admin_url = reverse('credit_requests_list')
                 
-                print(f"🔊 request_credits: Enviando notificación WebSocket a admin_notifications")
+                print(f"🔊 request_credits: Enviando notificación WebSocket")
                 print(f"🔊 request_credits: Usuario solicitante: {credit_request.user.username}")
                 print(f"🔊 request_credits: Monto: ${credit_request.amount}")
+                print(f"🔊 request_credits: Franquicia: {credit_request.franchise.name if credit_request.franchise else 'Sin franquicia'}")
                 
-                # Enviar a un grupo general de admins
+                # Enviar a un grupo general de admins (para sonido)
                 async_to_sync(channel_layer.group_send)(
                     'admin_notifications',
                     {
                         'type': 'admin_notification',
                         'notification_type': 'new_credit_request',
                         'message': f'Nueva solicitud de crédito de {credit_request.user.username} por ${credit_request.amount}.',
-                        'url': admin_url,
+                        'url': notification_url,
                         'sound_type': 'credit_request'
                     }
                 )
@@ -2093,26 +2107,40 @@ def request_withdrawal(request):
                     withdrawal.save()
 
                     # --- INICIO DE LA CORRECCIÓN ---
-                    # 1. Crear notificaciones en la base de datos para superusuarios
-                    admins_and_organizers = User.objects.filter(is_superuser=True)
-                    for user in admins_and_organizers:
+                    # 1. Crear notificaciones en la base de datos
+                    # Si la solicitud pertenece a una franquicia, notificar al propietario de la franquicia
+                    # Si no, notificar a los superusuarios
+                    if withdrawal.franchise and withdrawal.franchise.owner:
+                        # Notificar al propietario de la franquicia
+                        franchise_owner = withdrawal.franchise.owner
                         WithdrawalRequestNotification.objects.create(
-                            user=user,
+                            user=franchise_owner,
                             withdrawal_request=withdrawal
                         )
+                        notification_url = reverse('franchise_owner_withdrawal_requests')
+                        logger.info(f"DEBUG: Notificación para propietario de franquicia: {franchise_owner.username}")
+                    else:
+                        # Notificar a superusuarios (solicitudes sin franquicia)
+                        admins_and_organizers = User.objects.filter(is_superuser=True)
+                        for user in admins_and_organizers:
+                            WithdrawalRequestNotification.objects.create(
+                                user=user,
+                                withdrawal_request=withdrawal
+                            )
+                        notification_url = reverse('withdrawal_requests')
+                        logger.info("DEBUG: Notificación para superusuarios")
 
                     # 2. Notificar a los administradores via WebSocket
                     try:
                         logger.info(f"DEBUG: Intentando enviar admin_notification para solicitud de retiro de {withdrawal.user.username}")
                         channel_layer = get_channel_layer()
-                        admin_url = reverse('withdrawal_requests')
                         async_to_sync(channel_layer.group_send)(
                             'admin_notifications',
                             {
                                 'type': 'admin_notification',
                                 'notification_type': 'new_withdrawal_request',
                                 'message': f'Nueva solicitud de retiro de {withdrawal.user.username} por ${withdrawal.amount}.',
-                                'url': admin_url,
+                                'url': notification_url,
                                 'sound_type': 'withdrawal_request'
                             }
                         )
