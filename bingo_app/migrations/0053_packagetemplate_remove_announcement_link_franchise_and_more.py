@@ -21,13 +21,8 @@ def remove_link_field_if_exists(apps, schema_editor):
                 AND column_name='link'
             """)
             if cursor.fetchone():
-                # La columna existe, eliminarla
-                schema_editor.execute(
-                    schema_editor.sql_delete_column % {
-                        'table': schema_editor.quote_name('bingo_app_announcement'),
-                        'column': schema_editor.quote_name('link'),
-                    }
-                )
+                # La columna existe, eliminarla usando SQL directo
+                cursor.execute("ALTER TABLE bingo_app_announcement DROP COLUMN IF EXISTS link;")
     except Exception:
         # Si hay algún error, simplemente continuar
         # El campo probablemente ya no existe
