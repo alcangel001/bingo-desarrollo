@@ -27,7 +27,6 @@ from .views import (
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('franchise/<slug:franchise_slug>/', views.franchise_landing, name='franchise_landing'),
     path('register/', views.register, name='register'),
     path('login/', views.custom_login_view, name='login'),
     path('lobby/', views.lobby, name='lobby'),
@@ -136,11 +135,14 @@ urlpatterns = [
     path('admin-panel/franchises/<int:franchise_id>/edit/', views.franchise_edit, name='franchise_edit'),
     path('admin-panel/franchises/<int:franchise_id>/change-image/', views.franchise_change_image, name='franchise_change_image'),
     # Sistema de Franquicias - Panel para Franquiciado
+    # IMPORTANTE: Estas URLs deben estar ANTES de la URL genérica franchise/<slug>/
     path('franchise/dashboard/', views.franchise_owner_dashboard, name='franchise_owner_dashboard'),
     path('franchise/credit-requests/', views.franchise_owner_credit_requests, name='franchise_owner_credit_requests'),
     path('franchise/credit-requests/<int:request_id>/process/', views.franchise_owner_process_credit, name='franchise_owner_process_credit'),
     path('franchise/withdrawal-requests/', views.franchise_owner_withdrawal_requests, name='franchise_owner_withdrawal_requests'),
     path('franchise/withdrawal-requests/<int:request_id>/process/', views.franchise_owner_process_withdrawal, name='franchise_owner_process_withdrawal'),
+    # Landing de franquicia (DEBE estar al final para no capturar rutas específicas)
+    path('franchise/<slug:franchise_slug>/', views.franchise_landing, name='franchise_landing'),
 ]
 
 
