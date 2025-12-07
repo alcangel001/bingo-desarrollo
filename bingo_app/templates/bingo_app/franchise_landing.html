@@ -181,7 +181,7 @@
             <a href="{% url 'register' %}?franchise={{ franchise.slug }}" class="btn-register">
                 <i class="fas fa-user-plus me-2"></i>Regístrate Ahora
             </a>
-            <a href="{% url 'login' %}" class="btn-login">
+            <a href="{% url 'login' %}?franchise={{ franchise.slug }}" class="btn-login">
                 <i class="fas fa-sign-in-alt me-2"></i>Ya tengo cuenta
             </a>
         </div>

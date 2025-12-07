@@ -381,6 +381,16 @@ def process_referral_code(new_user, referral_code, request):
         messages.error(request, f"Error al procesar el código de referido: {str(e)}")
 
 def custom_login_view(request):
+    # Obtener código de franquicia de la URL (si viene)
+    franchise_slug = request.GET.get('franchise', '').strip()
+    franchise_from_url = None
+    if franchise_slug:
+        try:
+            from .models import Franchise
+            franchise_from_url = Franchise.objects.get(slug=franchise_slug, is_active=True)
+        except Franchise.DoesNotExist:
+            pass
+    
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -398,7 +408,10 @@ def custom_login_view(request):
 
     else:
         form = AuthenticationForm()
-    return render(request, 'bingo_app/login.html', {'form': form})
+    return render(request, 'bingo_app/login.html', {
+        'form': form,
+        'franchise': franchise_from_url
+    })
 
 def home(request):
     """Vista para la ruta raíz - redirige a lobby si está autenticado, sino a login"""

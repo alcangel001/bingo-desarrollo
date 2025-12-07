@@ -10,7 +10,11 @@
     }
 
     .login-container {
+        {% if franchise and franchise.image %}
+        background-image: url('{{ franchise.image.url }}');
+        {% else %}
         background-image: url('{% static "images/bingo_login_background_v2.png" %}');
+        {% endif %}
         background-size: cover;
         background-position: center center;
         background-repeat: no-repeat;
@@ -22,7 +26,11 @@
     /* Ajuste para pantallas grandes (desktop) */
     @media (min-width: 1200px) {
         .login-container {
+            {% if franchise and franchise.image %}
+            background-image: url('{{ franchise.image.url }}');
+            {% else %}
             background-image: url('{% static "images/bingo_login_background_v2.png" %}');
+            {% endif %}
             background-size: cover;
         }
     }
@@ -31,7 +39,11 @@
     /* Tamaño intermedio: 85% de altura para que se vea bien sin ser muy grande */
     @media (max-width: 767px) {
         .login-container {
+            {% if franchise and franchise.image %}
+            background-image: url('{{ franchise.image.url }}');
+            {% else %}
             background-image: url('{% static "images/bingo_login_background_v2.png" %}');
+            {% endif %}
             background-size: auto 85vh;
             background-position: center center;
             background-repeat: no-repeat;
@@ -83,7 +95,14 @@
         <div class="row justify-content-center">
             <div class="col-md-12" style="max-width: 500px;">
                 <div class="text-center mb-4">
-                    <h2 class="mb-0 display-4 fw-bold text-center">Bingo y Rifa JyM</h2>
+                    {% if franchise %}
+                        {% if franchise.logo %}
+                            <img src="{{ franchise.logo.url }}" alt="{{ franchise.name }}" style="max-height: 80px; margin-bottom: 1rem;">
+                        {% endif %}
+                        <h2 class="mb-0 display-4 fw-bold text-center">{{ franchise.name }}</h2>
+                    {% else %}
+                        <h2 class="mb-0 display-4 fw-bold text-center">Bingo y Rifa JyM</h2>
+                    {% endif %}
                 </div>
                 <div class="card login-card">
                     <div class="card-body p-5">

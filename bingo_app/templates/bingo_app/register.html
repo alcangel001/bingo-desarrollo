@@ -7,9 +7,12 @@
         <div class="col-md-8 col-lg-6 col-xl-5">
             <div class="card shadow-lg border-0" style="border-radius: 20px; overflow: hidden;">
                 <!-- Header con imagen decorativa -->
-                <div class="card-header p-0" style="height: 120px; background: url('https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80') center/cover;">
-                    <div class="bg-primary bg-opacity-75 h-100 d-flex align-items-center justify-content-center">
-                        <h2 class="mb-0 text-white"><i class="fas fa-dice me-2"></i> BINGO y RIFA JyM</h2>
+                <div class="card-header p-0" style="height: 120px; {% if franchise and franchise.image %}background: url('{{ franchise.image.url }}') center/cover;{% else %}background: url('https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80') center/cover;{% endif %}">
+                    <div class="bg-primary bg-opacity-75 h-100 d-flex align-items-center justify-content-center flex-column">
+                        {% if franchise and franchise.logo %}
+                            <img src="{{ franchise.logo.url }}" alt="{{ franchise.name }}" style="max-height: 50px; margin-bottom: 0.5rem;">
+                        {% endif %}
+                        <h2 class="mb-0 text-white"><i class="fas fa-dice me-2"></i> {% if franchise %}{{ franchise.name }}{% else %}BINGO y RIFA JyM{% endif %}</h2>
                     </div>
                 </div>
                 
