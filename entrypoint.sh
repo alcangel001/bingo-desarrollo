@@ -4,15 +4,23 @@
 # No usar set -e para permitir manejo de errores
 set +e
 
-# Run Django migrations
+# Run Django migrations - intentar varias veces si falla
 echo "Running Django migrations..."
 python manage.py migrate --noinput
 MIGRATE_EXIT=$?
 
 if [ $MIGRATE_EXIT -ne 0 ]; then
+    echo "First migration attempt failed, trying again..."
+    sleep 2
+    python manage.py migrate --noinput
+    MIGRATE_EXIT=$?
+fi
+
+if [ $MIGRATE_EXIT -ne 0 ]; then
     echo "Migration failed with exit code $MIGRATE_EXIT"
-    echo "This might be due to a corrupted transaction state."
-    echo "Trying to continue anyway..."
+    echo "Checking migration status..."
+    python manage.py showmigrations
+    echo "Trying to continue anyway, but errors may occur..."
 fi
 
 # Create superuser (non-blocking)
