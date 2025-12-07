@@ -267,6 +267,7 @@ TEMPLATES = [
                 'bingo_app.context_processors.notifications_global',
                 'bingo_app.context_processors.announcements_processor',
                 'bingo_app.context_processors.system_settings_processor',
+                'bingo_app.context_processors.franchise_processor',
             ],
         },
 

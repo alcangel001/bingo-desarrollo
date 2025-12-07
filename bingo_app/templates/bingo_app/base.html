@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#2C3E50">
     <meta name="description" content="Juega bingo y participa en rifas desde tu móvil">
-    <title>{% block title %}Bingo y Rifa JyM{% endblock %}</title>
+    <title>{% block title %}{% if current_franchise %}{{ current_franchise.name }}{% else %}Bingo y Rifa JyM{% endif %}{% endblock %}</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -35,7 +35,11 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            background-image: url('{% static "images/bingo_login_background_v2.png" %}'); /* Apply background directly */
+            {% if current_franchise and current_franchise.image %}
+            background-image: url('{{ current_franchise.image.url }}');
+            {% else %}
+            background-image: url('{% static "images/bingo_login_background_v2.png" %}');
+            {% endif %}
             background-size: cover;
             background-position: center center;
             background-attachment: fixed;
@@ -193,7 +197,14 @@
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
         <div class="container">
             <a class="navbar-brand" href="{% url 'lobby' %}">
-                <i class="fas fa-dice me-2"></i>Bingo y Rifa JyM
+                {% if current_franchise %}
+                    {% if current_franchise.logo %}
+                        <img src="{{ current_franchise.logo.url }}" alt="{{ current_franchise.name }}" style="height: 30px; width: auto; margin-right: 10px;">
+                    {% endif %}
+                    <i class="fas fa-dice me-2"></i>{{ current_franchise.name }}
+                {% else %}
+                    <i class="fas fa-dice me-2"></i>Bingo y Rifa JyM
+                {% endif %}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -274,6 +285,13 @@
                             <i class="fas fa-chart-line me-1"></i> Organizer Dashboard
                         </a>
                     </li>
+                    {% if is_franchise_owner %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'franchise_owner_dashboard' %}">
+                            <i class="fas fa-store me-1"></i> Panel Franquicia
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if system_settings.accounts_receivable_enabled %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'organizer_accounts_receivable' %}">

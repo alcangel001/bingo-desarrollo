@@ -62,3 +62,24 @@ def system_settings_processor(request):
             'accounts_receivable_enabled': percentage_settings.accounts_receivable_enabled if percentage_settings else True,
         }
     }
+
+def franchise_processor(request):
+    """Inyecta información de la franquicia del usuario en el contexto global"""
+    franchise = None
+    is_franchise_owner = False
+    
+    if request.user.is_authenticated:
+        # Obtener la franquicia del request (agregada por el middleware)
+        franchise = getattr(request, 'franchise', None)
+        
+        # Verificar si el usuario es propietario de una franquicia
+        if hasattr(request.user, 'owned_franchise'):
+            franchise = request.user.owned_franchise
+            is_franchise_owner = True
+        elif request.user.franchise:
+            franchise = request.user.franchise
+    
+    return {
+        'current_franchise': franchise,
+        'is_franchise_owner': is_franchise_owner,
+    }

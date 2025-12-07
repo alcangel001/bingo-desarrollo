@@ -134,6 +134,12 @@ urlpatterns = [
     path('admin-panel/franchises/<int:franchise_id>/', views.franchise_detail, name='franchise_detail'),
     path('admin-panel/franchises/<int:franchise_id>/edit/', views.franchise_edit, name='franchise_edit'),
     path('admin-panel/franchises/<int:franchise_id>/change-image/', views.franchise_change_image, name='franchise_change_image'),
+    # Sistema de Franquicias - Panel para Franquiciado
+    path('franchise/dashboard/', views.franchise_owner_dashboard, name='franchise_owner_dashboard'),
+    path('franchise/credit-requests/', views.franchise_owner_credit_requests, name='franchise_owner_credit_requests'),
+    path('franchise/credit-requests/<int:request_id>/process/', views.franchise_owner_process_credit, name='franchise_owner_process_credit'),
+    path('franchise/withdrawal-requests/', views.franchise_owner_withdrawal_requests, name='franchise_owner_withdrawal_requests'),
+    path('franchise/withdrawal-requests/<int:request_id>/process/', views.franchise_owner_process_withdrawal, name='franchise_owner_process_withdrawal'),
 ]
 
 

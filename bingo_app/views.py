@@ -365,12 +365,31 @@ def home(request):
 
 @login_required
 def lobby(request):
-    active_games = Game.objects.filter(is_active=True, is_finished=False)
-    active_raffles = Raffle.objects.filter(status__in=['WAITING', 'IN_PROGRESS'])
+    # Obtener la franquicia del usuario (si tiene)
+    franchise = getattr(request, 'franchise', None)
+    
+    # Filtrar juegos y rifas por franquicia
+    # Si es super admin, puede ver todo (franchise = None)
+    # Si tiene franquicia, solo ve los de su franquicia
+    if franchise:
+        active_games = Game.objects.filter(is_active=True, is_finished=False, franchise=franchise)
+        active_raffles = Raffle.objects.filter(status__in=['WAITING', 'IN_PROGRESS'], franchise=franchise)
+    elif request.user.is_superuser or request.user.is_admin:
+        # Super admin puede ver todo
+        active_games = Game.objects.filter(is_active=True, is_finished=False)
+        active_raffles = Raffle.objects.filter(status__in=['WAITING', 'IN_PROGRESS'])
+    else:
+        # Usuario sin franquicia solo ve juegos/rifas sin franquicia asignada
+        active_games = Game.objects.filter(is_active=True, is_finished=False, franchise__isnull=True)
+        active_raffles = Raffle.objects.filter(status__in=['WAITING', 'IN_PROGRESS'], franchise__isnull=True)
+    
     joined_game_ids = list(Player.objects.filter(user=request.user).values_list('game_id', flat=True))
     
     if request.user.is_authenticated:
-        wins_count = Game.objects.filter(winner=request.user).count()
+        if franchise:
+            wins_count = Game.objects.filter(winner=request.user, franchise=franchise).count()
+        else:
+            wins_count = Game.objects.filter(winner=request.user).count()
     else:
         wins_count = 0
     
@@ -428,6 +447,10 @@ def create_game(request):
                     game = form.save(commit=False)
                     game.organizer = request.user
                     game.prize = base_prize  # Establecer premio inicial
+                    # Asignar la franquicia del organizador al juego
+                    franchise = getattr(request, 'franchise', None)
+                    if franchise:
+                        game.franchise = franchise
                     game.save()
 
                     # Crear el grupo de videollamada asociado al juego (si el usuario lo desea)
@@ -1052,6 +1075,10 @@ def request_credits(request):
         if form.is_valid():
             credit_request = form.save(commit=False)
             credit_request.user = request.user
+            # Asignar la franquicia del usuario a la solicitud
+            franchise = getattr(request, 'franchise', None)
+            if franchise:
+                credit_request.franchise = franchise
             credit_request.save()
 
             # --- INICIO DE LA CORRECCIÓN ---
@@ -1657,6 +1684,10 @@ def create_raffle(request):
                     
                     # Crear la rifa
                     raffle.organizer = request.user
+                    # Asignar la franquicia del organizador a la rifa
+                    franchise = getattr(request, 'franchise', None)
+                    if franchise:
+                        raffle.franchise = franchise
                     raffle.save()
 
                     # Notify lobby
@@ -1702,8 +1733,22 @@ def create_raffle(request):
 
 @login_required
 def raffle_lobby(request):
-    active_raffles = Raffle.objects.filter(status__in=['WAITING', 'IN_PROGRESS'])
-    finished_raffles = Raffle.objects.filter(status='FINISHED')[:5]
+    # Obtener la franquicia del usuario (si tiene)
+    franchise = getattr(request, 'franchise', None)
+    
+    # Filtrar rifas por franquicia
+    if franchise:
+        active_raffles = Raffle.objects.filter(status__in=['WAITING', 'IN_PROGRESS'], franchise=franchise)
+        finished_raffles = Raffle.objects.filter(status='FINISHED', franchise=franchise)[:5]
+    elif request.user.is_superuser or request.user.is_admin:
+        # Super admin puede ver todo
+        active_raffles = Raffle.objects.filter(status__in=['WAITING', 'IN_PROGRESS'])
+        finished_raffles = Raffle.objects.filter(status='FINISHED')[:5]
+    else:
+        # Usuario sin franquicia solo ve rifas sin franquicia asignada
+        active_raffles = Raffle.objects.filter(status__in=['WAITING', 'IN_PROGRESS'], franchise__isnull=True)
+        finished_raffles = Raffle.objects.filter(status='FINISHED', franchise__isnull=True)[:5]
+    
     announcements = Announcement.objects.filter(is_active=True).order_by('order')
 
     unread_count = 0
@@ -2041,6 +2086,10 @@ def request_withdrawal(request):
                     withdrawal = form.save(commit=False)
                     withdrawal.user = request.user
                     withdrawal.status = 'PENDING'
+                    # Asignar la franquicia del usuario a la solicitud
+                    franchise = getattr(request, 'franchise', None)
+                    if franchise:
+                        withdrawal.franchise = franchise
                     withdrawal.save()
 
                     # --- INICIO DE LA CORRECCIÓN ---
@@ -5185,4 +5234,232 @@ def franchise_change_image(request, franchise_id):
     
     return render(request, 'bingo_app/admin/franchise_change_image.html', {
         'franchise': franchise
+    })
+
+
+# ============================================================================
+# PANEL PARA FRANQUICIADO (PROPIETARIO DE FRANQUICIA)
+# ============================================================================
+
+@login_required
+def franchise_owner_dashboard(request):
+    """
+    Dashboard para el propietario de una franquicia
+    Solo puede ver y gestionar los datos de su propia franquicia
+    """
+    # Verificar que el usuario es propietario de una franquicia
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    
+    # Verificar que la franquicia esté activa
+    if not franchise.is_active:
+        messages.warning(request, 'Tu franquicia está inactiva. Contacta al administrador.')
+    
+    # Estadísticas de la franquicia
+    total_games = Game.objects.filter(franchise=franchise).count()
+    active_games = Game.objects.filter(franchise=franchise, is_active=True, is_started=False).count()
+    total_raffles = Raffle.objects.filter(franchise=franchise).count()
+    active_raffles = Raffle.objects.filter(franchise=franchise, status__in=['WAITING', 'IN_PROGRESS']).count()
+    total_users = User.objects.filter(franchise=franchise).count()
+    
+    # Solicitudes pendientes de crédito de usuarios de esta franquicia
+    pending_credit_requests = CreditRequest.objects.filter(
+        franchise=franchise,
+        status='pending'
+    ).select_related('user').order_by('-created_at')[:10]
+    
+    # Solicitudes pendientes de retiro de usuarios de esta franquicia
+    pending_withdrawal_requests = WithdrawalRequest.objects.filter(
+        franchise=franchise,
+        status='PENDING'
+    ).select_related('user').order_by('-created_at')[:10]
+    
+    # Total de créditos en la franquicia (suma de balances de usuarios)
+    total_credits = User.objects.filter(franchise=franchise).aggregate(
+        total=Sum('credit_balance')
+    )['total'] or Decimal('0.00')
+    
+    return render(request, 'bingo_app/franchise_owner/dashboard.html', {
+        'franchise': franchise,
+        'total_games': total_games,
+        'active_games': active_games,
+        'total_raffles': total_raffles,
+        'active_raffles': active_raffles,
+        'total_users': total_users,
+        'pending_credit_requests': pending_credit_requests,
+        'pending_withdrawal_requests': pending_withdrawal_requests,
+        'total_credits': total_credits,
+    })
+
+
+@login_required
+def franchise_owner_credit_requests(request):
+    """
+    Lista de solicitudes de crédito de usuarios de la franquicia
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    
+    credit_requests = CreditRequest.objects.filter(
+        franchise=franchise
+    ).select_related('user', 'payment_method').order_by('-created_at')
+    
+    # Filtros
+    status_filter = request.GET.get('status', 'all')
+    if status_filter != 'all':
+        credit_requests = credit_requests.filter(status=status_filter)
+    
+    return render(request, 'bingo_app/franchise_owner/credit_requests.html', {
+        'franchise': franchise,
+        'credit_requests': credit_requests,
+        'status_filter': status_filter,
+    })
+
+
+@login_required
+def franchise_owner_process_credit(request, request_id):
+    """
+    Procesar (aprobar/rechazar) una solicitud de crédito de un usuario de la franquicia
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    credit_request = get_object_or_404(
+        CreditRequest,
+        id=request_id,
+        franchise=franchise
+    )
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'approve':
+            try:
+                with transaction.atomic():
+                    user = credit_request.user
+                    user.credit_balance += credit_request.amount
+                    user.save()
+                    
+                    Transaction.objects.create(
+                        user=user,
+                        amount=credit_request.amount,
+                        transaction_type='ADMIN_ADD',
+                        description=f"Recarga aprobada por franquiciado: {request.user.username}"
+                    )
+                    
+                    credit_request.status = 'approved'
+                    credit_request.processed_at = timezone.now()
+                    credit_request.admin_notes = f"Aprobado por franquiciado {request.user.username}"
+                    credit_request.save()
+                
+                messages.success(request, f'Solicitud de crédito aprobada. ${credit_request.amount} agregados a {user.username}')
+            except Exception as e:
+                messages.error(request, f'Error al aprobar la solicitud: {str(e)}')
+        
+        elif action == 'reject':
+            credit_request.status = 'rejected'
+            credit_request.processed_at = timezone.now()
+            credit_request.admin_notes = f"Rechazado por franquiciado {request.user.username}. Razón: {request.POST.get('rejection_reason', 'Sin razón especificada')}"
+            credit_request.save()
+            messages.success(request, 'Solicitud de crédito rechazada')
+        
+        return redirect('franchise_owner_credit_requests')
+    
+    return render(request, 'bingo_app/franchise_owner/process_credit.html', {
+        'franchise': franchise,
+        'credit_request': credit_request,
+    })
+
+
+@login_required
+def franchise_owner_withdrawal_requests(request):
+    """
+    Lista de solicitudes de retiro de usuarios de la franquicia
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    
+    withdrawal_requests = WithdrawalRequest.objects.filter(
+        franchise=franchise
+    ).select_related('user').order_by('-created_at')
+    
+    # Filtros
+    status_filter = request.GET.get('status', 'all')
+    if status_filter != 'all':
+        withdrawal_requests = withdrawal_requests.filter(status=status_filter)
+    
+    return render(request, 'bingo_app/franchise_owner/withdrawal_requests.html', {
+        'franchise': franchise,
+        'withdrawal_requests': withdrawal_requests,
+        'status_filter': status_filter,
+    })
+
+
+@login_required
+def franchise_owner_process_withdrawal(request, request_id):
+    """
+    Procesar (aprobar/rechazar) una solicitud de retiro de un usuario de la franquicia
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    withdrawal_request = get_object_or_404(
+        WithdrawalRequest,
+        id=request_id,
+        franchise=franchise
+    )
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'approve':
+            if withdrawal_request.user.credit_balance >= withdrawal_request.amount:
+                try:
+                    with transaction.atomic():
+                        withdrawal_request.user.credit_balance -= withdrawal_request.amount
+                        withdrawal_request.user.save()
+                        
+                        Transaction.objects.create(
+                            user=withdrawal_request.user,
+                            amount=-withdrawal_request.amount,
+                            transaction_type='WITHDRAWAL',
+                            description=f"Retiro aprobado por franquiciado: {request.user.username}"
+                        )
+                        
+                        withdrawal_request.status = 'COMPLETED'
+                        withdrawal_request.processed_at = timezone.now()
+                        withdrawal_request.admin_notes = f"Procesado por franquiciado {request.user.username}"
+                        withdrawal_request.save()
+                    
+                    messages.success(request, f'Retiro aprobado. ${withdrawal_request.amount} descontados de {withdrawal_request.user.username}')
+                except Exception as e:
+                    messages.error(request, f'Error al procesar el retiro: {str(e)}')
+            else:
+                messages.error(request, f'El usuario {withdrawal_request.user.username} no tiene suficiente saldo')
+        
+        elif action == 'reject':
+            withdrawal_request.status = 'REJECTED'
+            withdrawal_request.processed_at = timezone.now()
+            withdrawal_request.admin_notes = f"Rechazado por franquiciado {request.user.username}. Razón: {request.POST.get('rejection_reason', 'Sin razón especificada')}"
+            withdrawal_request.save()
+            messages.success(request, 'Solicitud de retiro rechazada')
+        
+        return redirect('franchise_owner_withdrawal_requests')
+    
+    return render(request, 'bingo_app/franchise_owner/process_withdrawal.html', {
+        'franchise': franchise,
+        'withdrawal_request': withdrawal_request,
     })
