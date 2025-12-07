@@ -5,6 +5,42 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def remove_link_field_if_exists(apps, schema_editor):
+    """
+    Elimina el campo 'link' de Announcement solo si existe.
+    Esto evita errores si el campo ya fue eliminado en una migración anterior.
+    """
+    db_alias = schema_editor.connection.alias
+    try:
+        with schema_editor.connection.cursor() as cursor:
+            # Verificar si la columna existe
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='bingo_app_announcement' 
+                AND column_name='link'
+            """)
+            if cursor.fetchone():
+                # La columna existe, eliminarla
+                schema_editor.execute(
+                    schema_editor.sql_delete_column % {
+                        'table': schema_editor.quote_name('bingo_app_announcement'),
+                        'column': schema_editor.quote_name('link'),
+                    }
+                )
+    except Exception:
+        # Si hay algún error, simplemente continuar
+        # El campo probablemente ya no existe
+        pass
+
+
+def reverse_remove_link_field(apps, schema_editor):
+    """
+    Función reversa: no hace nada porque no queremos recrear el campo
+    """
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -43,9 +79,9 @@ class Migration(migrations.Migration):
                 'ordering': ['package_type'],
             },
         ),
-        migrations.RemoveField(
-            model_name='announcement',
-            name='link',
+        migrations.RunPython(
+            remove_link_field_if_exists,
+            reverse_remove_link_field,
         ),
         migrations.CreateModel(
             name='Franchise',
