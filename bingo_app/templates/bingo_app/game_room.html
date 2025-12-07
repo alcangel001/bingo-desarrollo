@@ -2875,6 +2875,9 @@
     const isOrganizer = {% if request.user == game.organizer %}true{% else %}false{% endif %};
     const isGameStarted = {% if game.is_started %}true{% else %}false{% endif %};
     const isGameFinished = {% if game.is_finished %}true{% else %}false{% endif %};
+    // Hacer disponibles globalmente para detección de bingo activo
+    window.isGameStarted = isGameStarted;
+    window.isGameFinished = isGameFinished;
     const isAutoCalling = {% if game.is_auto_calling %}true{% else %}false{% endif %};
     const autoCallInterval = {{ game.auto_call_interval }};
     const cardPrice = parseFloat("{{ game.card_price }}");

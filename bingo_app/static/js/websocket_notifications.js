@@ -383,13 +383,36 @@ class WebSocketNotificationHandler {
             'withdrawal_request_notification'
         ];
         
+        // Notificaciones que solo suenan cuando el admin NO está en un bingo activo
+        const adminNotificationsWhenBingoClosed = [
+            'new_credit_request',
+            'new_withdrawal_request'
+        ];
+        
+        // Verificar si el usuario está en un bingo activo
+        const isInActiveBingo = this.isUserInActiveBingo();
+        
         // Si es una notificación personal, siempre suena
         if (personalNotifications.includes(data.type)) {
             console.log('🔊 Notificación personal detectada, reproduciendo sonido');
             return true;
         }
         
-        // Si es una notificación de admin, solo suena para administradores
+        // Si es una notificación de admin que solo suena cuando el bingo está cerrado
+        if (data.notification_type && adminNotificationsWhenBingoClosed.includes(data.notification_type)) {
+            if (isAdmin && !isInActiveBingo) {
+                console.log('🔊 Notificación de crédito/retiro detectada, reproduciendo sonido (admin fuera del bingo)');
+                return true;
+            } else if (isAdmin && isInActiveBingo) {
+                console.log('🔊 Notificación de crédito/retiro detectada, NO reproduciendo sonido (admin en bingo activo)');
+                return false;
+            } else {
+                console.log('🔊 Notificación de crédito/retiro detectada, NO reproduciendo sonido (usuario no es admin)');
+                return false;
+            }
+        }
+        
+        // Si es una notificación de admin normal, solo suena para administradores
         if (adminOnlyNotifications.includes(data.type)) {
             if (isAdmin) {
                 console.log('🔊 Notificación de admin detectada, reproduciendo sonido (usuario es admin)');
@@ -403,6 +426,33 @@ class WebSocketNotificationHandler {
         // Para otros tipos de notificaciones, usar lógica por defecto
         console.log('🔊 Tipo de notificación no clasificado, usando lógica por defecto');
         return isAdmin;
+    }
+    
+    isUserInActiveBingo() {
+        // Verificar si estamos en una página de game_room
+        const isInGameRoom = window.location.pathname.includes('/game/') && 
+                            window.location.pathname.match(/\/game\/\d+\//);
+        
+        if (!isInGameRoom) {
+            console.log('🔊 Usuario NO está en game_room');
+            return false;
+        }
+        
+        // Si estamos en game_room, verificar si el juego está activo
+        // Buscar variables globales que se definen en game_room.html
+        const isGameStarted = typeof window.isGameStarted !== 'undefined' ? window.isGameStarted : false;
+        const isGameFinished = typeof window.isGameFinished !== 'undefined' ? window.isGameFinished : false;
+        
+        // El bingo está activo si está iniciado y no terminado
+        const isActive = isGameStarted && !isGameFinished;
+        
+        console.log('🔊 Usuario en game_room:', {
+            isGameStarted,
+            isGameFinished,
+            isActive
+        });
+        
+        return isActive;
     }
     
     setupEventListeners() {
