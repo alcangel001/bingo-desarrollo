@@ -3,11 +3,11 @@ class NotificationSounds {
     constructor() {
         this.sounds = {
             credit_purchase: this.createTone(800, 0.3, 'sine'),
-            credit_request: this.createTone(700, 0.3, 'sine'),  // Nueva solicitud de créditos
-            withdrawal_request: this.createTone(600, 0.4, 'square'),
+            credit_request: this.createTone(900, 0.4, 'square'),  // Más fuerte y notorio
+            withdrawal_request: this.createTone(800, 0.5, 'square'),  // Más fuerte y notorio
             new_message: this.createTone(1000, 0.2, 'triangle'),
             game_notification: this.createTone(1200, 0.3, 'sawtooth'),
-            admin_notification: this.createTone(400, 0.5, 'square')
+            admin_notification: this.createTone(500, 0.6, 'square')  // Más fuerte
         };
         
         this.isEnabled = this.getSoundPreference();
@@ -70,9 +70,9 @@ class NotificationSounds {
                 oscillator.frequency.value = frequency;
                 oscillator.type = waveType;
                 
-                // Configurar volumen (fade in/out)
+                // Configurar volumen más alto (fade in/out)
                 gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.3, this.audioContext.currentTime + 0.01);
+                gainNode.gain.linearRampToValueAtTime(0.8, this.audioContext.currentTime + 0.01); // Aumentado de 0.3 a 0.8
                 gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
                 
                 console.log('🔊 NotificationSounds: Iniciando oscilador...');
@@ -166,14 +166,20 @@ class NotificationSounds {
                 setTimeout(() => this.playCreditPurchaseSound(), 200);
                 break;
             case 'credit_request':
-                console.log('🔊 NotificationSounds: Reproduciendo sonido de solicitud de créditos');
+                console.log('🔊 NotificationSounds: Reproduciendo sonido de solicitud de créditos (ALERTA)');
+                // Repetir 4 veces con intervalos cortos para hacerlo más notorio
                 this.playCreditRequestSound();
-                setTimeout(() => this.playCreditRequestSound(), 200);
+                setTimeout(() => this.playCreditRequestSound(), 300);
+                setTimeout(() => this.playCreditRequestSound(), 600);
+                setTimeout(() => this.playCreditRequestSound(), 900);
                 break;
             case 'withdrawal_request':
-                console.log('🔊 NotificationSounds: Reproduciendo sonido de solicitud de retiro');
+                console.log('🔊 NotificationSounds: Reproduciendo sonido de solicitud de retiro (ALERTA)');
+                // Repetir 4 veces con intervalos cortos para hacerlo más notorio
                 this.playWithdrawalRequestSound();
                 setTimeout(() => this.playWithdrawalRequestSound(), 300);
+                setTimeout(() => this.playWithdrawalRequestSound(), 600);
+                setTimeout(() => this.playWithdrawalRequestSound(), 900);
                 break;
             case 'new_message':
                 console.log('🔊 NotificationSounds: Reproduciendo sonido de nuevo mensaje');
