@@ -383,14 +383,11 @@ class WebSocketNotificationHandler {
             'withdrawal_request_notification'
         ];
         
-        // Notificaciones que solo suenan cuando el admin NO está en un bingo activo
-        const adminNotificationsWhenBingoClosed = [
+        // Notificaciones que SIEMPRE suenan para admin (incluso en bingo activo)
+        const adminNotificationsAlways = [
             'new_credit_request',
             'new_withdrawal_request'
         ];
-        
-        // Verificar si el usuario está en un bingo activo
-        const isInActiveBingo = this.isUserInActiveBingo();
         
         // Si es una notificación personal, siempre suena
         if (personalNotifications.includes(data.type)) {
@@ -398,14 +395,11 @@ class WebSocketNotificationHandler {
             return true;
         }
         
-        // Si es una notificación de admin que solo suena cuando el bingo está cerrado
-        if (data.notification_type && adminNotificationsWhenBingoClosed.includes(data.notification_type)) {
-            if (isAdmin && !isInActiveBingo) {
-                console.log('🔊 Notificación de crédito/retiro detectada, reproduciendo sonido (admin fuera del bingo)');
+        // Si es una notificación de crédito/retiro, SIEMPRE suena para admin (sin importar dónde esté)
+        if (data.notification_type && adminNotificationsAlways.includes(data.notification_type)) {
+            if (isAdmin) {
+                console.log('🔊 Notificación de crédito/retiro detectada, reproduciendo sonido SIEMPRE (admin)');
                 return true;
-            } else if (isAdmin && isInActiveBingo) {
-                console.log('🔊 Notificación de crédito/retiro detectada, NO reproduciendo sonido (admin en bingo activo)');
-                return false;
             } else {
                 console.log('🔊 Notificación de crédito/retiro detectada, NO reproduciendo sonido (usuario no es admin)');
                 return false;

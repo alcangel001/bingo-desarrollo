@@ -869,20 +869,24 @@
             // Reproducir según el tipo
             switch(type) {
                 case 'credit_request':
-                    console.log('🔊 FallbackNotificationSounds: Reproduciendo ALERTA de créditos (4 veces)');
-                    // Repetir 4 veces con intervalos
-                    playSound(900, 0.4, 'square', 0.8);
-                    setTimeout(() => playSound(900, 0.4, 'square', 0.8), 300);
-                    setTimeout(() => playSound(900, 0.4, 'square', 0.8), 600);
-                    setTimeout(() => playSound(900, 0.4, 'square', 0.8), 900);
+                    console.log('🔊 FallbackNotificationSounds: Reproduciendo ALERTA de créditos (6 veces, duración doble)');
+                    // Repetir 6 veces con duración doble (0.8s cada una)
+                    playSound(900, 0.8, 'square', 0.8);
+                    setTimeout(() => playSound(900, 0.8, 'square', 0.8), 400);
+                    setTimeout(() => playSound(900, 0.8, 'square', 0.8), 800);
+                    setTimeout(() => playSound(900, 0.8, 'square', 0.8), 1200);
+                    setTimeout(() => playSound(900, 0.8, 'square', 0.8), 1600);
+                    setTimeout(() => playSound(900, 0.8, 'square', 0.8), 2000);
                     break;
                 case 'withdrawal_request':
-                    console.log('🔊 FallbackNotificationSounds: Reproduciendo ALERTA de retiros (4 veces)');
-                    // Repetir 4 veces con intervalos
-                    playSound(800, 0.5, 'square', 0.8);
-                    setTimeout(() => playSound(800, 0.5, 'square', 0.8), 300);
-                    setTimeout(() => playSound(800, 0.5, 'square', 0.8), 600);
-                    setTimeout(() => playSound(800, 0.5, 'square', 0.8), 900);
+                    console.log('🔊 FallbackNotificationSounds: Reproduciendo ALERTA de retiros (6 veces, duración doble)');
+                    // Repetir 6 veces con duración doble (1.0s cada una)
+                    playSound(800, 1.0, 'square', 0.8);
+                    setTimeout(() => playSound(800, 1.0, 'square', 0.8), 400);
+                    setTimeout(() => playSound(800, 1.0, 'square', 0.8), 800);
+                    setTimeout(() => playSound(800, 1.0, 'square', 0.8), 1200);
+                    setTimeout(() => playSound(800, 1.0, 'square', 0.8), 1600);
+                    setTimeout(() => playSound(800, 1.0, 'square', 0.8), 2000);
                     break;
                 case 'credit_purchase':
                     playSound(800, 0.3, 'sine', 0.8);
