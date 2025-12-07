@@ -7,7 +7,11 @@
 {% block extra_css %}
 <style>
     body {
+        {% if current_franchise and current_franchise.image %}
+        background-image: url('{{ current_franchise.image.url }}');
+        {% else %}
         background-image: url('{% static "images/bingo_login_background_v2.png" %}');
+        {% endif %}
         background-size: 98% auto;
         background-position: center center;
         background-attachment: fixed;

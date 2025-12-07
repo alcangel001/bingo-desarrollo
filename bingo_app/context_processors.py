@@ -65,20 +65,41 @@ def system_settings_processor(request):
 
 def franchise_processor(request):
     """Inyecta información de la franquicia del usuario en el contexto global"""
+    from .models import Franchise
+    
     franchise = None
     is_franchise_owner = False
     
     if request.user.is_authenticated:
-        # Verificar si el usuario es propietario de una franquicia
         try:
-            if hasattr(request.user, 'owned_franchise') and request.user.owned_franchise:
-                franchise = request.user.owned_franchise
-                is_franchise_owner = True
-            # Si no es propietario, verificar si pertenece a una franquicia
-            elif hasattr(request.user, 'franchise') and request.user.franchise:
-                franchise = request.user.franchise
+            # Primero intentar obtener la franquicia del middleware (ya procesada)
+            franchise = getattr(request, 'franchise', None)
+            
+            # Si no está en el middleware, buscarla directamente desde el usuario
+            if not franchise:
+                # Opción 1: Usuario es propietario de una franquicia
+                try:
+                    owned = Franchise.objects.filter(owner=request.user, is_active=True).first()
+                    if owned:
+                        franchise = owned
+                        is_franchise_owner = True
+                except Exception:
+                    pass
+                
+                # Opción 2: Usuario pertenece a una franquicia (tiene franchise asignado)
+                if not franchise:
+                    try:
+                        # Refrescar el usuario desde la base de datos para obtener relaciones
+                        user = request.user.__class__.objects.select_related('franchise', 'owned_franchise').get(pk=request.user.pk)
+                        if hasattr(user, 'owned_franchise') and user.owned_franchise and user.owned_franchise.is_active:
+                            franchise = user.owned_franchise
+                            is_franchise_owner = True
+                        elif hasattr(user, 'franchise') and user.franchise and user.franchise.is_active:
+                            franchise = user.franchise
+                    except Exception:
+                        pass
         except Exception:
-            # Si hay algún error, usar la franquicia del middleware
+            # Si hay algún error, intentar obtener del middleware
             franchise = getattr(request, 'franchise', None)
     
     return {
