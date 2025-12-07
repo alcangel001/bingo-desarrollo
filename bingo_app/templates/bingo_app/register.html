@@ -73,6 +73,33 @@
                             </div>
                         </div>
                         
+                        <!-- Campo Código de Franquicia -->
+                        {% if franchise %}
+                        <div class="mb-4 alert alert-info">
+                            <i class="fas fa-store me-2"></i>
+                            <strong>Registro para: {{ franchise.name }}</strong>
+                        </div>
+                        {% endif %}
+                        <div class="mb-4">
+                            <label for="id_franchise_code" class="form-label fw-bold" style="color: #5a5a5a;">
+                                <i class="fas fa-store text-primary me-1"></i>Código de Franquicia (Opcional)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-store text-primary"></i></span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="id_franchise_code" 
+                                       name="franchise_code" 
+                                       placeholder="Ingresa el código de la franquicia"
+                                       value="{% if form.franchise_code.value %}{{ form.franchise_code.value }}{% elif franchise %}{{ franchise.slug }}{% endif %}"
+                                       {% if form.franchise_code.value or franchise %}readonly{% endif %}>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> 
+                                Si tienes un código de franquicia, ingrésalo aquí. Te unirás automáticamente a esa franquicia.
+                            </small>
+                        </div>
+                        
                         <!-- Campo Código de Referido -->
                         <div class="mb-4">
                             <label for="id_referral_code" class="form-label fw-bold" style="color: #5a5a5a;">

@@ -10,6 +10,12 @@ class RegistrationForm(UserCreationForm):
         required=False,
         label='¿Eres un organizador? (Puedes crear juegos)'
     )
+    franchise_code = forms.CharField(
+        required=False,
+        max_length=100,
+        label='Código de Franquicia (Opcional)',
+        help_text='Si tienes un código de franquicia, ingrésalo aquí'
+    )
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
@@ -36,6 +42,8 @@ class RegistrationForm(UserCreationForm):
     class Meta:
         model = User
         fields = ('username', 'email', 'password1', 'password2', 'is_organizer')
+    
+    # El campo franchise_code no se guarda en el modelo, solo se usa para asignar la franquicia
 
 class GameForm(forms.ModelForm):
     auto_call_interval = forms.IntegerField(

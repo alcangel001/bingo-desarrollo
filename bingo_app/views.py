@@ -165,12 +165,50 @@ def _finalize_player_win(player):
 
 
 def register(request):
+    # Obtener código de franquicia de la URL (si viene)
+    franchise_slug = request.GET.get('franchise', '').strip()
+    franchise_from_url = None
+    if franchise_slug:
+        try:
+            franchise_from_url = Franchise.objects.get(slug=franchise_slug, is_active=True)
+        except Franchise.DoesNotExist:
+            pass
+    
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
         referral_code = request.POST.get('referral_code', '').strip()
+        franchise_code = request.POST.get('franchise_code', '').strip()
         
         if form.is_valid():
             user = form.save()
+            
+            # Asignar franquicia si se proporcionó código o viene de URL
+            franchise_to_assign = None
+            if franchise_code:
+                # Buscar franquicia por slug o nombre
+                try:
+                    franchise_to_assign = Franchise.objects.get(
+                        slug__iexact=franchise_code, 
+                        is_active=True
+                    )
+                except Franchise.DoesNotExist:
+                    try:
+                        franchise_to_assign = Franchise.objects.get(
+                            name__iexact=franchise_code,
+                            is_active=True
+                        )
+                    except Franchise.DoesNotExist:
+                        messages.warning(request, f'Código de franquicia "{franchise_code}" no encontrado o inactivo.')
+            
+            # Si no se encontró por código, usar el de la URL
+            if not franchise_to_assign and franchise_from_url:
+                franchise_to_assign = franchise_from_url
+            
+            # Asignar la franquicia al usuario
+            if franchise_to_assign:
+                user.franchise = franchise_to_assign
+                user.save()
+                messages.success(request, f'¡Te has registrado en la franquicia "{franchise_to_assign.name}"!')
             
             # Procesar código de referido si se proporcionó
             if referral_code:
@@ -229,10 +267,16 @@ El equipo de Bingo JyM
         form = RegistrationForm()
         # Pre-llenar código de referido si viene en la URL
         referral_code = request.GET.get('referral_code', '')
+        # Pre-llenar código de franquicia si viene de la URL
+        if franchise_from_url:
+            form.fields['franchise_code'].initial = franchise_from_url.slug
+            form.fields['franchise_code'].widget.attrs['readonly'] = True
+            messages.info(request, f'Registro para la franquicia: {franchise_from_url.name}')
         
     return render(request, 'bingo_app/register.html', {
         'form': form, 
-        'referral_code': referral_code
+        'referral_code': referral_code,
+        'franchise': franchise_from_url
     })
 
 def process_referral_code(new_user, referral_code, request):

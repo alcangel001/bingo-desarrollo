@@ -178,6 +178,81 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Enlace de Registro para Clientes -->
+            <div class="card mt-4" style="background-color: var(--card-bg);">
+                <div class="card-header" style="background-color: var(--accent-color);">
+                    <h5 class="mb-0">
+                        <i class="fas fa-link"></i> Enlace de Registro para tus Clientes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Comparte este enlace con tus clientes para que se registren automáticamente en tu franquicia.
+                    </p>
+                    <div class="input-group mb-3">
+                        <input type="text" 
+                               class="form-control" 
+                               id="registration-link" 
+                               value="https://web-production-14f41.up.railway.app/register/?franchise={{ franchise.slug }}" 
+                               readonly>
+                        <button class="btn btn-primary" type="button" onclick="copyRegistrationLink()">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                    <div class="alert alert-success" id="copy-success" style="display: none;">
+                        <i class="fas fa-check-circle"></i> ¡Enlace copiado al portapapeles!
+                    </div>
+                    <div class="mt-3">
+                        <h6>O comparte el código de franquicia:</h6>
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="franchise-code" 
+                                   value="{{ franchise.slug }}" 
+                                   readonly>
+                            <button class="btn btn-secondary" type="button" onclick="copyFranchiseCode()">
+                                <i class="fas fa-copy"></i> Copiar Código
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            Tus clientes pueden usar este código al registrarse en: 
+                            <a href="https://web-production-14f41.up.railway.app/register/" target="_blank">
+                                https://web-production-14f41.up.railway.app/register/
+                            </a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                function copyRegistrationLink() {
+                    const linkInput = document.getElementById('registration-link');
+                    linkInput.select();
+                    linkInput.setSelectionRange(0, 99999); // Para móviles
+                    document.execCommand('copy');
+                    
+                    const successMsg = document.getElementById('copy-success');
+                    successMsg.style.display = 'block';
+                    setTimeout(() => {
+                        successMsg.style.display = 'none';
+                    }, 3000);
+                }
+
+                function copyFranchiseCode() {
+                    const codeInput = document.getElementById('franchise-code');
+                    codeInput.select();
+                    codeInput.setSelectionRange(0, 99999);
+                    document.execCommand('copy');
+                    
+                    const successMsg = document.getElementById('copy-success');
+                    successMsg.innerHTML = '<i class="fas fa-check-circle"></i> ¡Código copiado al portapapeles!';
+                    successMsg.style.display = 'block';
+                    setTimeout(() => {
+                        successMsg.style.display = 'none';
+                    }, 3000);
+                }
+            </script>
         </div>
     </div>
 </div>
