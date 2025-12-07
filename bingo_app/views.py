@@ -5391,6 +5391,15 @@ def franchise_owner_dashboard(request):
         total=Sum('credit_balance')
     )['total'] or Decimal('0.00')
     
+    # Lista de usuarios registrados (últimos 20)
+    recent_users = User.objects.filter(franchise=franchise).order_by('-date_joined')[:20]
+    
+    # Estadísticas de solicitudes
+    total_credit_requests = CreditRequest.objects.filter(franchise=franchise).count()
+    approved_credit_requests = CreditRequest.objects.filter(franchise=franchise, status='approved').count()
+    total_withdrawal_requests = WithdrawalRequest.objects.filter(franchise=franchise).count()
+    completed_withdrawal_requests = WithdrawalRequest.objects.filter(franchise=franchise, status='COMPLETED').count()
+    
     return render(request, 'bingo_app/franchise_owner/dashboard.html', {
         'franchise': franchise,
         'total_games': total_games,
@@ -5401,6 +5410,11 @@ def franchise_owner_dashboard(request):
         'pending_credit_requests': pending_credit_requests,
         'pending_withdrawal_requests': pending_withdrawal_requests,
         'total_credits': total_credits,
+        'recent_users': recent_users,
+        'total_credit_requests': total_credit_requests,
+        'approved_credit_requests': approved_credit_requests,
+        'total_withdrawal_requests': total_withdrawal_requests,
+        'completed_withdrawal_requests': completed_withdrawal_requests,
     })
 
 
