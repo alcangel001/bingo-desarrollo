@@ -14,24 +14,27 @@ def fix_card_theme_nullable(apps, schema_editor):
     
     if db_engine == 'postgresql':
         # PostgreSQL soporta ALTER COLUMN
-        # Usar atomic=False para evitar problemas de transacción
-        with schema_editor.connection.cursor() as cursor:
-            try:
-                # Usar una transacción separada
-                cursor.execute("COMMIT;")
-                cursor.execute("BEGIN;")
-                cursor.execute(
-                    "ALTER TABLE bingo_app_user ALTER COLUMN card_theme DROP NOT NULL;"
-                )
-                cursor.execute("COMMIT;")
-            except Exception as e:
-                # Si la columna no existe o ya es nullable, ignorar
-                try:
-                    cursor.execute("ROLLBACK;")
-                except:
-                    pass
-                # Continuar sin error
-                pass
+        # Usar schema_editor para manejar transacciones correctamente
+        try:
+            # Verificar si la columna existe y tiene NOT NULL
+            with schema_editor.connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT is_nullable 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'bingo_app_user' 
+                    AND column_name = 'card_theme';
+                """)
+                result = cursor.fetchone()
+                
+                if result and result[0] == 'NO':
+                    # La columna existe y es NOT NULL, hacerla nullable
+                    schema_editor.execute("""
+                        ALTER TABLE bingo_app_user 
+                        ALTER COLUMN card_theme DROP NOT NULL;
+                    """)
+        except Exception:
+            # Si la columna no existe o ya es nullable, ignorar silenciosamente
+            pass
     # Para SQLite y otros motores, no hacer nada (ya son nullable por defecto)
 
 
@@ -40,20 +43,13 @@ def reverse_fix_card_theme_nullable(apps, schema_editor):
     db_engine = schema_editor.connection.vendor
     
     if db_engine == 'postgresql':
-        with schema_editor.connection.cursor() as cursor:
-            try:
-                cursor.execute("COMMIT;")
-                cursor.execute("BEGIN;")
-                cursor.execute(
-                    "ALTER TABLE bingo_app_user ALTER COLUMN card_theme SET NOT NULL;"
-                )
-                cursor.execute("COMMIT;")
-            except Exception:
-                try:
-                    cursor.execute("ROLLBACK;")
-                except:
-                    pass
-                pass
+        try:
+            schema_editor.execute("""
+                ALTER TABLE bingo_app_user 
+                ALTER COLUMN card_theme SET NOT NULL;
+            """)
+        except Exception:
+            pass
 
 
 class Migration(migrations.Migration):

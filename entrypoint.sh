@@ -23,6 +23,10 @@ if [ $MIGRATE_EXIT -ne 0 ]; then
     echo "Trying to continue anyway, but errors may occur..."
 fi
 
+# Setup PercentageSettings (required for system to work)
+echo "Setting up PercentageSettings..."
+python manage.py setup_percentage_settings || echo "PercentageSettings setup failed, but continuing..."
+
 # Create superuser (non-blocking)
 echo "Attempting to create or update superuser..."
 python manage.py createsu || echo "Superuser creation failed, but continuing..."
