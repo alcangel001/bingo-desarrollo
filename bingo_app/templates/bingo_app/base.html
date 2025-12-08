@@ -586,6 +586,14 @@
                                 ? 'fa-money-bill-wave text-warning'
                                 : 'fa-user-shield text-danger';
                             
+                            console.log('🔊 Procesando admin_notification:', {
+                                message: data.message,
+                                url: data.url,
+                                notification_id: notificationId,
+                                notification_type: data.notification_type,
+                                sound_type: data.sound_type
+                            });
+                            
                             handleNewNotification(
                                 data.message,
                                 data.url,
@@ -594,7 +602,11 @@
                                 data.notification_type || 'admin_notification'
                             );
                             
-                            if (!data.sound_type && window.playNotificationSound) {
+                            // Reproducir sonido si está especificado
+                            if (data.sound_type && window.playNotificationSound) {
+                                console.log('🔊 Reproduciendo sonido para admin_notification:', data.sound_type);
+                                window.playNotificationSound(data.sound_type);
+                            } else if (!data.sound_type && window.playNotificationSound) {
                                 window.playNotificationSound('admin_notification');
                             }
                         }

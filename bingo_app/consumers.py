@@ -760,15 +760,27 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         
         print(f"🔊 NotificationConsumer: Usuario {self.user.username} conectado al grupo {self.user_group_name}")
 
-        # Solo los superusuarios deben recibir notificaciones de admin
+        # Los superusuarios Y los propietarios de franquicia deben recibir notificaciones de admin
         is_superuser = await database_sync_to_async(lambda: self.user.is_superuser)()
-        if is_superuser:
+        
+        # Verificar si es propietario de franquicia
+        def check_franchise_owner(user):
+            try:
+                from .models import Franchise
+                return Franchise.objects.filter(owner=user, is_active=True).exists()
+            except:
+                return False
+        
+        is_franchise_owner = await database_sync_to_async(check_franchise_owner)(self.user)
+        
+        if is_superuser or is_franchise_owner:
             self.admin_group_name = 'admin_notifications'
             await self.channel_layer.group_add(
                 self.admin_group_name,
                 self.channel_name
             )
-            print(f"🔊 NotificationConsumer: Usuario {self.user.username} (SUPERUSER) conectado al grupo admin_notifications")
+            user_type = "SUPERUSER" if is_superuser else "FRANCHISE_OWNER"
+            print(f"🔊 NotificationConsumer: Usuario {self.user.username} ({user_type}) conectado al grupo admin_notifications")
 
         await self.accept()
 
@@ -794,7 +806,8 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'notification_type': event.get('notification_type'),
             'message': event.get('message'),
             'url': event.get('url'),
-            'sound_type': event.get('sound_type')
+            'sound_type': event.get('sound_type'),
+            'notification_id': event.get('notification_id')
         }))
 
     # Handlers para notificaciones enviadas al grupo personal del usuario
