@@ -292,10 +292,21 @@
                             <i class="fas fa-chart-line me-1"></i> Organizer Dashboard
                         </a>
                     </li>
+                    {% endif %}
                     {% if is_franchise_owner %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'franchise_owner_dashboard' %}">
                             <i class="fas fa-store me-1"></i> Panel Franquicia
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'franchise_owner_credit_requests' %}">
+                            <i class="fas fa-credit-card me-1"></i> Aprobar Créditos
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'franchise_owner_withdrawal_requests' %}">
+                            <i class="fas fa-money-bill-wave me-1"></i> Aprobar Retiros
                         </a>
                     </li>
                     {% endif %}
