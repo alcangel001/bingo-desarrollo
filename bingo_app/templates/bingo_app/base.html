@@ -793,14 +793,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         const notificationList = document.getElementById('notification-list');
         if (notificationList) {
+            // Usar delegación de eventos para manejar elementos agregados dinámicamente
             notificationList.addEventListener('click', function(event) {
-                const target = event.target.closest('.notification-item');
+                // Buscar el elemento notification-item o notification-click más cercano
+                const target = event.target.closest('.notification-item') || event.target.closest('.notification-click');
                 if (!target) return;
 
                 event.preventDefault();
 
-                const notificationId = target.dataset.notificationId;
-                const notificationType = target.dataset.notificationType.trim();
+                // Obtener el notification-item padre si el clic fue en el enlace
+                const notificationItem = target.closest('.notification-item') || target;
+                const notificationId = notificationItem.dataset.notificationId;
+                const notificationType = notificationItem.dataset.notificationType ? notificationItem.dataset.notificationType.trim() : null;
 
                 if (!notificationId || !notificationType) {
                     return;
