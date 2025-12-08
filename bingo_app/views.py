@@ -1195,6 +1195,23 @@ def request_credits(request):
                 print(f"🔊 request_credits: Monto: ${credit_request.amount}")
                 print(f"🔊 request_credits: Franquicia: {credit_request.franchise.name if credit_request.franchise else 'Sin franquicia'}")
                 
+                # Obtener el ID de la notificación creada
+                notification_id = None
+                if credit_request.franchise and credit_request.franchise.owner:
+                    notification = CreditRequestNotification.objects.filter(
+                        user=credit_request.franchise.owner,
+                        credit_request=credit_request
+                    ).first()
+                    if notification:
+                        notification_id = notification.id
+                else:
+                    # Para superusuarios, obtener la primera notificación creada
+                    notification = CreditRequestNotification.objects.filter(
+                        credit_request=credit_request
+                    ).first()
+                    if notification:
+                        notification_id = notification.id
+                
                 # Enviar a un grupo general de admins (para sonido)
                 async_to_sync(channel_layer.group_send)(
                     'admin_notifications',
@@ -1203,10 +1220,11 @@ def request_credits(request):
                         'notification_type': 'new_credit_request',
                         'message': f'Nueva solicitud de crédito de {credit_request.user.username} por ${credit_request.amount}.',
                         'url': notification_url,
-                        'sound_type': 'credit_request'
+                        'sound_type': 'credit_request',
+                        'notification_id': notification_id
                     }
                 )
-                print(f"🔊 request_credits: Notificación WebSocket enviada exitosamente")
+                print(f"🔊 request_credits: Notificación WebSocket enviada exitosamente con ID: {notification_id}")
             except Exception as e:
                 logger.error(f"Error sending WebSocket notification: {e}")
                 print(f"🔊 request_credits: ERROR enviando notificación WebSocket: {e}")
@@ -2662,13 +2680,21 @@ def mark_as_read(request):
             notification = get_object_or_404(CreditRequestNotification, id=notification_id, user=request.user)
             notification.is_read = True
             notification.save()
-            redirect_url = reverse('credit_requests_list')
+            # Verificar si el usuario es propietario de una franquicia
+            if hasattr(request.user, 'owned_franchise') and request.user.owned_franchise:
+                redirect_url = reverse('franchise_owner_credit_requests')
+            else:
+                redirect_url = reverse('credit_requests_list')
 
         elif notification_type == 'withdrawal_request_notification':
             notification = get_object_or_404(WithdrawalRequestNotification, id=notification_id, user=request.user)
             notification.is_read = True
             notification.save()
-            redirect_url = reverse('withdrawal_requests')
+            # Verificar si el usuario es propietario de una franquicia
+            if hasattr(request.user, 'owned_franchise') and request.user.owned_franchise:
+                redirect_url = reverse('franchise_owner_withdrawal_requests')
+            else:
+                redirect_url = reverse('withdrawal_requests')
         
         else:
             return JsonResponse({'status': 'error', 'message': 'Invalid notification type'}, status=400)

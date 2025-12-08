@@ -578,12 +578,20 @@
                         }
 
                         if (data.type === 'admin_notification') {
+                            // Usar el ID de notificación si está disponible, sino usar timestamp
+                            const notificationId = data.notification_id || new Date().getTime();
+                            const iconClass = data.notification_type === 'new_credit_request' 
+                                ? 'fa-coins text-success' 
+                                : data.notification_type === 'new_withdrawal_request'
+                                ? 'fa-money-bill-wave text-warning'
+                                : 'fa-user-shield text-danger';
+                            
                             handleNewNotification(
                                 data.message,
                                 data.url,
-                                'fa-user-shield text-danger',
-                                new Date().getTime(),
-                                data.notification_type
+                                iconClass,
+                                notificationId,
+                                data.notification_type || 'admin_notification'
                             );
                             
                             if (!data.sound_type && window.playNotificationSound) {
@@ -713,6 +721,13 @@
                 // 3. Añadir la notificación a la lista desplegable
                 const list = document.getElementById('notification-list');
                 if (list) {
+                    // Verificar si ya existe una notificación con el mismo ID
+                    const existingItem = list.querySelector(`[data-notification-id="${notificationId}"]`);
+                    if (existingItem) {
+                        console.log('Notificación ya existe en la lista, omitiendo duplicado');
+                        return;
+                    }
+                    
                     const emptyItem = list.querySelector('a.text-muted');
                     if (emptyItem) {
                         emptyItem.parentElement.remove();
@@ -723,12 +738,18 @@
                     newNotificationItem.dataset.notificationId = notificationId;
                     newNotificationItem.dataset.notificationType = notificationType;
                     newNotificationItem.innerHTML = `
-                        <a class="dropdown-item" href="${url}">
+                        <a class="dropdown-item notification-click" href="#" data-notification-id="${notificationId}" data-notification-type="${notificationType}">
                             <i class="fas ${iconClass} me-2"></i>
                             <span>${message}</span>
                         </a>
                     `;
-                    list.insertBefore(newNotificationItem, list.children[1]);
+                    // Insertar después del header
+                    const header = list.querySelector('h6.dropdown-header');
+                    if (header && header.parentElement) {
+                        header.parentElement.insertBefore(newNotificationItem, header.nextSibling);
+                    } else {
+                        list.insertBefore(newNotificationItem, list.children[1]);
+                    }
                 }
             }
             
