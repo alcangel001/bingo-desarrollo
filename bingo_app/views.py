@@ -1234,7 +1234,21 @@ def request_credits(request):
             return redirect('profile')
     else:
         form = CreditRequestForm()
-    active_payment_methods = BankAccount.objects.filter(is_active=True).order_by('-order', 'title')
+    
+    # Filtrar métodos de pago por franquicia del usuario
+    franchise = getattr(request, 'franchise', None)
+    if franchise:
+        # Usuario de franquicia: solo ver cuentas de su franquicia
+        active_payment_methods = BankAccount.objects.filter(
+            franchise=franchise,
+            is_active=True
+        ).order_by('-order', 'title')
+    else:
+        # Usuario sin franquicia: ver cuentas globales (sin franquicia)
+        active_payment_methods = BankAccount.objects.filter(
+            franchise__isnull=True,
+            is_active=True
+        ).order_by('-order', 'title')
     
     return render(request, 'bingo_app/credit_request.html', {
         'form': form,
@@ -5612,3 +5626,135 @@ def franchise_owner_process_withdrawal(request, request_id):
         'franchise': franchise,
         'withdrawal_request': withdrawal_request,
     })
+
+
+# ============================================================================
+# VISTAS DE GESTIÓN DE CUENTAS BANCARIAS PARA PROPIETARIOS DE FRANQUICIA
+# ============================================================================
+
+@login_required
+def franchise_owner_bank_accounts(request):
+    """
+    Lista las cuentas bancarias de la franquicia del propietario
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    bank_accounts = BankAccount.objects.filter(franchise=franchise).order_by('-order', 'title')
+    
+    return render(request, 'bingo_app/franchise_owner/bank_accounts/list.html', {
+        'franchise': franchise,
+        'bank_accounts': bank_accounts,
+    })
+
+
+@login_required
+def franchise_owner_create_bank_account(request):
+    """
+    Crear una nueva cuenta bancaria para la franquicia
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    
+    if request.method == 'POST':
+        form = PaymentMethodForm(request.POST)
+        if form.is_valid():
+            bank_account = form.save(commit=False)
+            bank_account.franchise = franchise
+            bank_account.save()
+            messages.success(request, f'Cuenta bancaria "{bank_account.title}" creada exitosamente')
+            return redirect('franchise_owner_bank_accounts')
+    else:
+        form = PaymentMethodForm()
+    
+    return render(request, 'bingo_app/franchise_owner/bank_accounts/create.html', {
+        'franchise': franchise,
+        'form': form,
+    })
+
+
+@login_required
+def franchise_owner_edit_bank_account(request, account_id):
+    """
+    Editar una cuenta bancaria de la franquicia
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    bank_account = get_object_or_404(
+        BankAccount,
+        id=account_id,
+        franchise=franchise
+    )
+    
+    if request.method == 'POST':
+        form = PaymentMethodForm(request.POST, instance=bank_account)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Cuenta bancaria "{bank_account.title}" actualizada exitosamente')
+            return redirect('franchise_owner_bank_accounts')
+    else:
+        form = PaymentMethodForm(instance=bank_account)
+    
+    return render(request, 'bingo_app/franchise_owner/bank_accounts/edit.html', {
+        'franchise': franchise,
+        'form': form,
+        'bank_account': bank_account,
+    })
+
+
+@login_required
+@require_POST
+def franchise_owner_delete_bank_account(request, account_id):
+    """
+    Eliminar una cuenta bancaria de la franquicia
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    bank_account = get_object_or_404(
+        BankAccount,
+        id=account_id,
+        franchise=franchise
+    )
+    
+    title = bank_account.title
+    bank_account.delete()
+    messages.success(request, f'Cuenta bancaria "{title}" eliminada exitosamente')
+    
+    return redirect('franchise_owner_bank_accounts')
+
+
+@login_required
+@require_POST
+def franchise_owner_toggle_bank_account(request, account_id):
+    """
+    Activar/desactivar una cuenta bancaria de la franquicia
+    """
+    if not hasattr(request.user, 'owned_franchise'):
+        messages.error(request, 'No eres propietario de ninguna franquicia')
+        return redirect('home')
+    
+    franchise = request.user.owned_franchise
+    bank_account = get_object_or_404(
+        BankAccount,
+        id=account_id,
+        franchise=franchise
+    )
+    
+    bank_account.is_active = not bank_account.is_active
+    bank_account.save()
+    
+    status = 'activada' if bank_account.is_active else 'desactivada'
+    messages.success(request, f'Cuenta bancaria "{bank_account.title}" {status} exitosamente')
+    
+    return redirect('franchise_owner_bank_accounts')

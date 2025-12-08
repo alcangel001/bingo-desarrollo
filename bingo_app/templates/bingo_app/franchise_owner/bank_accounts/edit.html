@@ -1,0 +1,93 @@
+{% extends "bingo_app/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">
+                <i class="fas fa-edit me-2"></i>Editar Cuenta Bancaria - {{ bank_account.title }}
+            </h4>
+        </div>
+        <div class="card-body text-dark">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-dark">Nombre del método</label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="text-danger small">{{ form.title.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-dark">Orden</label>
+                        {{ form.order }}
+                        <small class="form-text text-dark">Número mayor = aparece primero</small>
+                        {% if form.order.errors %}
+                            <div class="text-danger small">{{ form.order.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-dark">Estado</label>
+                        <div class="form-check form-switch mt-2">
+                            {{ form.is_active }}
+                            <label class="form-check-label text-dark" for="{{ form.is_active.id_for_label }}">Activo</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-dark">Detalles de pago</label>
+                    {{ form.details }}
+                    <small class="form-text text-dark">Información que verán los usuarios (número de cuenta, titular, cédula, teléfono, email, etc.)</small>
+                    {% if form.details.errors %}
+                        <div class="text-danger small">{{ form.details.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-dark">Instrucciones especiales (Opcional)</label>
+                    {{ form.instructions }}
+                    <small class="form-text text-dark">Instrucciones específicas para este método de pago</small>
+                    {% if form.instructions.errors %}
+                        <div class="text-danger small">{{ form.instructions.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'franchise_owner_bank_accounts' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-2"></i>Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control, 
+    .form-select,
+    textarea,
+    input {
+        color: #000 !important;
+    }
+    
+    .form-text {
+        color: #6c757d !important;
+    }
+    
+    .form-label,
+    .form-check-label {
+        color: #000 !important;
+    }
+    
+    .card-header,
+    .card-header h4 {
+        color: #fff !important;
+    }
+</style>
+{% endblock %}
+

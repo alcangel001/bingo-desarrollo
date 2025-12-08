@@ -141,6 +141,12 @@ urlpatterns = [
     path('franchise/credit-requests/<int:request_id>/process/', views.franchise_owner_process_credit, name='franchise_owner_process_credit'),
     path('franchise/withdrawal-requests/', views.franchise_owner_withdrawal_requests, name='franchise_owner_withdrawal_requests'),
     path('franchise/withdrawal-requests/<int:request_id>/process/', views.franchise_owner_process_withdrawal, name='franchise_owner_process_withdrawal'),
+    # Gestión de Cuentas Bancarias para Propietarios de Franquicia
+    path('franchise/bank-accounts/', views.franchise_owner_bank_accounts, name='franchise_owner_bank_accounts'),
+    path('franchise/bank-accounts/create/', views.franchise_owner_create_bank_account, name='franchise_owner_create_bank_account'),
+    path('franchise/bank-accounts/<int:account_id>/edit/', views.franchise_owner_edit_bank_account, name='franchise_owner_edit_bank_account'),
+    path('franchise/bank-accounts/<int:account_id>/delete/', views.franchise_owner_delete_bank_account, name='franchise_owner_delete_bank_account'),
+    path('franchise/bank-accounts/<int:account_id>/toggle/', views.franchise_owner_toggle_bank_account, name='franchise_owner_toggle_bank_account'),
     # Landing de franquicia (DEBE estar al final para no capturar rutas específicas)
     path('franchise/<slug:franchise_slug>/', views.franchise_landing, name='franchise_landing'),
 ]
