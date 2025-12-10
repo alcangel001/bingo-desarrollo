@@ -2934,15 +2934,20 @@ def activate_printable_card(request, game_id):
                 return redirect('game_room', game_id=game.id)
 
             with transaction.atomic():
+                # Get percentage settings for distribution
+                percentage_settings = PercentageSettings.objects.first()
+                if not percentage_settings:
+                    messages.error(request, "Configuración del sistema no encontrada.")
+                    return redirect('game_room', game_id=game.id)
+
                 player.cards.append(card.card_data)
                 player.save()
 
+                # Charge for card
                 user.credit_balance -= game.card_price
                 user.save()
 
-                game.total_cards_sold += 1
-                game.save()
-
+                # Record transaction
                 Transaction.objects.create(
                     user=user,
                     amount=-game.card_price,
@@ -2951,8 +2956,52 @@ def activate_printable_card(request, game_id):
                     related_game=game
                 )
 
-                # Call check_progressive_prize and store the result
+                # Distribute purchase (gives money to organizer and updates held_balance)
+                distribute_purchase(game, game.card_price, percentage_settings)
+
+                # Update game stats
+                game.total_cards_sold += 1
+                game.held_balance += game.card_price
+                game.save()
+
+                # Check for progressive prize and block credits if prize increases
                 prize_increase = game.check_progressive_prize()
+                
+                # If prize increased, block additional credits from organizer
+                if prize_increase > 0:
+                    organizer = game.organizer
+                    # Refresh organizer from DB to get latest balance
+                    organizer.refresh_from_db()
+                    
+                    # Check if organizer has enough balance to block
+                    if organizer.credit_balance >= prize_increase:
+                        organizer.credit_balance -= prize_increase
+                        organizer.blocked_credits += prize_increase
+                        organizer.save()
+                        
+                        # Record transaction
+                        Transaction.objects.create(
+                            user=organizer,
+                            amount=-prize_increase,
+                            transaction_type='PRIZE_LOCK',
+                            description=f"Bloqueo de premio progresivo (+{prize_increase}) en {game.name}",
+                            related_game=game
+                        )
+                    else:
+                        # If not enough balance, block what's available
+                        available = organizer.credit_balance
+                        if available > 0:
+                            organizer.credit_balance = Decimal('0.00')
+                            organizer.blocked_credits += available
+                            organizer.save()
+                            
+                            Transaction.objects.create(
+                                user=organizer,
+                                amount=-available,
+                                transaction_type='PRIZE_LOCK',
+                                description=f"Bloqueo parcial de premio progresivo ({available} de {prize_increase}) en {game.name}",
+                                related_game=game
+                            )
 
                 # Notify via channels
                 channel_layer = get_channel_layer()
