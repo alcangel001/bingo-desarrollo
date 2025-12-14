@@ -298,11 +298,22 @@ class CreditRequestForm(forms.ModelForm):
 
 class RaffleForm(forms.ModelForm):
     is_manual_winner = forms.BooleanField(required=False, label="Selección manual de ganador")
+    multiple_winners_enabled = forms.BooleanField(
+        required=False,
+        label="Habilitar múltiples ganadores",
+        help_text="Si está activado, podrás definir premios escalonados para diferentes posiciones"
+    )
+    prize_structure_json = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+        help_text="Estructura de premios en formato JSON"
+    )
 
     class Meta:
         model = Raffle
         fields = ['title', 'description', 'ticket_price', 'prize', 
-                 'start_number', 'end_number', 'draw_date', 'is_manual_winner']
+                 'start_number', 'end_number', 'draw_date', 'is_manual_winner',
+                 'multiple_winners_enabled', 'prize_structure']
         widgets = {
             'draw_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'description': forms.Textarea(attrs={'rows': 3}),
@@ -314,7 +325,15 @@ class RaffleForm(forms.ModelForm):
                 'min': '1',
                 'step': '1'
             }),
+            'prize_structure': forms.HiddenInput(),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Pre-llenar valores actuales si existen
+        if self.instance and self.instance.prize_structure:
+            initial_json = json.dumps(self.instance.prize_structure)
+            self.fields['prize_structure_json'].initial = initial_json
     
     def clean(self):
         cleaned_data = super().clean()
@@ -323,6 +342,64 @@ class RaffleForm(forms.ModelForm):
         
         if start and end and start >= end:
             raise forms.ValidationError("El número final debe ser mayor que el inicial")
+        
+        # Process prize structure if multiple winners enabled
+        multiple_winners = cleaned_data.get('multiple_winners_enabled', False)
+        if multiple_winners:
+            prize_structure_json = self.data.get('prize_structure_json')
+            if prize_structure_json:
+                try:
+                    prize_structure = json.loads(prize_structure_json)
+                    # Validate structure
+                    if not isinstance(prize_structure, list):
+                        raise forms.ValidationError("La estructura de premios debe ser una lista")
+                    
+                    total_prizes = Decimal('0.00')
+                    positions = set()
+                    
+                    for prize_info in prize_structure:
+                        if not isinstance(prize_info, dict):
+                            raise forms.ValidationError("Cada premio debe ser un objeto con 'position' y 'prize'")
+                        
+                        position = prize_info.get('position')
+                        prize = prize_info.get('prize')
+                        
+                        if not position or not prize:
+                            raise forms.ValidationError("Cada premio debe tener 'position' y 'prize'")
+                        
+                        if position in positions:
+                            raise forms.ValidationError(f"La posición {position} está duplicada")
+                        
+                        positions.add(position)
+                        total_prizes += Decimal(str(prize))
+                    
+                    # Sort by position
+                    prize_structure = sorted(prize_structure, key=lambda x: x.get('position', 0))
+                    cleaned_data['prize_structure'] = prize_structure
+                    
+                    # Validate that organizer has enough balance
+                    if self.instance and self.instance.pk:
+                        organizer = self.instance.organizer
+                    elif hasattr(self, 'organizer'):
+                        organizer = self.organizer
+                    else:
+                        organizer = None
+                    
+                    if organizer:
+                        # Check if organizer has enough blocked credits or balance
+                        if organizer.blocked_credits < total_prizes and organizer.credit_balance < total_prizes:
+                            raise forms.ValidationError(
+                                f"Saldo insuficiente. Necesitas {total_prizes} créditos para los premios. "
+                                f"Tienes {organizer.credit_balance} disponibles y {organizer.blocked_credits} bloqueados."
+                            )
+                    
+                except json.JSONDecodeError:
+                    raise forms.ValidationError("Formato de estructura de premios inválido (JSON)")
+            else:
+                raise forms.ValidationError("Debes definir al menos un premio cuando múltiples ganadores están habilitados")
+        else:
+            # If multiple winners disabled, clear prize structure
+            cleaned_data['prize_structure'] = []
         
         return cleaned_data
 

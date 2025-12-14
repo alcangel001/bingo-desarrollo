@@ -1797,16 +1797,22 @@ def create_raffle(request):
             raffle = form.save(commit=False)
             
             # Verificar que el organizador tenga suficiente saldo para el premio
-            if request.user.credit_balance < raffle.prize:
-                messages.error(request, f'Saldo insuficiente. Necesitas {raffle.prize} créditos para establecer este premio')
+            # Calculate total prize amount
+            total_prize_amount = raffle.prize
+            if raffle.multiple_winners_enabled and raffle.prize_structure:
+                # Sum all prizes in the structure
+                total_prize_amount = sum(Decimal(str(p.get('prize', 0))) for p in raffle.prize_structure)
+            
+            if request.user.credit_balance < total_prize_amount:
+                messages.error(request, f'Saldo insuficiente. Necesitas {total_prize_amount} créditos para establecer los premios')
                 return render(request, 'bingo_app/create_raffle.html', {'form': form})
             
             try:
                 with transaction.atomic():
-                    # Descontar el premio del saldo del organizador
-                    request.user.credit_balance -= raffle.prize
-                    # Bloquear el premio en blocked_credits
-                    request.user.blocked_credits += raffle.prize
+                    # Descontar el total de premios del saldo del organizador
+                    request.user.credit_balance -= total_prize_amount
+                    # Bloquear el total de premios en blocked_credits
+                    request.user.blocked_credits += total_prize_amount
                     request.user.save()
                     
                     # Crear la rifa
@@ -1839,9 +1845,9 @@ def create_raffle(request):
                     # Registrar la transacción
                     Transaction.objects.create(
                         user=request.user,
-                        amount=-raffle.prize,
+                        amount=-total_prize_amount,
                         transaction_type='PURCHASE',
-                        description=f"Premio para rifa {raffle.title}",
+                        description=f"Premios para rifa {raffle.title} ({len(raffle.prize_structure) if raffle.multiple_winners_enabled else 1} ganador{'es' if raffle.multiple_winners_enabled and len(raffle.prize_structure) > 1 else ''})",
                         related_game=None
                     )
                     

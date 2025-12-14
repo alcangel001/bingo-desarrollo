@@ -933,6 +933,31 @@ class Raffle(models.Model):
         verbose_name="Número ganador manual"
     )
     is_manual_winner = models.BooleanField(default=False, null=True, blank=True)
+    
+    # Multiple winners support
+    multiple_winners_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Habilitar múltiples ganadores",
+        help_text="Si está activado, se seleccionarán múltiples ganadores con premios escalonados"
+    )
+    prize_structure = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Estructura de premios",
+        help_text="Lista de premios escalonados. Ejemplo: [{'position': 1, 'prize': 1000}, {'position': 2, 'prize': 500}]"
+    )
+    winners = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Ganadores",
+        help_text="Lista de ganadores con posición y premio asignado"
+    )
+    winning_numbers = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Números ganadores",
+        help_text="Lista de números ganadores en orden de posición"
+    )
 
     def __str__(self):
         return self.title
@@ -993,52 +1018,156 @@ class Raffle(models.Model):
                         'countdown_seconds': 3
                     }
                 )
-                # Determine winning ticket
-                if self.manual_winning_number is not None:
-                    try:
-                        winning_ticket = self.tickets.get(number=self.manual_winning_number)
-                    except Ticket.DoesNotExist:
-                        return None  # Manual ticket not sold
+                # Check if multiple winners are enabled
+                if self.multiple_winners_enabled and self.prize_structure:
+                    # Multiple winners logic
+                    winners_list = []
+                    winning_numbers_list = []
+                    total_prizes_distributed = Decimal('0.00')
+                    available_tickets = list(self.tickets.all())
+                    
+                    # Sort prize structure by position
+                    sorted_prizes = sorted(self.prize_structure, key=lambda x: x.get('position', 0))
+                    
+                    # Select winners without repetition (one user can only win once)
+                    selected_user_ids = set()
+                    
+                    for prize_info in sorted_prizes:
+                        position = prize_info.get('position', 0)
+                        prize_amount = Decimal(str(prize_info.get('prize', 0)))
+                        
+                        if not available_tickets:
+                            break  # No more tickets available
+                        
+                        # Select a random ticket
+                        winning_ticket = secrets.choice(available_tickets)
+                        winner = winning_ticket.owner
+                        
+                        # If user already won, skip to next ticket (but limit iterations to avoid infinite loop)
+                        max_attempts = len(available_tickets)
+                        attempts = 0
+                        while winner.id in selected_user_ids and attempts < max_attempts:
+                            available_tickets.remove(winning_ticket)
+                            if not available_tickets:
+                                break
+                            winning_ticket = secrets.choice(available_tickets)
+                            winner = winning_ticket.owner
+                            attempts += 1
+                        
+                        if winner.id in selected_user_ids or not available_tickets:
+                            continue  # Skip this prize if no unique winner can be found
+                        
+                        # Mark user as selected
+                        selected_user_ids.add(winner.id)
+                        available_tickets.remove(winning_ticket)
+                        
+                        # Credit prize to the winner
+                        winner.credit_balance += prize_amount
+                        winner.save()
+                        Transaction.objects.create(
+                            user=winner,
+                            amount=prize_amount,
+                            transaction_type='PRIZE',
+                            description=f"Premio {position}° lugar de la rifa: {self.title}"
+                        )
+                        
+                        # Store winner info
+                        winners_list.append({
+                            'user_id': winner.id,
+                            'username': winner.username,
+                            'position': position,
+                            'prize': float(prize_amount),
+                            'ticket_number': winning_ticket.number,
+                            'ticket_id': winning_ticket.id
+                        })
+                        winning_numbers_list.append(winning_ticket.number)
+                        total_prizes_distributed += prize_amount
+                    
+                    # Unlock organizer's credits for total prizes distributed
+                    logger.warning(f"[Raffle {self.id}] Desbloqueando {total_prizes_distributed} de premios para el organizador {self.organizer.username}. Saldo bloqueado ANTES: {self.organizer.blocked_credits}")
+                    
+                    if self.organizer.blocked_credits >= total_prizes_distributed:
+                        self.organizer.blocked_credits -= total_prizes_distributed
+                        unlock_amount = total_prizes_distributed
+                        logger.warning(f"[Raffle {self.id}] Desbloqueo normal: {total_prizes_distributed}")
+                    else:
+                        unlock_amount = self.organizer.blocked_credits
+                        self.organizer.blocked_credits = Decimal('0.00')
+                        logger.warning(f"[Raffle {self.id}] ADVERTENCIA: Intentando desbloquear {total_prizes_distributed} pero solo hay {unlock_amount} bloqueados. Ajustando a 0.")
+                    
+                    self.organizer.save()
+                    logger.warning(f"[Raffle {self.id}] Saldo bloqueado DESPUÉS: {self.organizer.blocked_credits}")
+                    
+                    if unlock_amount > 0:
+                        Transaction.objects.create(
+                            user=self.organizer,
+                            amount=unlock_amount,
+                            transaction_type='PRIZE_UNLOCK',
+                            description=f"Desbloqueo de créditos de premios de la rifa {self.title}"
+                        )
+                    
+                    # Store winners and winning numbers
+                    self.winners = winners_list
+                    self.winning_numbers = winning_numbers_list
+                    self.final_prize = total_prizes_distributed
+                    
+                    # Set first winner for backward compatibility
+                    if winners_list:
+                        first_winner = User.objects.get(id=winners_list[0]['user_id'])
+                        self.winner = first_winner
+                        self.winning_number = winning_numbers_list[0]
+                    
                 else:
-                    winning_ticket = secrets.choice(self.tickets.all())
+                    # Single winner logic (original)
+                    if self.manual_winning_number is not None:
+                        try:
+                            winning_ticket = self.tickets.get(number=self.manual_winning_number)
+                        except Ticket.DoesNotExist:
+                            return None  # Manual ticket not sold
+                    else:
+                        winning_ticket = secrets.choice(self.tickets.all())
 
-                winner = winning_ticket.owner
-                player_prize = self.prize
+                    winner = winning_ticket.owner
+                    player_prize = self.prize
 
-                # 1. Credit prize to the winner
-                winner.credit_balance += player_prize
-                winner.save()
-                Transaction.objects.create(
-                    user=winner,
-                    amount=player_prize,
-                    transaction_type='PRIZE',
-                    description=f"Premio de la rifa: {self.title}"
-                )
-
-                # Unlock the organizer's credits for the prize (initial lock)
-                logger.warning(f"[Raffle {self.id}] Desbloqueando {self.prize} de premio para el organizador {self.organizer.username}. Saldo bloqueado ANTES: {self.organizer.blocked_credits}")
-                
-                # Validar que hay suficientes créditos bloqueados para desbloquear
-                if self.organizer.blocked_credits >= self.prize:
-                    self.organizer.blocked_credits -= self.prize
-                    unlock_amount = self.prize
-                    logger.warning(f"[Raffle {self.id}] Desbloqueo normal: {self.prize}")
-                else:
-                    # Ajustar a 0 si hay menos créditos bloqueados de los esperados
-                    unlock_amount = self.organizer.blocked_credits
-                    self.organizer.blocked_credits = Decimal('0.00')
-                    logger.warning(f"[Raffle {self.id}] ADVERTENCIA: Intentando desbloquear {self.prize} pero solo hay {unlock_amount} bloqueados. Ajustando a 0.")
-                
-                self.organizer.save()
-                logger.warning(f"[Raffle {self.id}] Saldo bloqueado DESPUÉS: {self.organizer.blocked_credits}")
-                
-                if unlock_amount > 0:
+                    # 1. Credit prize to the winner
+                    winner.credit_balance += player_prize
+                    winner.save()
                     Transaction.objects.create(
-                        user=self.organizer,
-                        amount=unlock_amount,
-                        transaction_type='PRIZE_UNLOCK',
-                        description=f"Desbloqueo de créditos de premio de la rifa {self.title}"
+                        user=winner,
+                        amount=player_prize,
+                        transaction_type='PRIZE',
+                        description=f"Premio de la rifa: {self.title}"
                     )
+
+                    # Unlock the organizer's credits for the prize (initial lock)
+                    logger.warning(f"[Raffle {self.id}] Desbloqueando {self.prize} de premio para el organizador {self.organizer.username}. Saldo bloqueado ANTES: {self.organizer.blocked_credits}")
+                    
+                    # Validar que hay suficientes créditos bloqueados para desbloquear
+                    if self.organizer.blocked_credits >= self.prize:
+                        self.organizer.blocked_credits -= self.prize
+                        unlock_amount = self.prize
+                        logger.warning(f"[Raffle {self.id}] Desbloqueo normal: {self.prize}")
+                    else:
+                        # Ajustar a 0 si hay menos créditos bloqueados de los esperados
+                        unlock_amount = self.organizer.blocked_credits
+                        self.organizer.blocked_credits = Decimal('0.00')
+                        logger.warning(f"[Raffle {self.id}] ADVERTENCIA: Intentando desbloquear {self.prize} pero solo hay {unlock_amount} bloqueados. Ajustando a 0.")
+                    
+                    self.organizer.save()
+                    logger.warning(f"[Raffle {self.id}] Saldo bloqueado DESPUÉS: {self.organizer.blocked_credits}")
+                    
+                    if unlock_amount > 0:
+                        Transaction.objects.create(
+                            user=self.organizer,
+                            amount=unlock_amount,
+                            transaction_type='PRIZE_UNLOCK',
+                            description=f"Desbloqueo de créditos de premio de la rifa {self.title}"
+                        )
+                    
+                    self.final_prize = player_prize
+                    self.winner = winner
+                    self.winning_number = winning_ticket.number
 
                 # --- NEW LOGIC FOR HELD BALANCE DISTRIBUTION ---
                 total_revenue = self.held_balance
@@ -1085,58 +1214,102 @@ class Raffle(models.Model):
                 # --- END NEW LOGIC ---
 
                 # 3. Update raffle status
-                self.winning_number = winning_ticket.number
-                self.winner = winner
                 self.status = 'FINISHED'
-                self.final_prize = player_prize
                 self.tickets_income = total_revenue
                 self.save()
 
-                # Notificar ganador a todos
-                async_to_sync(channel_layer.group_send)(
-                    f"raffle_{self.id}",
-                    {
-                        'type': 'raffle_winner',
-                        'winning_number': winning_ticket.number,
-                        'winner_username': winner.username,
-                        'prize': float(player_prize)
-                    }
-                )
-
-                # Notificar a todos los compradores por su canal personal
-                buyer_ids = list(self.tickets.values_list('owner_id', flat=True).distinct())
-                for uid in buyer_ids:
+                # Notify winners
+                if self.multiple_winners_enabled and self.winners:
+                    # Multiple winners notification
                     async_to_sync(channel_layer.group_send)(
-                        f"user_{uid}",
+                        f"raffle_{self.id}",
                         {
-                            'type': 'win_notification',
-                            'message': f"Resultado rifa '{self.title}': ganó {winner.username} con el número {winning_ticket.number} (premio {float(player_prize):.2f})."
+                            'type': 'raffle_multiple_winners',
+                            'winners': self.winners,
+                            'winning_numbers': self.winning_numbers
+                        }
+                    )
+                    
+                    # Notify each winner individually
+                    for winner_info in self.winners:
+                        async_to_sync(channel_layer.group_send)(
+                            f"user_{winner_info['user_id']}",
+                            {
+                                'type': 'win_notification',
+                                'message': f"¡Felicidades! Ganaste {winner_info['position']}° lugar en la rifa '{self.title}'",
+                                'prize': winner_info['prize']
+                            }
+                        )
+                    
+                    # Announcement in raffle lobby
+                    async_to_sync(channel_layer.group_send)(
+                        'raffle_lobby',
+                        {
+                            'type': 'raffle_multiple_winners_announcement',
+                            'raffle_title': self.title,
+                            'winners': self.winners,
+                            'winning_numbers': self.winning_numbers
+                        }
+                    )
+                    
+                    # Return first winning ticket for backward compatibility
+                    if self.winners:
+                        first_winner_id = self.winners[0]['ticket_id']
+                        return Ticket.objects.get(id=first_winner_id)
+                    return None
+                else:
+                    # Single winner notification (original)
+                    async_to_sync(channel_layer.group_send)(
+                        f"raffle_{self.id}",
+                        {
+                            'type': 'raffle_winner',
+                            'winning_number': self.winning_number,
+                            'winner_username': self.winner.username if self.winner else 'N/A',
+                            'prize': float(self.final_prize) if self.final_prize else 0
                         }
                     )
 
-                # Anuncio en lobby de rifas
-                async_to_sync(channel_layer.group_send)(
-                    'raffle_lobby',
-                    {
-                        'type': 'raffle_winner_announcement',
-                        'raffle_title': self.title,
-                        'winning_number': winning_ticket.number,
-                        'winner_username': winner.username,
-                        'prize': float(player_prize)
-                    }
-                )
+                    # Notificar a todos los compradores por su canal personal
+                    buyer_ids = list(self.tickets.values_list('owner_id', flat=True).distinct())
+                    for uid in buyer_ids:
+                        async_to_sync(channel_layer.group_send)(
+                            f"user_{uid}",
+                            {
+                                'type': 'win_notification',
+                                'message': f"Resultado rifa '{self.title}': ganó {self.winner.username if self.winner else 'N/A'} con el número {self.winning_number} (premio {float(self.final_prize):.2f})."
+                            }
+                        )
 
-                # Notificación privada adicional al ganador
-                async_to_sync(channel_layer.group_send)(
-                    f"user_{winner.id}",
-                    {
-                        'type': 'win_notification',
-                        'message': f"¡Felicidades! Ganaste la rifa '{self.title}'",
-                        'prize': float(player_prize)
-                    }
-                )
+                    # Anuncio en lobby de rifas
+                    async_to_sync(channel_layer.group_send)(
+                        'raffle_lobby',
+                        {
+                            'type': 'raffle_winner_announcement',
+                            'raffle_title': self.title,
+                            'winning_number': self.winning_number,
+                            'winner_username': self.winner.username if self.winner else 'N/A',
+                            'prize': float(self.final_prize) if self.final_prize else 0
+                        }
+                    )
 
-                return winning_ticket
+                    # Notificación privada adicional al ganador
+                    if self.winner:
+                        async_to_sync(channel_layer.group_send)(
+                            f"user_{self.winner.id}",
+                            {
+                                'type': 'win_notification',
+                                'message': f"¡Felicidades! Ganaste la rifa '{self.title}'",
+                                'prize': float(self.final_prize) if self.final_prize else 0
+                            }
+                        )
+
+                    # Return winning ticket
+                    if self.winning_number:
+                        try:
+                            return self.tickets.get(number=self.winning_number)
+                        except Ticket.DoesNotExist:
+                            return None
+                    return None
 
         except Exception as e:
             logger.error(f"Error al sortear la rifa {self.id}: {str(e)}", exc_info=True)
