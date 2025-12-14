@@ -927,11 +927,11 @@ class Raffle(models.Model):
         help_text="Número de dígitos para mostrar los números (ej: 3 para 000, 001, 002...). 0 = sin formato"
     )
     whatsapp_number = models.CharField(
-        max_length=20,
+        max_length=200,
         blank=True,
         null=True,
         verbose_name="Número de WhatsApp",
-        help_text="Número de WhatsApp para contacto (ej: 1234567890 o link de grupo). Se mostrará un botón con el logo de WhatsApp"
+        help_text="Número de WhatsApp para contacto (ej: 1234567890) o enlace de grupo (ej: https://chat.whatsapp.com/...). Se mostrará un botón con el logo de WhatsApp"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     draw_date = models.DateTimeField()
