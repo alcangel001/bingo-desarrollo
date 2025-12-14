@@ -3,6 +3,16 @@
 from django.db import migrations, models
 
 
+def remove_link_field_if_exists(apps, schema_editor):
+    """Remove link field from Announcement if it exists"""
+    db_alias = schema_editor.connection.alias
+    try:
+        schema_editor.execute("ALTER TABLE bingo_app_announcement DROP COLUMN IF EXISTS link;")
+    except Exception as e:
+        # Field doesn't exist, which is fine
+        pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,10 +20,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='announcement',
-            name='link',
-        ),
+        migrations.RunPython(remove_link_field_if_exists, migrations.RunPython.noop),
         migrations.AlterField(
             model_name='raffle',
             name='whatsapp_number',
