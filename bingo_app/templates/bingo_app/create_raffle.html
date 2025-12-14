@@ -231,6 +231,19 @@
                             </div>
                         </div>
                         
+                        <div class="row mb-3">
+                            <div class="col-md-12 mb-3">
+                                <label for="id_whatsapp_number" class="form-label">
+                                    <i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>Número de WhatsApp (Opcional)
+                                </label>
+                                {{ form.whatsapp_number }}
+                                <div class="form-text">
+                                    Ingresa el número de WhatsApp (ej: 1234567890) o el enlace del grupo (ej: https://chat.whatsapp.com/...). 
+                                    Se mostrará un botón con el logo de WhatsApp para contactar.
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="form-check form-switch mb-3">
                             {{ form.is_manual_winner }}
                             <label class="form-check-label" for="{{ form.is_manual_winner.id_for_label }}">Habilitar selección manual de ganador</label>

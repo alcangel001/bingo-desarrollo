@@ -721,6 +721,25 @@
     .video-call-body::-webkit-scrollbar-thumb:hover {
         background: rgba(255,255,255,0.5);
     }
+    
+    /* Estilos para botón de WhatsApp */
+    .whatsapp-btn {
+        background-color: #25D366 !important;
+        border-color: #25D366 !important;
+        color: white !important;
+        transition: all 0.3s ease;
+    }
+    
+    .whatsapp-btn:hover {
+        background-color: #128C7E !important;
+        border-color: #128C7E !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(37, 211, 102, 0.3);
+    }
+    
+    .whatsapp-btn i {
+        font-size: 1.1em;
+    }
 </style>
 {% endblock %}
 
@@ -782,6 +801,27 @@
                             <span><i class="fas fa-calendar-alt me-2"></i>Fecha del sorteo</span>
                             <strong>{{ raffle.draw_date|date:"d M Y H:i" }}</strong>
                         </div>
+                        
+                        {% if raffle.whatsapp_number %}
+                        <div class="info-item">
+                            <span><i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>Contacto WhatsApp</span>
+                            {% if 'http' in raffle.whatsapp_number or 'chat.whatsapp.com' in raffle.whatsapp_number %}
+                            <a href="{{ raffle.whatsapp_number }}" 
+                               target="_blank" 
+                               class="btn btn-success btn-sm whatsapp-btn"
+                               style="background-color: #25D366; border-color: #25D366;">
+                                <i class="fab fa-whatsapp me-1"></i>Unirse al Grupo
+                            </a>
+                            {% else %}
+                            <a href="https://wa.me/{{ raffle.whatsapp_number|default:'' }}" 
+                               target="_blank" 
+                               class="btn btn-success btn-sm whatsapp-btn"
+                               style="background-color: #25D366; border-color: #25D366;">
+                                <i class="fab fa-whatsapp me-1"></i>Contactar por WhatsApp
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                         </div>
                 </div>
             </div>

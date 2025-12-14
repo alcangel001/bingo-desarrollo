@@ -313,7 +313,7 @@ class RaffleForm(forms.ModelForm):
     class Meta:
         model = Raffle
         fields = ['title', 'description', 'ticket_price', 'prize', 
-                 'start_number', 'end_number', 'number_format_digits', 'draw_date', 'is_manual_winner',
+                 'start_number', 'end_number', 'number_format_digits', 'whatsapp_number', 'draw_date', 'is_manual_winner',
                  'multiple_winners_enabled', 'prize_structure']
         widgets = {
             'draw_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
@@ -332,6 +332,10 @@ class RaffleForm(forms.ModelForm):
                 'max': '10',
                 'step': '1',
                 'class': 'form-control'
+            }),
+            'whatsapp_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: 1234567890 o https://chat.whatsapp.com/...'
             }),
         }
     
