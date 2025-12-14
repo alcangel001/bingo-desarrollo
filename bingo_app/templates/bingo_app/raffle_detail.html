@@ -797,26 +797,75 @@
             </div>
             
             <!-- Winner Announcement -->
-            {% if raffle.status == 'FINISHED' and raffle.winner %}
-            <div class="alert-winner alert mb-5">
-                <div class="d-flex align-items-center">
-                    <div class="icon-circle">
-                        <i class="fas fa-trophy text-warning"></i>
+            {% if raffle.status == 'FINISHED' %}
+                {% if raffle.multiple_winners_enabled and raffle.winners %}
+                <!-- Multiple Winners Display -->
+                <div class="alert-winner alert mb-5">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-circle">
+                            <i class="fas fa-trophy text-warning"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-2">¡Tenemos múltiples ganadores!</h4>
+                        </div>
                     </div>
-                    <div>
-                        <h4 class="mb-2">¡Tenemos un ganador!</h4>
-                        <p class="mb-1">
-                            <strong>{{ raffle.winner.username }}</strong> con el ticket #{{ raffle.winning_number }}
-                            <span class="prize-highlight ms-3">{{ raffle.prize }} <i class="fas fa-coins"></i></span>
-                        </p>
-                        {% if raffle.winner == request.user %}
-                        <span class="badge bg-warning text-dark mt-2 p-2">
-                            <i class="fas fa-crown me-1"></i> ¡Tú ganaste!
-                        </span>
-                        {% endif %}
+                    <div class="row">
+                        {% for winner_info in raffle.winners %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-warning">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5 class="mb-1">
+                                                <span class="badge bg-warning text-dark me-2">{{ winner_info.position }}° Lugar</span>
+                                                <strong>{{ winner_info.username }}</strong>
+                                            </h5>
+                                            <p class="mb-0 text-muted">
+                                                <i class="fas fa-ticket-alt me-1"></i>Ticket #{{ winner_info.ticket_number }}
+                                            </p>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="prize-highlight">
+                                                {{ winner_info.prize|floatformat:2 }} <i class="fas fa-coins"></i>
+                                            </div>
+                                            {% if winner_info.user_id == request.user.id %}
+                                            <span class="badge bg-success mt-2">
+                                                <i class="fas fa-crown me-1"></i> ¡Tú ganaste!
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-3">
+                        <strong>Total de Premios Distribuidos: {{ raffle.final_prize|floatformat:2 }} <i class="fas fa-coins"></i></strong>
                     </div>
                 </div>
-            </div>
+                {% elif raffle.winner %}
+                <!-- Single Winner Display -->
+                <div class="alert-winner alert mb-5">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle">
+                            <i class="fas fa-trophy text-warning"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-2">¡Tenemos un ganador!</h4>
+                            <p class="mb-1">
+                                <strong>{{ raffle.winner.username }}</strong> con el ticket #{{ raffle.winning_number }}
+                                <span class="prize-highlight ms-3">{{ raffle.prize }} <i class="fas fa-coins"></i></span>
+                            </p>
+                            {% if raffle.winner == request.user %}
+                            <span class="badge bg-warning text-dark mt-2 p-2">
+                                <i class="fas fa-crown me-1"></i> ¡Tú ganaste!
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             {% endif %}
             
             <!-- User Tickets Section -->
@@ -825,10 +874,14 @@
                 {% if user_tickets %}
                 <div class="user-tickets">
                     {% for ticket in user_tickets %}
-                    <span class="user-ticket {% if raffle.status == 'FINISHED' and ticket.number == raffle.winning_number %}user-ticket-winning{% else %}user-ticket-normal{% endif %}" data-user-ticket="{{ ticket.number }}">
+                    <span class="user-ticket {% if raffle.status == 'FINISHED' %}{% if raffle.multiple_winners_enabled and raffle.winning_numbers and ticket.number in raffle.winning_numbers %}user-ticket-winning{% elif not raffle.multiple_winners_enabled and ticket.number == raffle.winning_number %}user-ticket-winning{% else %}user-ticket-normal{% endif %}{% else %}user-ticket-normal{% endif %}" data-user-ticket="{{ ticket.number }}">
                         #{{ ticket.number }}
-                        {% if raffle.status == 'FINISHED' and ticket.number == raffle.winning_number %}
-                        <i class="fas fa-trophy ms-2"></i>
+                        {% if raffle.status == 'FINISHED' %}
+                            {% if raffle.multiple_winners_enabled and raffle.winning_numbers and ticket.number in raffle.winning_numbers %}
+                            <i class="fas fa-trophy ms-2"></i>
+                            {% elif not raffle.multiple_winners_enabled and ticket.number == raffle.winning_number %}
+                            <i class="fas fa-trophy ms-2"></i>
+                            {% endif %}
                         {% endif %}
                     </span>
                     {% endfor %}
@@ -860,10 +913,14 @@
                     {% if number in sold_numbers %}
                         {% for ticket in raffle.tickets.all %}
                             {% if ticket.number == number %}
-                            <div class="ticket-number {% if ticket.owner == request.user %}ticket-mine{% else %}ticket-sold{% endif %}">
+                            <div class="ticket-number {% if ticket.owner == request.user %}ticket-mine{% else %}ticket-sold{% endif %} {% if raffle.status == 'FINISHED' %}{% if raffle.multiple_winners_enabled and raffle.winning_numbers and number in raffle.winning_numbers %}ticket-winning{% elif not raffle.multiple_winners_enabled and number == raffle.winning_number %}ticket-winning{% endif %}{% endif %}">
                                 {{ number }}
-                                {% if raffle.status == 'FINISHED' and number == raffle.winning_number %}
-                                <i class="fas fa-trophy ms-1"></i>
+                                {% if raffle.status == 'FINISHED' %}
+                                    {% if raffle.multiple_winners_enabled and raffle.winning_numbers and number in raffle.winning_numbers %}
+                                    <i class="fas fa-trophy ms-1"></i>
+                                    {% elif not raffle.multiple_winners_enabled and number == raffle.winning_number %}
+                                    <i class="fas fa-trophy ms-1"></i>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                             {% endif %}
