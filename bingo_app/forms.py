@@ -327,6 +327,12 @@ class RaffleForm(forms.ModelForm):
                 'step': '1'
             }),
             'prize_structure': forms.HiddenInput(),
+            'number_format_digits': forms.NumberInput(attrs={
+                'min': '0',
+                'max': '10',
+                'step': '1',
+                'class': 'form-control'
+            }),
         }
     
     def __init__(self, *args, **kwargs):

@@ -94,8 +94,13 @@ def get_pattern_mask(game):
 @register.filter
 def format_ticket_number(raffle, number):
     """Formatea un número de ticket según number_format_digits de la rifa"""
-    if not raffle or not hasattr(raffle, 'number_format_digits'):
+    try:
+        if not raffle or not hasattr(raffle, 'number_format_digits'):
+            return str(number)
+        # Asegurarse de que number_format_digits es un entero
+        format_digits = int(raffle.number_format_digits) if raffle.number_format_digits else 0
+        if format_digits > 0:
+            return str(number).zfill(format_digits)
         return str(number)
-    if raffle.number_format_digits > 0:
-        return str(number).zfill(raffle.number_format_digits)
-    return str(number)
+    except (AttributeError, ValueError, TypeError):
+        return str(number)
