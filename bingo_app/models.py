@@ -107,7 +107,7 @@ class User(AbstractUser):
 
     def unread_notifications(self, limit=5):
         return self.credit_notifications.filter(is_read=False).order_by('-created_at')[:limit]
-    
+
     # Relación con franquicia (para usuarios que pertenecen a una franquicia)
     franchise = models.ForeignKey(
         'Franchise',
@@ -940,6 +940,12 @@ class Raffle(models.Model):
         verbose_name="Habilitar múltiples ganadores",
         help_text="Si está activado, se seleccionarán múltiples ganadores con premios escalonados"
     )
+    manual_winning_numbers = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Números ganadores manuales",
+        help_text="Lista de números ganadores ingresados manualmente (para múltiples ganadores). Ejemplo: [45, 78, 12]"
+    )
     prize_structure = models.JSONField(
         default=list,
         blank=True,
@@ -1020,46 +1026,47 @@ class Raffle(models.Model):
                 )
                 # Check if multiple winners are enabled
                 if self.multiple_winners_enabled and self.prize_structure:
-                    # Multiple winners logic
+                    # Multiple winners logic - MUST use manual winning numbers
+                    if not self.manual_winning_numbers:
+                        logger.error(f"[Raffle {self.id}] Múltiples ganadores habilitados pero no hay números ganadores manuales definidos.")
+                        return None
+                    
                     winners_list = []
                     winning_numbers_list = []
                     total_prizes_distributed = Decimal('0.00')
-                    available_tickets = list(self.tickets.all())
                     
                     # Sort prize structure by position
                     sorted_prizes = sorted(self.prize_structure, key=lambda x: x.get('position', 0))
                     
-                    # Select winners without repetition (one user can only win once)
+                    # Validate that we have enough manual winning numbers
+                    if len(self.manual_winning_numbers) < len(sorted_prizes):
+                        logger.error(f"[Raffle {self.id}] No hay suficientes números ganadores manuales. Se requieren {len(sorted_prizes)} pero solo hay {len(self.manual_winning_numbers)}.")
+                        return None
+                    
+                    # Select winners using manual winning numbers
                     selected_user_ids = set()
                     
-                    for prize_info in sorted_prizes:
+                    for idx, prize_info in enumerate(sorted_prizes):
                         position = prize_info.get('position', 0)
                         prize_amount = Decimal(str(prize_info.get('prize', 0)))
+                        manual_number = self.manual_winning_numbers[idx]
                         
-                        if not available_tickets:
-                            break  # No more tickets available
+                        # Find ticket with this number
+                        try:
+                            winning_ticket = self.tickets.get(number=manual_number)
+                        except Ticket.DoesNotExist:
+                            logger.warning(f"[Raffle {self.id}] El ticket #{manual_number} no ha sido vendido. Saltando este premio.")
+                            continue  # Skip this prize if ticket not sold
                         
-                        # Select a random ticket
-                        winning_ticket = secrets.choice(available_tickets)
                         winner = winning_ticket.owner
                         
-                        # If user already won, skip to next ticket (but limit iterations to avoid infinite loop)
-                        max_attempts = len(available_tickets)
-                        attempts = 0
-                        while winner.id in selected_user_ids and attempts < max_attempts:
-                            available_tickets.remove(winning_ticket)
-                            if not available_tickets:
-                                break
-                            winning_ticket = secrets.choice(available_tickets)
-                            winner = winning_ticket.owner
-                            attempts += 1
-                        
-                        if winner.id in selected_user_ids or not available_tickets:
-                            continue  # Skip this prize if no unique winner can be found
+                        # If user already won, skip this prize (one user can only win once)
+                        if winner.id in selected_user_ids:
+                            logger.warning(f"[Raffle {self.id}] El usuario {winner.username} ya ganó con otro ticket. Saltando premio {position}° lugar.")
+                            continue
                         
                         # Mark user as selected
                         selected_user_ids.add(winner.id)
-                        available_tickets.remove(winning_ticket)
                         
                         # Credit prize to the winner
                         winner.credit_balance += prize_amount

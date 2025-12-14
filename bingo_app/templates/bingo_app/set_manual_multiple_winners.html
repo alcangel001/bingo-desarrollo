@@ -1,0 +1,163 @@
+{% extends "bingo_app/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-trophy me-2"></i>Establecer Múltiples Ganadores Manuales - {{ raffle.title }}</h3>
+                </div>
+                <div class="card-body text-dark">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Instrucciones:</strong> Ingresa los números ganadores según los resultados de la lotería oficial. 
+                        Los números deben estar entre {{ raffle.start_number }} y {{ raffle.end_number }}.
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Estructura de Premios:</h5>
+                        <ul class="list-group">
+                            {% for prize in raffle.prize_structure|dictsort:"position" %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><strong>{{ prize.position }}° Lugar</strong></span>
+                                <span class="badge bg-warning text-dark">{{ prize.prize|floatformat:2 }} créditos</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    
+                    <form method="post" id="multipleWinnersForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="winning_numbers_json" id="winning_numbers_json">
+                        
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Números Ganadores (en orden de posición):</strong></label>
+                            <div id="winning-numbers-container">
+                                {% for prize in raffle.prize_structure|dictsort:"position" %}
+                                <div class="mb-3">
+                                    <label for="number_{{ prize.position }}" class="form-label">
+                                        {{ prize.position }}° Lugar - Premio: {{ prize.prize|floatformat:2 }} créditos
+                                    </label>
+                                    <input type="number" 
+                                           class="form-control winning-number-input" 
+                                           id="number_{{ prize.position }}"
+                                           data-position="{{ prize.position }}"
+                                           min="{{ raffle.start_number }}" 
+                                           max="{{ raffle.end_number }}" 
+                                           required
+                                           placeholder="Ingresa el número ganador">
+                                    <div class="form-text">Número del ticket ganador para {{ prize.position }}° lugar</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning" id="validation-message" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="validation-text"></span>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'raffle_detail' raffle.id %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submit-btn">
+                                <i class="fas fa-check me-2"></i>Establecer Ganadores
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('multipleWinnersForm');
+    const inputs = document.querySelectorAll('.winning-number-input');
+    const winningNumbersJson = document.getElementById('winning_numbers_json');
+    const validationMessage = document.getElementById('validation-message');
+    const validationText = document.getElementById('validation-text');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    function validateNumbers() {
+        const numbers = [];
+        const seen = new Set();
+        let hasError = false;
+        let errorMessage = '';
+        
+        inputs.forEach(function(input) {
+            const value = input.value.trim();
+            if (value) {
+                const num = parseInt(value);
+                if (seen.has(num)) {
+                    hasError = true;
+                    errorMessage = `El número ${num} está duplicado. Cada ganador debe tener un número único.`;
+                } else {
+                    seen.add(num);
+                    numbers.push(num);
+                }
+            }
+        });
+        
+        if (hasError) {
+            validationMessage.style.display = 'block';
+            validationText.textContent = errorMessage;
+            validationMessage.className = 'alert alert-danger';
+            submitBtn.disabled = true;
+            return false;
+        }
+        
+        // Check if all numbers are filled
+        if (numbers.length < inputs.length) {
+            validationMessage.style.display = 'block';
+            validationText.textContent = 'Debes ingresar todos los números ganadores.';
+            validationMessage.className = 'alert alert-warning';
+            submitBtn.disabled = true;
+            return false;
+        }
+        
+        // All valid
+        validationMessage.style.display = 'none';
+        submitBtn.disabled = false;
+        return true;
+    }
+    
+    function updateWinningNumbersJson() {
+        const numbers = [];
+        inputs.forEach(function(input) {
+            if (input.value.trim()) {
+                numbers.push(parseInt(input.value.trim()));
+            }
+        });
+        winningNumbersJson.value = JSON.stringify(numbers);
+    }
+    
+    inputs.forEach(function(input) {
+        input.addEventListener('change', function() {
+            if (validateNumbers()) {
+                updateWinningNumbersJson();
+            }
+        });
+        
+        input.addEventListener('input', function() {
+            validateNumbers();
+        });
+    });
+    
+    form.addEventListener('submit', function(e) {
+        if (!validateNumbers()) {
+            e.preventDefault();
+            return false;
+        }
+        updateWinningNumbersJson();
+    });
+    
+    // Initial validation
+    validateNumbers();
+});
+</script>
+{% endblock %}
+

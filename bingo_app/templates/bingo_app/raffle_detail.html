@@ -957,9 +957,15 @@
 
                 {% if user == raffle.organizer and raffle.status != 'FINISHED' %}
                 <div class="d-grid gap-2 my-3">
+                    {% if raffle.multiple_winners_enabled %}
+                    <a href="{% url 'set_manual_multiple_winners' raffle.id %}" class="btn btn-success btn-lg btn-action">
+                        <i class="fas fa-edit me-2"></i>Establecer Múltiples Ganadores Manualmente
+                    </a>
+                    {% else %}
                     <a href="{% url 'set_manual_raffle_winner' raffle.id %}" class="btn btn-success btn-lg btn-action">
                         <i class="fas fa-edit me-2"></i>Establecer Ganador Manualmente
                     </a>
+                    {% endif %}
                 </div>
                 {% endif %}
                 

@@ -2855,6 +2855,73 @@ def set_manual_raffle_winner(request, raffle_id):
     return render(request, 'bingo_app/set_manual_raffle_winner.html', {'raffle': raffle})
 
 
+@login_required
+def set_manual_multiple_winners(request, raffle_id):
+    raffle = get_object_or_404(Raffle, id=raffle_id)
+
+    if request.user != raffle.organizer:
+        messages.error(request, "Solo el organizador puede establecer ganadores manuales.")
+        return redirect('raffle_detail', raffle_id=raffle.id)
+
+    if raffle.status == 'FINISHED':
+        messages.error(request, "Esta rifa ya ha terminado.")
+        return redirect('raffle_detail', raffle_id=raffle.id)
+
+    if not raffle.multiple_winners_enabled or not raffle.prize_structure:
+        messages.error(request, "Esta rifa no tiene múltiples ganadores habilitados.")
+        return redirect('raffle_detail', raffle_id=raffle.id)
+
+    if request.method == 'POST':
+        # Get winning numbers from form
+        winning_numbers_json = request.POST.get('winning_numbers_json')
+        if not winning_numbers_json:
+            messages.error(request, "Debes proporcionar los números ganadores.")
+            return render(request, 'bingo_app/set_manual_multiple_winners.html', {'raffle': raffle})
+
+        try:
+            winning_numbers = json.loads(winning_numbers_json)
+            if not isinstance(winning_numbers, list):
+                raise ValueError("Los números ganadores deben ser una lista")
+            
+            # Validate numbers
+            sorted_prizes = sorted(raffle.prize_structure, key=lambda x: x.get('position', 0))
+            if len(winning_numbers) < len(sorted_prizes):
+                messages.error(request, f"Debes proporcionar al menos {len(sorted_prizes)} números ganadores.")
+                return render(request, 'bingo_app/set_manual_multiple_winners.html', {'raffle': raffle})
+            
+            # Validate each number is in range
+            for num in winning_numbers:
+                try:
+                    num_int = int(num)
+                    if not (raffle.start_number <= num_int <= raffle.end_number):
+                        messages.error(request, f"El número {num_int} debe estar entre {raffle.start_number} y {raffle.end_number}.")
+                        return render(request, 'bingo_app/set_manual_multiple_winners.html', {'raffle': raffle})
+                except ValueError:
+                    messages.error(request, f"El número {num} no es válido.")
+                    return render(request, 'bingo_app/set_manual_multiple_winners.html', {'raffle': raffle})
+            
+            # Store manual winning numbers
+            raffle.manual_winning_numbers = winning_numbers[:len(sorted_prizes)]  # Only use as many as prizes
+            raffle.save()
+            
+            # Draw winners using manual numbers
+            winning_ticket = raffle.draw_winner()
+            
+            if winning_ticket or raffle.winners:
+                messages.success(request, f"¡Los ganadores han sido establecidos correctamente!")
+            else:
+                messages.error(request, "No se pudieron establecer los ganadores. Verifica que todos los tickets hayan sido vendidos.")
+            
+            return redirect('raffle_detail', raffle_id=raffle.id)
+            
+        except json.JSONDecodeError:
+            messages.error(request, "Formato de números ganadores inválido.")
+        except Exception as e:
+            messages.error(request, f"Error al establecer ganadores: {str(e)}")
+
+    return render(request, 'bingo_app/set_manual_multiple_winners.html', {'raffle': raffle})
+
+
 @staff_member_required
 def manage_printable_cards(request):
     cards = PrintableCard.objects.all().order_by('-created_at')
