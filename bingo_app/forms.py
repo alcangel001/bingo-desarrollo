@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.core.validators import MinValueValidator, validate_email
 from django.core.exceptions import ValidationError
+from decimal import Decimal
 import json
 from .models import BankAccount, User, Game, CreditRequest, Raffle, PercentageSettings, WithdrawalRequest, Announcement, AccountsReceivable, AccountsReceivablePayment
 
