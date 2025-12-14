@@ -1,4 +1,5 @@
 {% extends "bingo_app/base.html" %}
+{% load bingo_filters %}
 
 {% block extra_css %}
 <style>
@@ -914,7 +915,7 @@
                         {% for ticket in raffle.tickets.all %}
                             {% if ticket.number == number %}
                             <div class="ticket-number {% if ticket.owner == request.user %}ticket-mine{% else %}ticket-sold{% endif %} {% if raffle.status == 'FINISHED' %}{% if raffle.multiple_winners_enabled and raffle.winning_numbers and number in raffle.winning_numbers %}ticket-winning{% elif not raffle.multiple_winners_enabled and number == raffle.winning_number %}ticket-winning{% endif %}{% endif %}">
-                                {{ number }}
+                                {{ raffle|format_ticket_number:number }}
                                 {% if raffle.status == 'FINISHED' %}
                                     {% if raffle.multiple_winners_enabled and raffle.winning_numbers and number in raffle.winning_numbers %}
                                     <i class="fas fa-trophy ms-1"></i>
@@ -928,11 +929,11 @@
                     {% else %}
                         {% if raffle.status == 'WAITING' or raffle.status == 'IN_PROGRESS' %}
                         <div class="ticket-number ticket-available" data-number="{{ number }}">
-                            {{ number }}
+                            {{ raffle|format_ticket_number:number }}
                         </div>
                         {% else %}
                         <div class="ticket-number ticket-available">
-                            {{ number }}
+                            {{ raffle|format_ticket_number:number }}
                         </div>
                         {% endif %}
                     {% endif %}

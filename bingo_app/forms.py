@@ -313,7 +313,7 @@ class RaffleForm(forms.ModelForm):
     class Meta:
         model = Raffle
         fields = ['title', 'description', 'ticket_price', 'prize', 
-                 'start_number', 'end_number', 'draw_date', 'is_manual_winner',
+                 'start_number', 'end_number', 'number_format_digits', 'draw_date', 'is_manual_winner',
                  'multiple_winners_enabled', 'prize_structure']
         widgets = {
             'draw_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),

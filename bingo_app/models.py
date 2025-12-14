@@ -921,6 +921,11 @@ class Raffle(models.Model):
     )
     start_number = models.PositiveIntegerField(default=1)
     end_number = models.PositiveIntegerField()
+    number_format_digits = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Dígitos para formato de números",
+        help_text="Número de dígitos para mostrar los números (ej: 3 para 000, 001, 002...). 0 = sin formato"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     draw_date = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='WAITING')
@@ -965,6 +970,12 @@ class Raffle(models.Model):
         help_text="Lista de números ganadores en orden de posición"
     )
 
+    def format_ticket_number(self, number):
+        """Formatea un número de ticket según number_format_digits"""
+        if self.number_format_digits > 0:
+            return str(number).zfill(self.number_format_digits)
+        return str(number)
+    
     def __str__(self):
         return self.title
     
@@ -1091,7 +1102,9 @@ class Raffle(models.Model):
                         total_prizes_distributed += prize_amount
                     
                     # Unlock organizer's credits for total prizes distributed
-                    logger.warning(f"[Raffle {self.id}] Desbloqueando {total_prizes_distributed} de premios para el organizador {self.organizer.username}. Saldo bloqueado ANTES: {self.organizer.blocked_credits}")
+                    # IMPORTANT: Refresh organizer from DB to get latest credit_balance if they won a prize
+                    self.organizer.refresh_from_db()
+                    logger.warning(f"[Raffle {self.id}] Desbloqueando {total_prizes_distributed} de premios para el organizador {self.organizer.username}. Saldo bloqueado ANTES: {self.organizer.blocked_credits}, Saldo créditos ANTES: {self.organizer.credit_balance}")
                     
                     if self.organizer.blocked_credits >= total_prizes_distributed:
                         self.organizer.blocked_credits -= total_prizes_distributed
@@ -1103,7 +1116,7 @@ class Raffle(models.Model):
                         logger.warning(f"[Raffle {self.id}] ADVERTENCIA: Intentando desbloquear {total_prizes_distributed} pero solo hay {unlock_amount} bloqueados. Ajustando a 0.")
                     
                     self.organizer.save()
-                    logger.warning(f"[Raffle {self.id}] Saldo bloqueado DESPUÉS: {self.organizer.blocked_credits}")
+                    logger.warning(f"[Raffle {self.id}] Saldo bloqueado DESPUÉS: {self.organizer.blocked_credits}, Saldo créditos DESPUÉS: {self.organizer.credit_balance}")
                     
                     if unlock_amount > 0:
                         Transaction.objects.create(
@@ -1189,7 +1202,8 @@ class Raffle(models.Model):
                 commission_amount = total_revenue * (commission_percentage / 100)
                 organizer_net_revenue = total_revenue - commission_amount
 
-                # Credit organizer
+                # Credit organizer - Refresh from DB first to ensure we have latest balance (in case they won a prize)
+                self.organizer.refresh_from_db()
                 self.organizer.credit_balance += organizer_net_revenue
                 self.organizer.save()
                 Transaction.objects.create(

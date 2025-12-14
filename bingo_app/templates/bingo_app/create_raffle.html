@@ -208,15 +208,21 @@
                         </div>
                         
                         <div class="row mb-3">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label for="id_start_number" class="form-label">Número inicial</label>
                                 {{ form.start_number }}
                             </div>
                             
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label for="id_end_number" class="form-label">Número final</label>
                                 {{ form.end_number }}
                                 <div class="form-text">Total de tickets: <span id="total-tickets">1</span></div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="id_number_format_digits" class="form-label">Formato de números</label>
+                                {{ form.number_format_digits }}
+                                <div class="form-text">Ej: 3 para 000, 001, 002... (0 = sin formato)</div>
                             </div>
                         </div>
                         
