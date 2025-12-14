@@ -90,3 +90,12 @@ def get_pattern_mask(game):
                 for col_index in range(min(size, len(row))):
                     mask[row_index][col_index] = 1 if row[col_index] == 1 else 0
     return mask
+
+@register.filter
+def format_ticket_number(raffle, number):
+    """Formatea un número de ticket según number_format_digits de la rifa"""
+    if not raffle or not hasattr(raffle, 'number_format_digits'):
+        return str(number)
+    if raffle.number_format_digits > 0:
+        return str(number).zfill(raffle.number_format_digits)
+    return str(number)
