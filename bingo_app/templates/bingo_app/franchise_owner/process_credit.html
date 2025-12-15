@@ -59,7 +59,14 @@
                     {% if credit_request.proof %}
                     <div class="mt-3">
                         <h5>Comprobante:</h5>
-                        <img src="{{ credit_request.proof.url }}" alt="Comprobante" class="img-fluid" style="max-width: 500px;">
+                        <div class="text-center">
+                            <img src="{{ credit_request.proof.url }}" alt="Comprobante" class="img-fluid" style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                        </div>
+                        <div class="mt-2 text-center">
+                            <a href="{{ credit_request.proof.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-external-link-alt me-1"></i>Ver en tamaño completo
+                            </a>
+                        </div>
                     </div>
                     {% endif %}
 
