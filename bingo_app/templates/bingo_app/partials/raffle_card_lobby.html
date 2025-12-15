@@ -44,6 +44,27 @@
                     <span class="text-muted"><i class="fas fa-calendar-alt me-2"></i>Fecha de sorteo</span>
                     <strong>{{ raffle.draw_date|date:"d M Y H:i" }}</strong>
                 </div>
+                
+                {% if raffle.whatsapp_number %}
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon-wrapper" style="background: linear-gradient(135deg, #25D366, #128C7E);">
+                        <i class="fab fa-whatsapp text-white"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">WhatsApp</small>
+                        <a href="{% if 'http' in raffle.whatsapp_number or 'chat.whatsapp.com' in raffle.whatsapp_number %}{{ raffle.whatsapp_number }}{% else %}https://wa.me/{{ raffle.whatsapp_number }}{% endif %}" 
+                           target="_blank" 
+                           style="color: #25D366; text-decoration: none; font-weight: 600;">
+                            <i class="fab fa-whatsapp me-1"></i>
+                            {% if 'http' in raffle.whatsapp_number or 'chat.whatsapp.com' in raffle.whatsapp_number %}
+                                Unirse al Grupo
+                            {% else %}
+                                {{ raffle.whatsapp_number }}
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             
             <div class="progress-container">

@@ -186,6 +186,13 @@ class Game(models.Model):
         help_text="Franquicia a la que pertenece este juego"
     )
     password = models.CharField(max_length=50, blank=True, null=True)
+    whatsapp_number = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Número de WhatsApp",
+        help_text="Número de WhatsApp para contacto (ej: 1234567890) o enlace de grupo (ej: https://chat.whatsapp.com/...). Se mostrará un botón con el logo de WhatsApp"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -2253,6 +2260,13 @@ class Franchise(models.Model):
         blank=True,
         verbose_name="Imagen",
         help_text="Imagen principal de la franquicia"
+    )
+    whatsapp_number = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Número de WhatsApp",
+        help_text="Número de WhatsApp para contacto (ej: 1234567890) o enlace de grupo (ej: https://chat.whatsapp.com/...). Se mostrará un módulo flotante siempre visible"
     )
     
     # Relación con el organizador/administrador de la franquicia

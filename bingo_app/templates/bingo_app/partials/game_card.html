@@ -46,6 +46,24 @@
                 <span class="feature-label">Precio Cartón:</span>
                 <span class="feature-value">${{ game.card_price|floatformat:2 }}</span>
             </div>
+            {% if game.whatsapp_number %}
+            <div class="game-feature">
+                <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+                <span class="feature-label">WhatsApp:</span>
+                <span class="feature-value">
+                    <a href="{% if 'http' in game.whatsapp_number or 'chat.whatsapp.com' in game.whatsapp_number %}{{ game.whatsapp_number }}{% else %}https://wa.me/{{ game.whatsapp_number }}{% endif %}" 
+                       target="_blank" 
+                       style="color: #25D366; text-decoration: none;">
+                        <i class="fab fa-whatsapp me-1"></i>
+                        {% if 'http' in game.whatsapp_number or 'chat.whatsapp.com' in game.whatsapp_number %}
+                            Grupo
+                        {% else %}
+                            {{ game.whatsapp_number }}
+                        {% endif %}
+                    </a>
+                </span>
+            </div>
+            {% endif %}
         </div>
         
         <div class="game-footer">

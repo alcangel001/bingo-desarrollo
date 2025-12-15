@@ -34,6 +34,24 @@
                 <span class="feature-label">Tickets Vendidos:</span>
                 <span class="feature-value">{{ raffle.tickets.count }}/{{ raffle.total_tickets }}</span>
             </div>
+            {% if raffle.whatsapp_number %}
+            <div class="game-feature">
+                <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+                <span class="feature-label">WhatsApp:</span>
+                <span class="feature-value">
+                    <a href="{% if 'http' in raffle.whatsapp_number or 'chat.whatsapp.com' in raffle.whatsapp_number %}{{ raffle.whatsapp_number }}{% else %}https://wa.me/{{ raffle.whatsapp_number }}{% endif %}" 
+                       target="_blank" 
+                       style="color: #25D366; text-decoration: none;">
+                        <i class="fab fa-whatsapp me-1"></i>
+                        {% if 'http' in raffle.whatsapp_number or 'chat.whatsapp.com' in raffle.whatsapp_number %}
+                            Grupo
+                        {% else %}
+                            {{ raffle.whatsapp_number }}
+                        {% endif %}
+                    </a>
+                </span>
+            </div>
+            {% endif %}
         </div>
         <div class="game-footer">
             <span class="status-badge bg-success">

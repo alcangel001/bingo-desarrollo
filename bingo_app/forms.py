@@ -82,7 +82,13 @@ class GameForm(forms.ModelForm):
         model = Game
         fields = ['name', 'password', 'card_price', 
                  'max_cards_per_player', 'winning_pattern',
-                'base_prize', 'auto_call_interval', 'progressive_prizes','custom_pattern', 'allows_printable_cards', 'entry_price']
+                'base_prize', 'auto_call_interval', 'progressive_prizes','custom_pattern', 'allows_printable_cards', 'entry_price', 'whatsapp_number']
+        widgets = {
+            'whatsapp_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: 1234567890 o https://chat.whatsapp.com/...'
+            }),
+        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

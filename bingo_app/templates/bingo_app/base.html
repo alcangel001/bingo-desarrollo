@@ -1472,5 +1472,207 @@
     </script>
     
     {% block extra_js %}{% endblock %}
+    
+    <!-- Módulo Flotante de WhatsApp -->
+    {% if current_franchise and current_franchise.whatsapp_number %}
+    <div class="whatsapp-floating-module" id="whatsappModule">
+        <div class="whatsapp-module-header">
+            <i class="fab fa-whatsapp"></i>
+            <span>WhatsApp</span>
+            <button class="whatsapp-toggle-btn" onclick="toggleWhatsAppModule()">
+                <i class="fas fa-chevron-up" id="whatsappToggleIcon"></i>
+            </button>
+        </div>
+        <div class="whatsapp-module-body" id="whatsappModuleBody">
+            <div class="whatsapp-number-display">
+                <strong>Contacto:</strong>
+                <span class="whatsapp-number-text">
+                    {% if 'http' in current_franchise.whatsapp_number or 'chat.whatsapp.com' in current_franchise.whatsapp_number %}
+                        Grupo de WhatsApp
+                    {% else %}
+                        {{ current_franchise.whatsapp_number }}
+                    {% endif %}
+                </span>
+            </div>
+            <a href="{% if 'http' in current_franchise.whatsapp_number or 'chat.whatsapp.com' in current_franchise.whatsapp_number %}{{ current_franchise.whatsapp_number }}{% else %}https://wa.me/{{ current_franchise.whatsapp_number }}{% endif %}" 
+               target="_blank" 
+               class="whatsapp-contact-btn">
+                <i class="fab fa-whatsapp me-2"></i>
+                {% if 'http' in current_franchise.whatsapp_number or 'chat.whatsapp.com' in current_franchise.whatsapp_number %}
+                    Unirse al Grupo
+                {% else %}
+                    Contactar por WhatsApp
+                {% endif %}
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <style>
+        /* Módulo Flotante de WhatsApp */
+        .whatsapp-floating-module {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            color: white;
+            z-index: 1050;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .whatsapp-module-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .whatsapp-module-header i.fab.fa-whatsapp {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+        
+        .whatsapp-module-header span {
+            flex: 1;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .whatsapp-toggle-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .whatsapp-toggle-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+        
+        .whatsapp-module-body {
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.1);
+            border-top: 1px solid rgba(255,255,255,0.2);
+            display: block;
+            transition: all 0.3s ease;
+        }
+        
+        .whatsapp-floating-module.collapsed .whatsapp-module-body {
+            display: none;
+        }
+        
+        .whatsapp-floating-module.collapsed #whatsappToggleIcon {
+            transform: rotate(180deg);
+        }
+        
+        .whatsapp-number-display {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .whatsapp-number-display strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .whatsapp-number-text {
+            display: block;
+            font-size: 1.2em;
+            font-weight: 600;
+            word-break: break-all;
+        }
+        
+        .whatsapp-contact-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #25D366;
+            text-align: center;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .whatsapp-contact-btn:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            color: #128C7E;
+        }
+        
+        .whatsapp-contact-btn i {
+            font-size: 1.2em;
+        }
+        
+        /* Ajustar contenido principal para que no quede oculto */
+        body {
+            padding-top: 60px;
+        }
+        
+        .whatsapp-floating-module.collapsed ~ * {
+            padding-top: 0;
+        }
+        
+        .whatsapp-floating-module.collapsed {
+            border-radius: 0 0 15px 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .whatsapp-module-header {
+                padding: 10px 15px;
+            }
+            
+            .whatsapp-module-body {
+                padding: 12px 15px;
+            }
+            
+            .whatsapp-number-text {
+                font-size: 1em;
+            }
+        }
+    </style>
+    
+    <script>
+        function toggleWhatsAppModule() {
+            const module = document.getElementById('whatsappModule');
+            if (module) {
+                module.classList.toggle('collapsed');
+                // Guardar preferencia en localStorage
+                localStorage.setItem('whatsappModuleCollapsed', module.classList.contains('collapsed'));
+            }
+        }
+        
+        // Restaurar estado al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            const module = document.getElementById('whatsappModule');
+            if (module) {
+                const collapsed = localStorage.getItem('whatsappModuleCollapsed') === 'true';
+                if (collapsed) {
+                    module.classList.add('collapsed');
+                }
+            }
+        });
+    </script>
 </body>
 </html>

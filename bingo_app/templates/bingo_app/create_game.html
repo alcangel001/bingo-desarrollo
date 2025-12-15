@@ -315,6 +315,28 @@
                                        value="{{ form.password.value|default:'' }}">
                             </div>
                         </div>
+                        
+                        <!-- WhatsApp -->
+                        <div class="row mb-4">
+                            <div class="col-md-12 mb-3">
+                                <label for="id_whatsapp_number" class="form-label">
+                                    <i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>Número de WhatsApp (Opcional)
+                                </label>
+                                <input type="text" 
+                                       class="form-control {% if form.whatsapp_number.errors %}is-invalid{% endif %}" 
+                                       id="id_whatsapp_number" 
+                                       name="whatsapp_number"
+                                       value="{{ form.whatsapp_number.value|default:'' }}"
+                                       placeholder="Ej: 1234567890 o https://chat.whatsapp.com/...">
+                                {% for error in form.whatsapp_number.errors %}
+                                    <div class="error-message">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">
+                                    Ingresa el número de WhatsApp (ej: 1234567890) o el enlace del grupo (ej: https://chat.whatsapp.com/...). 
+                                    Se mostrará un botón con el logo de WhatsApp en la portada del juego.
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Premio y Precios -->
                          <div class="commission-info mb-4 p-3 bg-light rounded">
