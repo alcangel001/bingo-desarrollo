@@ -381,15 +381,19 @@ def process_referral_code(new_user, referral_code, request):
         messages.error(request, f"Error al procesar el código de referido: {str(e)}")
 
 def custom_login_view(request):
-    # Obtener código de franquicia de la URL (si viene)
-    franchise_slug = request.GET.get('franchise', '').strip()
-    franchise_from_url = None
-    if franchise_slug:
-        try:
-            from .models import Franchise
-            franchise_from_url = Franchise.objects.get(slug=franchise_slug, is_active=True)
-        except Franchise.DoesNotExist:
-            pass
+    from .models import Franchise
+    
+    # 1. PRIMERO: Intentar obtener franquicia del middleware (detectada por dominio)
+    franchise = getattr(request, 'franchise', None)
+    
+    # 2. SEGUNDO: Si no hay franquicia del middleware, intentar obtener de la URL
+    if not franchise:
+        franchise_slug = request.GET.get('franchise', '').strip()
+        if franchise_slug:
+            try:
+                franchise = Franchise.objects.get(slug=franchise_slug, is_active=True)
+            except Franchise.DoesNotExist:
+                pass
     
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
@@ -410,7 +414,7 @@ def custom_login_view(request):
         form = AuthenticationForm()
     return render(request, 'bingo_app/login.html', {
         'form': form,
-        'franchise': franchise_from_url
+        'franchise': franchise  # Usar la franquicia detectada (por dominio o URL)
     })
 
 def home(request):
