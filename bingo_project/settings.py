@@ -43,7 +43,12 @@ if SENTRY_DSN:
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-dev-key-CHANGE-IN-PRODUCTION-EZrZy3Gxp5SMCD8QBYBslMa1Tsns6WvcJlOgtgk5Wc4802zhGhPuhlmGn8Gas8L2jXo")
 # ⚠️ IMPORTANTE: En producción (Railway), DEBES configurar SECRET_KEY en las variables de entorno
 
-CSRF_TRUSTED_ORIGINS = ['https://*.railway.app', 'https://web-production-2d504.up.railway.app']
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.railway.app', 
+    'https://web-production-2d504.up.railway.app',
+    'https://rifasjaj.com',
+    'https://www.rifasjaj.com'
+]
 
 # Configuración de seguridad SSL/HTTPS
 CSRF_COOKIE_SECURE = True
@@ -145,6 +150,13 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(','
 RAILWAY_PUBLIC_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
 if RAILWAY_PUBLIC_DOMAIN and RAILWAY_PUBLIC_DOMAIN not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+# Dominio para identificar tráfico de la aplicación (no de anuncios publicitarios)
+TRACKING_DOMAIN = 'rifasjaj.com'
+if TRACKING_DOMAIN not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(TRACKING_DOMAIN)
+if f'www.{TRACKING_DOMAIN}' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(f'www.{TRACKING_DOMAIN}')
 
 # Agregar dominios personalizados de franquicias activas
 # Nota: Los dominios se agregan dinámicamente en el middleware para evitar problemas durante migraciones

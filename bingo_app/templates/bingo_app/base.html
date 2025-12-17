@@ -1672,8 +1672,8 @@
             // Limpiar el número (quitar espacios, guiones, paréntesis, +, etc.)
             const cleanNumber = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
             
-            // Mensaje predefinido
-            const message = encodeURIComponent('Hola, me gustaría saber más información de la rifa');
+            // Mensaje predefinido con dominio para identificar que viene de la aplicación
+            const message = encodeURIComponent('Hola, me gustaría saber más información de la rifa - rifasjaj.com');
             
             // Detectar si es iPhone/iPad
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
