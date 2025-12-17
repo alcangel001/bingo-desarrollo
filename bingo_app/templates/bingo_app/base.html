@@ -1498,7 +1498,9 @@
             </div>
             <a href="{% if 'http' in current_franchise.whatsapp_number or 'chat.whatsapp.com' in current_franchise.whatsapp_number %}{{ current_franchise.whatsapp_number }}{% else %}https://wa.me/{{ current_franchise.whatsapp_number }}{% endif %}" 
                target="_blank" 
-               class="whatsapp-contact-btn">
+               rel="noopener noreferrer"
+               class="whatsapp-contact-btn"
+               {% if not 'http' in current_franchise.whatsapp_number and 'chat.whatsapp.com' not in current_franchise.whatsapp_number %}data-whatsapp-number="{{ current_franchise.whatsapp_number }}" onclick="return openWhatsApp(this.getAttribute('data-whatsapp-number'));"{% endif %}>
                 <i class="fab fa-whatsapp me-2"></i>
                 {% if 'http' in current_franchise.whatsapp_number or 'chat.whatsapp.com' in current_franchise.whatsapp_number %}
                     Unirse al Grupo
@@ -1663,6 +1665,38 @@
                 // Guardar preferencia en localStorage
                 localStorage.setItem('whatsappModuleCollapsed', module.classList.contains('collapsed'));
             }
+        }
+        
+        // Función para abrir WhatsApp compatible con iPhone y Android
+        function openWhatsApp(phoneNumber) {
+            // Limpiar el número (quitar espacios, guiones, paréntesis, +, etc.)
+            const cleanNumber = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+            
+            // Detectar si es iPhone/iPad
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            let whatsappUrl;
+            if (isIOS) {
+                // Para iOS, intentar primero con el esquema nativo
+                // Si WhatsApp está instalado, se abrirá directamente
+                // Si no, Safari redirigirá automáticamente a wa.me
+                whatsappUrl = `whatsapp://send?phone=${cleanNumber}`;
+                window.location.href = whatsappUrl;
+                
+                // Fallback: si después de 1 segundo no se abrió WhatsApp, usar wa.me
+                setTimeout(function() {
+                    // Solo si aún estamos en la misma página (WhatsApp no se abrió)
+                    if (document.hasFocus()) {
+                        window.location.href = `https://wa.me/${cleanNumber}`;
+                    }
+                }, 1000);
+            } else {
+                // Para Android y otros, usar wa.me directamente
+                whatsappUrl = `https://wa.me/${cleanNumber}`;
+                window.open(whatsappUrl, '_blank');
+            }
+            
+            return false; // Prevenir el comportamiento por defecto del enlace
         }
         
         // Restaurar estado al cargar la página
