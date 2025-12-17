@@ -1672,6 +1672,9 @@
             // Limpiar el número (quitar espacios, guiones, paréntesis, +, etc.)
             const cleanNumber = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
             
+            // Mensaje predefinido
+            const message = encodeURIComponent('Hola, me gustaría saber más información de la rifa');
+            
             // Detectar si es iPhone/iPad
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             
@@ -1680,19 +1683,19 @@
                 // Para iOS, intentar primero con el esquema nativo
                 // Si WhatsApp está instalado, se abrirá directamente
                 // Si no, Safari redirigirá automáticamente a wa.me
-                whatsappUrl = `whatsapp://send?phone=${cleanNumber}`;
+                whatsappUrl = `whatsapp://send?phone=${cleanNumber}&text=${message}`;
                 window.location.href = whatsappUrl;
                 
                 // Fallback: si después de 1 segundo no se abrió WhatsApp, usar wa.me
                 setTimeout(function() {
                     // Solo si aún estamos en la misma página (WhatsApp no se abrió)
                     if (document.hasFocus()) {
-                        window.location.href = `https://wa.me/${cleanNumber}`;
+                        window.location.href = `https://wa.me/${cleanNumber}?text=${message}`;
                     }
                 }, 1000);
             } else {
-                // Para Android y otros, usar wa.me directamente
-                whatsappUrl = `https://wa.me/${cleanNumber}`;
+                // Para Android y otros, usar wa.me directamente con el mensaje
+                whatsappUrl = `https://wa.me/${cleanNumber}?text=${message}`;
                 window.open(whatsappUrl, '_blank');
             }
             
