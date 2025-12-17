@@ -146,6 +146,10 @@ RAILWAY_PUBLIC_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
 if RAILWAY_PUBLIC_DOMAIN and RAILWAY_PUBLIC_DOMAIN not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
 
+# Agregar dominios personalizados de franquicias activas
+# Nota: Los dominios se agregan dinámicamente en el middleware para evitar problemas durante migraciones
+# Si necesitas agregar dominios estáticamente, puedes hacerlo aquí, pero es mejor usar el middleware
+
 AUTH_USER_MODEL = 'bingo_app.User'
 # Application definition
 

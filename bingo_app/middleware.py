@@ -19,11 +19,28 @@ class FranchiseMiddleware(MiddlewareMixin):
     """
     Middleware para detectar y filtrar datos por franquicia.
     Agrega request.franchise al request para uso en vistas.
+    Detecta la franquicia por dominio personalizado o por usuario.
     """
     def process_request(self, request):
+        from .models import Franchise
+        
         # Inicializar request.franchise como None
         request.franchise = None
         
+        # 1. PRIMERO: Intentar detectar por dominio personalizado
+        host = request.get_host()
+        if host:
+            # Limpiar el host (quitar puerto si existe)
+            host = host.split(':')[0].lower()
+            
+            # Intentar obtener franquicia por dominio personalizado
+            franchise_by_domain = Franchise.get_by_domain(host)
+            if franchise_by_domain:
+                request.franchise = franchise_by_domain
+                # Si se detecta por dominio, no continuar con la lógica de usuario
+                return None
+        
+        # 2. SEGUNDO: Si no hay dominio personalizado, usar lógica de usuario
         if request.user.is_authenticated:
             # Si el usuario es super admin, puede ver todo (franchise = None)
             if request.user.is_superuser or request.user.is_admin:

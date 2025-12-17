@@ -311,17 +311,47 @@ class PackageTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(Franchise)
 class FranchiseAdmin(admin.ModelAdmin):
-    list_display = ('name', 'owner', 'package_template', 'monthly_price', 'commission_rate', 'is_active', 'has_active_subscription', 'created_at')
+    list_display = ('name', 'owner', 'custom_domain', 'package_template', 'monthly_price', 'commission_rate', 'is_active', 'has_active_subscription', 'created_at')
     list_filter = ('is_active', 'package_template', 'created_at')
-    search_fields = ('name', 'slug', 'owner__username', 'owner__email')
+    search_fields = ('name', 'slug', 'custom_domain', 'owner__username', 'owner__email')
     readonly_fields = ('created_at', 'updated_at', 'subscription_start_date')
     fieldsets = (
         ('Información Básica', {'fields': ('name', 'slug', 'logo', 'image', 'owner', 'is_active')}),
+        ('🌐 Dominio Personalizado', {
+            'fields': ('custom_domain',),
+            'description': '⚠️ IMPORTANTE: Configura el dominio personalizado (ej: mi-franquicia.com). '
+                          'El dominio debe estar configurado en el DNS apuntando a este servidor. '
+                          'Una vez configurado, los usuarios podrán acceder a la franquicia usando este dominio. '
+                          'Asegúrate de agregar el dominio a ALLOWED_HOSTS en Railway.'
+        }),
+        ('Contacto', {'fields': ('whatsapp_number',)}),
         ('Paquete y Precios', {'fields': ('package_template', 'monthly_price', 'commission_rate')}),
         ('Suscripción', {'fields': ('subscription_start_date', 'subscription_end_date')}),
         ('Metadata', {'fields': ('created_by', 'created_at', 'updated_at')}),
     )
     raw_id_fields = ('owner', 'created_by', 'package_template')
+    
+    def save_model(self, request, obj, form, change):
+        """Validar y limpiar el dominio antes de guardar"""
+        if obj.custom_domain:
+            # Limpiar el dominio
+            domain = obj.custom_domain.strip().lower()
+            if domain.startswith('http://'):
+                domain = domain[7:]
+            if domain.startswith('https://'):
+                domain = domain[8:]
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            domain = domain.rstrip('/')
+            obj.custom_domain = domain
+            
+            # Verificar que no esté duplicado (excepto si es el mismo objeto)
+            existing = Franchise.objects.filter(custom_domain=domain).exclude(pk=obj.pk).first()
+            if existing:
+                from django.contrib import messages
+                messages.warning(request, f'⚠️ El dominio "{domain}" ya está asignado a la franquicia "{existing.name}".')
+        
+        super().save_model(request, obj, form, change)
 
 @admin.register(FranchiseManual)
 class FranchiseManualAdmin(admin.ModelAdmin):

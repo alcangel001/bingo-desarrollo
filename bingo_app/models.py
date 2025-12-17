@@ -2268,6 +2268,14 @@ class Franchise(models.Model):
         verbose_name="Número de WhatsApp",
         help_text="Número de WhatsApp para contacto (ej: 1234567890) o enlace de grupo (ej: https://chat.whatsapp.com/...). Se mostrará un módulo flotante siempre visible"
     )
+    custom_domain = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        unique=True,
+        verbose_name="Dominio Personalizado",
+        help_text="Dominio personalizado para esta franquicia (ej: mi-franquicia.com). Debe configurarse en el DNS apuntando a este servidor."
+    )
     
     # Relación con el organizador/administrador de la franquicia
     owner = models.OneToOneField(
@@ -2345,6 +2353,40 @@ class Franchise(models.Model):
     def __str__(self):
         return f"{self.name} - {self.owner.username}"
     
+    def clean(self):
+        """Validar el dominio personalizado"""
+        from django.core.exceptions import ValidationError
+        if self.custom_domain:
+            # Limpiar el dominio (quitar http://, https://, www., espacios, etc.)
+            domain = self.custom_domain.strip().lower()
+            if domain.startswith('http://'):
+                domain = domain[7:]
+            if domain.startswith('https://'):
+                domain = domain[8:]
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            domain = domain.rstrip('/')
+            
+            # Validar formato básico de dominio
+            if not domain or len(domain) < 3:
+                raise ValidationError({'custom_domain': 'El dominio debe tener al menos 3 caracteres'})
+            
+            # Validar que tenga al menos un punto (ej: ejemplo.com)
+            if '.' not in domain:
+                raise ValidationError({'custom_domain': 'El dominio debe tener un formato válido (ej: ejemplo.com)'})
+            
+            # Validar caracteres permitidos
+            import re
+            if not re.match(r'^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?)*$', domain):
+                raise ValidationError({'custom_domain': 'El dominio contiene caracteres no válidos'})
+            
+            self.custom_domain = domain
+    
+    def save(self, *args, **kwargs):
+        """Limpiar y validar el dominio antes de guardar"""
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
     @property
     def has_active_subscription(self):
         """Verifica si la suscripción está activa"""
@@ -2369,6 +2411,27 @@ class Franchise(models.Model):
             'advanced_promotions_enabled': self.package_template.advanced_promotions_enabled,
             'banners_enabled': self.package_template.banners_enabled,
         }
+    
+    @classmethod
+    def get_by_domain(cls, domain):
+        """Obtener franquicia por dominio personalizado"""
+        if not domain:
+            return None
+        
+        # Limpiar el dominio
+        domain = domain.strip().lower()
+        if domain.startswith('http://'):
+            domain = domain[7:]
+        if domain.startswith('https://'):
+            domain = domain[8:]
+        if domain.startswith('www.'):
+            domain = domain[4:]
+        domain = domain.rstrip('/')
+        
+        try:
+            return cls.objects.get(custom_domain=domain, is_active=True)
+        except cls.DoesNotExist:
+            return None
 
 
 class FranchiseManual(models.Model):
