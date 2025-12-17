@@ -70,20 +70,31 @@ def franchise_processor(request):
     franchise = None
     is_franchise_owner = False
     
+    # 1. PRIMERO: Intentar obtener del middleware (detectada por dominio o usuario)
+    franchise = getattr(request, 'franchise', None)
+    
+    # 2. SEGUNDO: Si no hay del middleware, intentar obtener de la sesión (después de logout)
+    if not franchise:
+        franchise_id = request.session.get('franchise_id')
+        if franchise_id:
+            try:
+                franchise = Franchise.objects.get(id=franchise_id, is_active=True)
+            except Franchise.DoesNotExist:
+                # Si la franquicia ya no existe, limpiar sesión
+                request.session.pop('franchise_id', None)
+    
+    # 3. TERCERO: Si hay usuario autenticado, verificar si es propietario
     if request.user.is_authenticated:
         try:
-            # Primero intentar obtener la franquicia del middleware (ya procesada)
-            franchise = getattr(request, 'franchise', None)
-            
             # Verificar si el usuario es propietario de una franquicia
-            # Esto es lo más importante para mostrar las opciones
             try:
                 # Buscar directamente si el usuario es owner de alguna franquicia
                 owned_franchise = Franchise.objects.filter(owner=request.user).first()
                 if owned_franchise:
                     franchise = owned_franchise
                     is_franchise_owner = True
-                    # Si la franquicia está inactiva, aún así el usuario es propietario
+                    # Guardar en sesión para mantenerla después de logout
+                    request.session['franchise_id'] = owned_franchise.id
             except Exception:
                 pass
             
@@ -95,17 +106,22 @@ def franchise_processor(request):
                     if hasattr(user, 'owned_franchise') and user.owned_franchise:
                         franchise = user.owned_franchise
                         is_franchise_owner = True
+                        request.session['franchise_id'] = user.owned_franchise.id
                     elif hasattr(user, 'franchise') and user.franchise:
                         franchise = user.franchise
+                        request.session['franchise_id'] = user.franchise.id
                 except Exception:
                     pass
             
-            # Si aún no tenemos franquicia, usar la del middleware
+            # Si aún no tenemos franquicia, usar la del middleware o sesión
             if not franchise:
                 franchise = getattr(request, 'franchise', None)
+                if franchise:
+                    request.session['franchise_id'] = franchise.id
         except Exception:
-            # Si hay algún error, intentar obtener del middleware
-            franchise = getattr(request, 'franchise', None)
+            # Si hay algún error, intentar obtener del middleware o sesión
+            if not franchise:
+                franchise = getattr(request, 'franchise', None)
             # Intentar verificar si es propietario de forma simple
             try:
                 if request.user.is_authenticated:

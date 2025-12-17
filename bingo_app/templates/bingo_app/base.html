@@ -36,10 +36,11 @@
             display: flex;
             flex-direction: column;
             {% if current_franchise and current_franchise.image %}
-            /* Cuando hay franquicia con imagen, usar color de fondo oscuro para evitar que se vea la imagen principal alrededor */
+            /* Cuando hay franquicia con imagen, NO usar imagen principal, solo la de la franquicia */
             background-color: #000000;
             background-image: url('{{ current_franchise.image.url }}');
             {% else %}
+            /* Solo mostrar imagen principal si NO hay franquicia */
             background-image: url('{% static "images/bingo_login_background_v2.png" %}');
             {% endif %}
             background-size: cover;
