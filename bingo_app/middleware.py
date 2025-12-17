@@ -37,8 +37,20 @@ class FranchiseMiddleware(MiddlewareMixin):
             franchise_by_domain = Franchise.get_by_domain(host)
             if franchise_by_domain:
                 request.franchise = franchise_by_domain
+                # Guardar en sesión para mantenerla después de logout
+                request.session['franchise_id'] = franchise_by_domain.id
                 # Si se detecta por dominio, no continuar con la lógica de usuario
                 return None
+        
+        # 1.5: Si no hay dominio personalizado, intentar obtener de la sesión
+        if not request.franchise:
+            franchise_id = request.session.get('franchise_id')
+            if franchise_id:
+                try:
+                    request.franchise = Franchise.objects.get(id=franchise_id, is_active=True)
+                except Franchise.DoesNotExist:
+                    # Si la franquicia ya no existe o está inactiva, limpiar sesión
+                    request.session.pop('franchise_id', None)
         
         # 2. SEGUNDO: Si no hay dominio personalizado, usar lógica de usuario
         if request.user.is_authenticated:
@@ -60,5 +72,9 @@ class FranchiseMiddleware(MiddlewareMixin):
                     # Pertenece a una franquicia
                     request.franchise = request.user.franchise
                 # Si no tiene franquicia, request.franchise = None (usuario sin franquicia)
+            
+            # Guardar franquicia del usuario en sesión para mantenerla después de logout
+            if request.franchise:
+                request.session['franchise_id'] = request.franchise.id
         
         return None

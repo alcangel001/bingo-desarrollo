@@ -392,14 +392,29 @@ def custom_login_view(request):
         if franchise_slug:
             try:
                 franchise = Franchise.objects.get(slug=franchise_slug, is_active=True)
+                # Guardar en sesión para mantenerla después de logout
+                request.session['franchise_id'] = franchise.id
             except Franchise.DoesNotExist:
                 pass
+    
+    # 3. TERCERO: Si aún no hay franquicia, intentar obtener de la sesión (después de logout)
+    if not franchise:
+        franchise_id = request.session.get('franchise_id')
+        if franchise_id:
+            try:
+                franchise = Franchise.objects.get(id=franchise_id, is_active=True)
+            except Franchise.DoesNotExist:
+                # Si la franquicia ya no existe, limpiar sesión
+                request.session.pop('franchise_id', None)
     
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            # Si hay franquicia detectada, guardarla en sesión
+            if franchise:
+                request.session['franchise_id'] = franchise.id
             return redirect('lobby')
         else:
             # Usar los mensajes de error genéricos del formulario de login
@@ -414,7 +429,7 @@ def custom_login_view(request):
         form = AuthenticationForm()
     return render(request, 'bingo_app/login.html', {
         'form': form,
-        'franchise': franchise  # Usar la franquicia detectada (por dominio o URL)
+        'franchise': franchise  # Usar la franquicia detectada (por dominio, URL o sesión)
     })
 
 def home(request):
