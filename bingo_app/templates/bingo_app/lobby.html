@@ -9,10 +9,11 @@
     body {
         {% if current_franchise and current_franchise.image %}
         background-image: url('{{ current_franchise.image.url }}');
+        background-size: cover;
         {% else %}
         background-image: url('{% static "images/bingo_login_background_v2.png" %}');
-        {% endif %}
         background-size: 98% auto;
+        {% endif %}
         background-position: center center;
         background-attachment: fixed;
         background-repeat: no-repeat;
@@ -22,15 +23,24 @@
     /* Ajuste para pantallas grandes (desktop) */
     @media (min-width: 1200px) {
         body {
+            {% if current_franchise and current_franchise.image %}
+            background-size: cover;
+            {% else %}
             background-size: 98% auto;
+            {% endif %}
         }
     }
     
     /* Ajuste para móviles - Tamaño ajustado para que se vea bien */
     @media (max-width: 768px) {
         body {
+            {% if current_franchise and current_franchise.image %}
+            background-size: cover;
+            background-attachment: fixed;
+            {% else %}
             background-size: auto 90vh;
             background-attachment: scroll;
+            {% endif %}
         }
     }
 
