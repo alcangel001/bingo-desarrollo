@@ -229,6 +229,45 @@ function updateGameState(data) {
     }
 }
 
+function handleGameStatusChange(data) {
+    console.log('🔄 Manejando cambio de estado:', data);
+    const rollBtn = document.getElementById('roll-dice-btn');
+    const gameStatusEl = document.getElementById('game-status');
+    
+    if (data.status === 'PLAYING') {
+        console.log('✅ Cambiando a PLAYING - habilitando botón');
+        if (rollBtn) {
+            rollBtn.disabled = false;
+            rollBtn.style.opacity = '1';
+            rollBtn.style.cursor = 'pointer';
+        }
+        if (gameStatusEl) {
+            gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
+        }
+        
+        // Asegurarse de que la animación del spin esté oculta
+        const spinAnimation = document.getElementById('spin-animation');
+        const prizeDisplay = document.getElementById('prize-display');
+        if (spinAnimation) spinAnimation.style.display = 'none';
+        if (prizeDisplay) prizeDisplay.style.display = 'block';
+        
+        // Actualizar premio si viene en el mensaje
+        if (data.final_prize && data.multiplier) {
+            const prizeAmount = document.getElementById('prize-amount');
+            const prizeMultiplier = document.getElementById('prize-multiplier');
+            if (prizeAmount) prizeAmount.textContent = `$${parseFloat(data.final_prize).toLocaleString()}`;
+            if (prizeMultiplier) prizeMultiplier.textContent = data.multiplier;
+            if (typeof applyPrizeColors === 'function') {
+                applyPrizeColors(data.multiplier);
+            }
+        }
+    } else if (data.status === 'SPINNING') {
+        console.log('⏳ Cambiando a SPINNING - deshabilitando botón');
+        if (rollBtn) rollBtn.disabled = true;
+        if (gameStatusEl) gameStatusEl.textContent = 'Determinando premio...';
+    }
+}
+
 function showWinnerAnimation(winner, prize, multiplier) {
     document.getElementById('game-status').textContent = `¡${winner} ganó $${prize}!`;
     document.getElementById('roll-dice-btn').disabled = true;
