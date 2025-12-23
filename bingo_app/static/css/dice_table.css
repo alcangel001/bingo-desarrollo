@@ -1,0 +1,424 @@
+/* Variables CSS para colores dinámicos */
+:root {
+    --table-primary: #1e3a5f;
+    --table-secondary: #2d4a6b;
+    --table-accent: #4a90e2;
+    --table-glow: #4a90e2;
+    --table-border: #4a90e2;
+    --table-surface: #0f1e2e;
+    --table-text: #ffffff;
+}
+
+/* Body y Contenedor Principal */
+.dice-game-body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+}
+
+/* Barra Superior */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid var(--table-accent);
+}
+
+.header-left {
+    display: flex;
+    gap: 10px;
+}
+
+.menu-btn, .friends-btn, .settings-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.3s ease;
+}
+
+.menu-btn:hover, .friends-btn:hover, .settings-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.balance-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, var(--table-primary), var(--table-secondary));
+    padding: 10px 20px;
+    border-radius: 25px;
+    color: var(--table-text);
+    font-weight: bold;
+    font-size: 18px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Contenedor de la Mesa */
+.game-table-container {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    height: 80vh;
+    margin: 20px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Superficie de la Mesa (Circular) */
+.table-surface {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--table-secondary) 0%, var(--table-surface) 100%);
+    border: 12px solid var(--table-border);
+    box-shadow: 
+        0 0 50px rgba(0, 0, 0, 0.8),
+        inset 0 0 100px rgba(0, 0, 0, 0.5),
+        0 0 40px var(--table-glow),
+        0 0 80px var(--table-glow),
+        inset 0 0 60px var(--table-glow);
+    transition: all 0.8s ease;
+    animation: borderPulse 3s ease-in-out infinite;
+}
+
+@keyframes borderPulse {
+    0%, 100% {
+        box-shadow: 
+            0 0 50px rgba(0, 0, 0, 0.8),
+            inset 0 0 100px rgba(0, 0, 0, 0.5),
+            0 0 40px var(--table-glow),
+            0 0 80px var(--table-glow),
+            inset 0 0 60px var(--table-glow);
+    }
+    50% {
+        box-shadow: 
+            0 0 50px rgba(0, 0, 0, 0.8),
+            inset 0 0 100px rgba(0, 0, 0, 0.5),
+            0 0 60px var(--table-glow),
+            0 0 120px var(--table-glow),
+            inset 0 0 80px var(--table-glow);
+    }
+}
+
+.table-surface.intense-glow {
+    border: 12px solid var(--table-border);
+    box-shadow: 
+        0 0 50px rgba(0, 0, 0, 0.8),
+        inset 0 0 100px rgba(0, 0, 0, 0.5),
+        0 0 80px var(--table-glow),
+        0 0 160px var(--table-glow),
+        0 0 240px var(--table-glow),
+        inset 0 0 100px var(--table-glow);
+    animation: electricPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes electricPulse {
+    0%, 100% {
+        box-shadow: 
+            0 0 50px rgba(0, 0, 0, 0.8),
+            inset 0 0 100px rgba(0, 0, 0, 0.5),
+            0 0 80px var(--table-glow),
+            0 0 160px var(--table-glow),
+            0 0 240px var(--table-glow),
+            inset 0 0 100px var(--table-glow);
+        border-color: var(--table-border);
+    }
+    50% {
+        box-shadow: 
+            0 0 50px rgba(0, 0, 0, 0.8),
+            inset 0 0 100px rgba(0, 0, 0, 0.5),
+            0 0 120px var(--table-glow),
+            0 0 240px var(--table-glow),
+            0 0 360px var(--table-glow),
+            inset 0 0 150px var(--table-glow);
+        border-color: var(--table-accent);
+    }
+}
+
+/* Centro de la Mesa */
+.table-center {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.prize-display {
+    text-align: center;
+    background: linear-gradient(135deg, var(--table-primary), var(--table-secondary));
+    border: 3px solid var(--table-accent);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 
+        0 0 40px var(--table-glow),
+        inset 0 0 30px rgba(255, 255, 255, 0.1);
+    animation: prizeGlow 2s ease-in-out infinite;
+}
+
+@keyframes prizeGlow {
+    0%, 100% { box-shadow: 0 0 40px var(--table-glow), inset 0 0 30px rgba(255, 255, 255, 0.1); }
+    50% { box-shadow: 0 0 60px var(--table-glow), inset 0 0 40px rgba(255, 255, 255, 0.2); }
+}
+
+.prize-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+.prize-amount {
+    font-size: 48px;
+    font-weight: bold;
+    color: var(--table-accent);
+    text-shadow: 0 0 20px var(--table-glow);
+    margin-bottom: 5px;
+}
+
+.prize-multiplier {
+    font-size: 24px;
+    color: var(--table-text);
+    font-weight: 600;
+}
+
+/* Asientos de Jugadores */
+.player-seat {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 5;
+    transition: all 0.3s ease;
+}
+
+.player-seat.active {
+    transform: scale(1.1);
+}
+
+.player-seat.eliminated {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+/* Jugador Arriba */
+.player-top {
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Jugador Izquierda */
+.player-left {
+    left: 50px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Jugador Derecha */
+.player-right {
+    right: 50px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Avatar del Jugador */
+.player-avatar {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 4px solid var(--table-accent);
+    background: linear-gradient(135deg, var(--table-primary), var(--table-secondary));
+    box-shadow: 0 0 20px var(--table-glow);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.player-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.player-status {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #2ecc71;
+    border: 2px solid white;
+    box-shadow: 0 0 10px #2ecc71;
+}
+
+.player-status.eliminated {
+    background: #e74c3c;
+    box-shadow: 0 0 10px #e74c3c;
+}
+
+/* Información del Jugador */
+.player-info {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--table-accent);
+    border-radius: 15px;
+    padding: 12px 20px;
+    text-align: center;
+    min-width: 150px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.player-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--table-text);
+    margin-bottom: 5px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.player-stack {
+    font-size: 18px;
+    color: var(--table-accent);
+    font-weight: 600;
+}
+
+/* Dados del Jugador */
+.player-dice {
+    background: rgba(0, 0, 0, 0.9);
+    border: 3px solid var(--table-accent);
+    border-radius: 15px;
+    padding: 15px 25px;
+    min-width: 100px;
+    text-align: center;
+    box-shadow: 0 0 20px var(--table-glow);
+}
+
+.dice-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--table-accent);
+    text-shadow: 0 0 10px var(--table-glow);
+}
+
+/* Controles del Juego */
+.game-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 2px solid var(--table-accent);
+}
+
+.round-info {
+    text-align: center;
+}
+
+.round-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+}
+
+.round-number {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--table-accent);
+}
+
+.roll-dice-btn {
+    background: linear-gradient(135deg, var(--table-primary), var(--table-secondary));
+    border: 3px solid var(--table-accent);
+    border-radius: 50px;
+    padding: 20px 40px;
+    color: var(--table-text);
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 0 30px var(--table-glow);
+    transition: all 0.3s ease;
+}
+
+.roll-dice-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 0 40px var(--table-glow);
+}
+
+.roll-dice-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.game-status {
+    color: var(--table-text);
+    font-size: 16px;
+    text-align: center;
+}
+
+/* Animación de Spin */
+.spin-animation {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+}
+
+.spinning-wheel {
+    font-size: 120px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .table-surface {
+        width: 400px;
+        height: 400px;
+    }
+    
+    .player-avatar {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .prize-amount {
+        font-size: 32px;
+    }
+}
+

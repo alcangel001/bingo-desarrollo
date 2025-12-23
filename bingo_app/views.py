@@ -41,7 +41,8 @@ from .forms import (
 )
 from .models import (
     User, Game, Player, ChatMessage, Raffle, Ticket,
-    Transaction, Message, CreditRequest, PercentageSettings, UserBlockHistory, WithdrawalRequest, BankAccount, CreditRequestNotification, WithdrawalRequestNotification, PrintableCard, Announcement, VideoCallGroup, BingoTicket, DailyBingoSchedule, BingoTicketSettings, AccountsReceivable, AccountsReceivablePayment, PackageTemplate, Franchise, FranchiseManual
+    Transaction, Message, CreditRequest, PercentageSettings, UserBlockHistory, WithdrawalRequest, BankAccount, CreditRequestNotification, WithdrawalRequestNotification, PrintableCard, Announcement, VideoCallGroup, BingoTicket, DailyBingoSchedule, BingoTicketSettings, AccountsReceivable, AccountsReceivablePayment, PackageTemplate, Franchise, FranchiseManual,
+    DiceModuleSettings, DiceGame, DicePlayer, DiceRound, DiceMatchmakingQueue
 )
 from .serializers import VideoCallGroupSerializer
 from .smart_assistant import smart_assistant
@@ -5899,3 +5900,263 @@ def franchise_owner_toggle_bank_account(request, account_id):
     messages.success(request, f'Cuenta bancaria "{bank_account.title}" {status} exitosamente')
     
     return redirect('franchise_owner_bank_accounts')
+
+
+# MÓDULO DE DADOS PREMIUM - VISTAS
+# ============================================================================
+
+from .decorators import dice_module_required, super_admin_required
+from .utils.dice_module import is_dice_module_enabled, can_user_access_dice_module
+from datetime import timedelta
+
+
+@login_required
+@dice_module_required
+def dice_lobby(request):
+    """
+    Lobby principal del módulo de dados.
+    Muestra partidas disponibles y permite crear/unirse a partidas.
+    """
+    settings = DiceModuleSettings.get_settings()
+    
+    # Partidas esperando jugadores
+    waiting_games = DiceGame.objects.filter(
+        status='WAITING'
+    ).annotate(
+        player_count=Count('dice_players')
+    ).filter(
+        player_count__lt=3
+    ).order_by('-created_at')[:10]
+    
+    # Verificar si el usuario está en cola
+    user_queue_entry = None
+    try:
+        user_queue_entry = DiceMatchmakingQueue.objects.get(
+            user=request.user,
+            status='WAITING'
+        )
+    except DiceMatchmakingQueue.DoesNotExist:
+        pass
+    
+    context = {
+        'settings': settings,
+        'waiting_games': waiting_games,
+        'entry_price': settings.base_entry_price,
+        'min_price': Decimal('0.10'),
+        'max_price': settings.max_entry_price,
+        'user_in_queue': user_queue_entry is not None,
+    }
+    
+    return render(request, 'bingo_app/dice_lobby.html', context)
+
+
+@login_required
+@dice_module_required
+@require_POST
+def join_dice_queue(request):
+    """
+    Agrega al usuario a la cola de matchmaking.
+    """
+    try:
+        entry_price = Decimal(request.POST.get('entry_price', '0.10'))
+        
+        # Validar precio mínimo
+        if entry_price < Decimal('0.10'):
+            return JsonResponse({
+                'success': False,
+                'error': 'El precio mínimo es $0.10 (10 centavos)'
+            }, status=400)
+        
+        # Validar saldo
+        if request.user.credit_balance < entry_price:
+            return JsonResponse({
+                'success': False,
+                'error': 'Saldo insuficiente'
+            }, status=400)
+        
+        # Verificar si ya está en cola
+        existing_queue = DiceMatchmakingQueue.objects.filter(
+            user=request.user,
+            status='WAITING'
+        ).first()
+        
+        if existing_queue:
+            return JsonResponse({
+                'success': False,
+                'error': 'Ya estás en la cola de espera'
+            }, status=400)
+        
+        # Crear entrada en cola
+        queue_entry = DiceMatchmakingQueue.objects.create(
+            user=request.user,
+            entry_price=entry_price,
+            status='WAITING'
+        )
+        
+        # Procesar matchmaking (intentar encontrar partida)
+        from .tasks import process_matchmaking_queue
+        result = process_matchmaking_queue()
+        
+        if result:
+            # Partida encontrada
+            return JsonResponse({
+                'success': True,
+                'status': 'matched',
+                'room_code': result.room_code,
+                'message': '¡Partida encontrada!'
+            })
+        else:
+            # Esperando más jugadores
+            return JsonResponse({
+                'success': True,
+                'status': 'waiting',
+                'message': 'Buscando oponentes...'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required
+@dice_module_required
+@require_POST
+def leave_dice_queue(request):
+    """
+    Remueve al usuario de la cola de matchmaking.
+    """
+    try:
+        queue_entry = DiceMatchmakingQueue.objects.filter(
+            user=request.user,
+            status='WAITING'
+        ).first()
+        
+        if queue_entry:
+            queue_entry.status = 'TIMEOUT'
+            queue_entry.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Has salido de la cola'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required
+@dice_module_required
+def dice_queue_status(request):
+    """
+    Verifica el estado de la cola del usuario.
+    """
+    try:
+        queue_entry = DiceMatchmakingQueue.objects.filter(
+            user=request.user,
+            status='WAITING'
+        ).first()
+        
+        if not queue_entry:
+            return JsonResponse({
+                'status': 'not_in_queue'
+            })
+        
+        # Verificar si fue emparejado
+        if queue_entry.status == 'MATCHED':
+            # Buscar la partida
+            dice_game = DiceGame.objects.filter(
+                dice_players__user=request.user,
+                status__in=['SPINNING', 'PLAYING']
+            ).order_by('-created_at').first()
+            
+            if dice_game:
+                return JsonResponse({
+                    'status': 'matched',
+                    'room_code': dice_game.room_code
+                })
+        
+        return JsonResponse({
+            'status': 'waiting',
+            'entry_price': float(queue_entry.entry_price)
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        }, status=400)
+
+
+@login_required
+@dice_module_required
+def dice_game_room(request, room_code):
+    """
+    Sala de juego de dados.
+    """
+    try:
+        dice_game = DiceGame.objects.get(room_code=room_code)
+        
+        # Verificar que el usuario es parte de la partida
+        player = DicePlayer.objects.filter(
+            game=dice_game,
+            user=request.user
+        ).first()
+        
+        if not player:
+            messages.error(request, 'No eres parte de esta partida')
+            return redirect('dice_lobby')
+        
+        # Obtener todos los jugadores
+        players = dice_game.dice_players.all()
+        
+        context = {
+            'dice_game': dice_game,
+            'player': player,
+            'players': players,
+            'room_code': room_code,
+        }
+        
+        return render(request, 'bingo_app/dice_game_room.html', context)
+        
+    except DiceGame.DoesNotExist:
+        messages.error(request, 'Partida no encontrada')
+        return redirect('dice_lobby')
+
+
+@login_required
+@super_admin_required
+def admin_dice_module_settings(request):
+    """
+    Panel de administración del módulo de dados.
+    Solo accesible por super administradores.
+    """
+    settings = DiceModuleSettings.get_settings()
+    
+    if request.method == 'POST':
+        settings.is_module_enabled = request.POST.get('is_module_enabled') == 'on'
+        settings.base_entry_price = Decimal(request.POST.get('base_entry_price', '0.10'))
+        settings.platform_commission_percentage = Decimal(request.POST.get('platform_commission_percentage', '5.00'))
+        settings.show_in_lobby = request.POST.get('show_in_lobby') == 'on'
+        settings.power_ups_enabled = request.POST.get('power_ups_enabled') == 'on'
+        settings.allow_custom_entry_price = request.POST.get('allow_custom_entry_price') == 'on'
+        
+        max_price = request.POST.get('max_entry_price', '').strip()
+        if max_price:
+            settings.max_entry_price = Decimal(max_price)
+        else:
+            settings.max_entry_price = None
+        
+        settings.updated_by = request.user
+        settings.save()
+        
+        messages.success(request, "Configuración del módulo de dados actualizada")
+        return redirect('admin_dice_module_settings')
+    
+    context = {
+        'settings': settings,
+    }
+    
+    return render(request, 'bingo_app/admin_dice_module_settings.html', context)

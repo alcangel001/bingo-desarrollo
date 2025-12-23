@@ -6,7 +6,7 @@ from django.contrib.auth.models import AnonymousUser
 import asyncio
 from datetime import datetime
 from collections import defaultdict
-from .models import Game, Player, ChatMessage, Transaction, Message, User
+from .models import Game, Player, ChatMessage, Transaction, Message, User, DiceGame, DicePlayer
 from django.db.models import Sum
 
 # Manager global para auto-calling persistente
@@ -882,3 +882,163 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'message': event['message'],
             'sound_type': 'withdrawal_request'
         }))
+
+
+class DiceGameConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket para partidas de dados en tiempo real.
+    Maneja: lanzamientos, resultados, eliminaciones, final.
+    """
+    
+    async def connect(self):
+        self.room_code = self.scope['url_route']['kwargs']['room_code']
+        self.room_group_name = f'dice_game_{self.room_code}'
+        
+        # Unirse al grupo
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        
+        await self.accept()
+        
+        # Enviar estado actual del juego
+        await self.send_game_state()
+    
+    async def disconnect(self, close_code):
+        # Salir del grupo
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
+    
+    async def receive(self, text_data):
+        """
+        Recibe mensajes del cliente.
+        """
+        data = json.loads(text_data)
+        message_type = data.get('type')
+        
+        if message_type == 'roll_dice':
+            # Jugador quiere lanzar dados
+            await self.handle_roll_dice(data)
+        elif message_type == 'ready':
+            # Jugador está listo para la siguiente ronda
+            await self.handle_player_ready(data)
+    
+    async def handle_roll_dice(self, data):
+        """
+        Maneja el lanzamiento de dados de un jugador.
+        """
+        import random
+        
+        # Obtener juego
+        dice_game = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
+        
+        # Obtener jugador
+        player = await database_sync_to_async(DicePlayer.objects.get)(
+            game=dice_game,
+            user=self.scope['user']
+        )
+        
+        # Lanzar dados (esto se hace en el servidor para evitar trampas)
+        die1 = random.randint(1, 6)
+        die2 = random.randint(1, 6)
+        total = die1 + die2
+        
+        # Notificar a todos los jugadores
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'dice_rolled',
+                'user_id': self.scope['user'].id,
+                'username': self.scope['user'].username,
+                'die1': die1,
+                'die2': die2,
+                'total': total,
+            }
+        )
+    
+    async def dice_rolled(self, event):
+        """
+        Envía resultado de lanzamiento a todos los jugadores.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'dice_rolled',
+            'user_id': event['user_id'],
+            'username': event['username'],
+            'die1': event['die1'],
+            'die2': event['die2'],
+            'total': event['total'],
+        }))
+    
+    async def prize_spun(self, event):
+        """
+        Notifica que el premio fue determinado.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'prize_spun',
+            'multiplier': event['multiplier'],
+            'final_prize': str(event['final_prize']),
+        }))
+    
+    async def round_result(self, event):
+        """
+        Notifica resultado de una ronda.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'round_result',
+            'round_number': event['round_number'],
+            'results': event['results'],
+            'eliminated': event.get('eliminated'),
+        }))
+    
+    async def game_finished(self, event):
+        """
+        Notifica que el juego terminó.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'game_finished',
+            'winner': event['winner'],
+            'prize': str(event['prize']),
+            'multiplier': event['multiplier'],
+        }))
+    
+    @database_sync_to_async
+    def send_game_state(self):
+        """
+        Envía el estado actual del juego al conectarse.
+        """
+        try:
+            dice_game = DiceGame.objects.get(room_code=self.room_code)
+            
+            players_data = []
+            for p in dice_game.dice_players.all():
+                players_data.append({
+                    'user_id': p.user.id,
+                    'username': p.user.username,
+                    'avatar_url': p.user.get_avatar_url() if hasattr(p.user, 'get_avatar_url') else '',
+                    'lives': p.lives,
+                    'is_eliminated': p.is_eliminated,
+                })
+            
+            state = {
+                'type': 'game_state',
+                'status': dice_game.status,
+                'multiplier': dice_game.multiplier,
+                'final_prize': str(dice_game.final_prize),
+                'players': players_data,
+            }
+            return self.send(text_data=json.dumps(state))
+        except DiceGame.DoesNotExist:
+            return self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Partida no encontrada'
+            }))
+    
+    async def handle_player_ready(self, data):
+        """
+        Maneja cuando un jugador está listo.
+        """
+        # Implementar lógica de "ready" si es necesaria
+        pass

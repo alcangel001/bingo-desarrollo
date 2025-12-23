@@ -1,0 +1,297 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Dice Battle - Lobby{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dice_table.css' %}">
+<style>
+    .dice-lobby-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    
+    .price-selector {
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .price-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 20px 0;
+    }
+    
+    .price-btn {
+        padding: 15px 25px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+        color: white;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    
+    .price-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.05);
+    }
+    
+    .price-btn.active {
+        background: linear-gradient(135deg, #4a90e2, #357abd);
+        border-color: #4a90e2;
+    }
+    
+    .custom-price {
+        margin-top: 20px;
+    }
+    
+    .price-input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 10px 0;
+    }
+    
+    .price-input-group input {
+        flex: 1;
+        padding: 12px;
+        border-radius: 8px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        font-size: 18px;
+    }
+    
+    .prize-preview {
+        background: rgba(74, 144, 226, 0.2);
+        border: 2px solid #4a90e2;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        text-align: center;
+    }
+    
+    .preview-amount {
+        font-size: 32px;
+        font-weight: bold;
+        color: #4a90e2;
+        margin: 10px 0;
+    }
+    
+    .btn-search {
+        width: 100%;
+        padding: 20px;
+        background: linear-gradient(135deg, #4a90e2, #357abd);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+    
+    .btn-search:hover:not(:disabled) {
+        transform: scale(1.02);
+        box-shadow: 0 0 30px rgba(74, 144, 226, 0.5);
+    }
+    
+    .btn-search:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dice-lobby-container">
+    <h1 class="text-white mb-4">🎲 Dice Battle</h1>
+    
+    <!-- Selector de Precio -->
+    <div class="price-selector">
+        <label class="text-white" style="font-size: 18px; font-weight: bold;">
+            💰 Selecciona el precio de entrada:
+        </label>
+        <div class="price-options">
+            <button class="price-btn" data-price="0.10">$0.10</button>
+            <button class="price-btn" data-price="0.25">$0.25</button>
+            <button class="price-btn" data-price="0.50">$0.50</button>
+            <button class="price-btn" data-price="1.00">$1.00</button>
+            <button class="price-btn" data-price="5.00">$5.00</button>
+            <button class="price-btn" data-price="10.00">$10.00</button>
+        </div>
+        
+        <!-- Precio personalizado -->
+        <div class="custom-price">
+            <label class="text-white">O ingresa un precio personalizado:</label>
+            <div class="price-input-group">
+                <span class="text-white" style="font-size: 20px;">$</span>
+                <input 
+                    type="number" 
+                    id="custom-price" 
+                    step="0.01" 
+                    min="0.10" 
+                    placeholder="0.10"
+                >
+            </div>
+            <small class="text-white-50">Mínimo: $0.10</small>
+        </div>
+        
+        <!-- Calculadora de premio -->
+        <div class="prize-preview">
+            <div class="text-white" style="font-size: 14px; opacity: 0.8;">Premio Base (3 jugadores):</div>
+            <div class="preview-amount" id="preview-prize">$0.30</div>
+            <div class="text-white" style="font-size: 12px; opacity: 0.7;">
+                Con 2x: $<span id="preview-2x">0.60</span> | 
+                100x: $<span id="preview-100x">30.00</span> | 
+                1000x: $<span id="preview-1000x">300.00</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botón de Buscar Partida -->
+    <button id="search-game-btn" class="btn-search" disabled>
+        🎲 Buscar Partida
+    </button>
+    
+    <!-- Estado de búsqueda -->
+    <div id="search-status" class="text-white text-center mt-4" style="display: none;">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Buscando...</span>
+        </div>
+        <p class="mt-2">Buscando oponentes...</p>
+        <button id="cancel-search-btn" class="btn btn-danger mt-2">Cancelar búsqueda</button>
+    </div>
+</div>
+
+<script src="{% static 'js/dice_matchmaking.js' %}"></script>
+<script>
+let selectedPrice = 0.10;
+
+// Seleccionar precio de botones
+document.querySelectorAll('.price-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.price-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        selectedPrice = parseFloat(this.dataset.price);
+        updatePreview();
+        document.getElementById('search-game-btn').disabled = false;
+    });
+});
+
+// Precio personalizado
+document.getElementById('custom-price').addEventListener('input', function(e) {
+    const price = parseFloat(e.target.value) || 0.10;
+    if (price >= 0.10) {
+        selectedPrice = price;
+        updatePreview();
+        document.getElementById('search-game-btn').disabled = false;
+        // Desactivar botones
+        document.querySelectorAll('.price-btn').forEach(b => b.classList.remove('active'));
+    } else {
+        document.getElementById('search-game-btn').disabled = true;
+    }
+});
+
+function updatePreview() {
+    const basePrize = selectedPrice * 3;
+    document.getElementById('preview-prize').textContent = `$${basePrize.toFixed(2)}`;
+    document.getElementById('preview-2x').textContent = (basePrize * 2).toFixed(2);
+    document.getElementById('preview-100x').textContent = (basePrize * 100).toFixed(2);
+    document.getElementById('preview-1000x').textContent = (basePrize * 1000).toFixed(2);
+}
+
+// Buscar partida
+document.getElementById('search-game-btn').addEventListener('click', function() {
+    startMatchmaking(selectedPrice);
+});
+
+function startMatchmaking(entryPrice) {
+    document.getElementById('search-game-btn').disabled = true;
+    document.getElementById('search-status').style.display = 'block';
+    
+    fetch('{% url "join_dice_queue" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: `entry_price=${entryPrice}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'matched') {
+            window.location.href = `/dice/game/${data.room_code}/`;
+        } else if (data.status === 'waiting') {
+            // Seguir esperando - verificar cada 2 segundos
+            checkMatchmakingStatus();
+        } else {
+            alert(data.error || 'Error al buscar partida');
+            document.getElementById('search-status').style.display = 'none';
+            document.getElementById('search-game-btn').disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('search-status').style.display = 'none';
+        document.getElementById('search-game-btn').disabled = false;
+    });
+}
+
+function checkMatchmakingStatus() {
+    fetch('{% url "dice_queue_status" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'matched') {
+                window.location.href = `/dice/game/${data.room_code}/`;
+            } else if (data.status === 'waiting') {
+                setTimeout(checkMatchmakingStatus, 2000);
+            } else {
+                document.getElementById('search-status').style.display = 'none';
+                document.getElementById('search-game-btn').disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            setTimeout(checkMatchmakingStatus, 2000);
+        });
+}
+
+// Cancelar búsqueda
+document.getElementById('cancel-search-btn').addEventListener('click', function() {
+    fetch('{% url "leave_dice_queue" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(() => {
+        document.getElementById('search-status').style.display = 'none';
+        document.getElementById('search-game-btn').disabled = false;
+    });
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
+

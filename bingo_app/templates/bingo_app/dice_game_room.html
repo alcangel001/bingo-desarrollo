@@ -1,0 +1,132 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Dice Battle - Partida {{ room_code }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dice_table.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Barra Superior -->
+<header class="game-header">
+    <div class="header-left">
+        <button class="menu-btn" onclick="window.location.href='{% url 'lobby' %}'">☰</button>
+        <button class="friends-btn">👥</button>
+        <button class="settings-btn">⚙️</button>
+    </div>
+    <div class="header-right">
+        <div class="balance-display">
+            <span class="coin-icon">💰</span>
+            <span id="user-balance">${{ user.credit_balance }}</span>
+        </div>
+    </div>
+</header>
+
+<!-- Mesa de Juego -->
+<div class="game-table-container" id="table-container">
+    
+    <!-- Jugador 1 (Arriba) -->
+    <div class="player-seat player-top" id="player-1">
+        <div class="player-avatar">
+            <img src="{% static 'avatars/default/male.png' %}" alt="Avatar" id="avatar-1">
+            <div class="player-status" id="status-1">●</div>
+        </div>
+        <div class="player-info">
+            <div class="player-name" id="name-1">Esperando...</div>
+            <div class="player-stack" id="stack-1">$0</div>
+        </div>
+        <div class="player-dice" id="dice-1">
+            <div class="dice-value">-</div>
+        </div>
+    </div>
+
+    <!-- Jugador 2 (Izquierda) -->
+    <div class="player-seat player-left" id="player-2">
+        <div class="player-avatar">
+            <img src="{% static 'avatars/default/male.png' %}" alt="Avatar" id="avatar-2">
+            <div class="player-status" id="status-2">●</div>
+        </div>
+        <div class="player-info">
+            <div class="player-name" id="name-2">Esperando...</div>
+            <div class="player-stack" id="stack-2">$0</div>
+        </div>
+        <div class="player-dice" id="dice-2">
+            <div class="dice-value">-</div>
+        </div>
+    </div>
+
+    <!-- Jugador 3 (Derecha) -->
+    <div class="player-seat player-right" id="player-3">
+        <div class="player-avatar">
+            <img src="{% static 'avatars/default/male.png' %}" alt="Avatar" id="avatar-3">
+            <div class="player-status" id="status-3">●</div>
+        </div>
+        <div class="player-info">
+            <div class="player-name" id="name-3">Esperando...</div>
+            <div class="player-stack" id="stack-3">$0</div>
+        </div>
+        <div class="player-dice" id="dice-3">
+            <div class="dice-value">-</div>
+        </div>
+    </div>
+
+    <!-- Centro de la Mesa - Premio -->
+    <div class="table-center" id="table-center">
+        <div class="prize-display" id="prize-display">
+            <div class="prize-label">PREMIO</div>
+            <div class="prize-amount" id="prize-amount">${{ dice_game.final_prize|default:"0.00" }}</div>
+            <div class="prize-multiplier" id="prize-multiplier">{{ dice_game.multiplier|default:"1x" }}</div>
+        </div>
+        
+        <!-- Animación de Spin -->
+        <div class="spin-animation" id="spin-animation" style="display: none;">
+            <div class="spinning-wheel">🎰</div>
+        </div>
+    </div>
+
+    <!-- Mesa Circular (Fondo) -->
+    <div class="table-surface" id="table-surface"></div>
+</div>
+
+<!-- Panel de Control Inferior -->
+<div class="game-controls">
+    <div class="round-info">
+        <div class="round-label">Ronda</div>
+        <div class="round-number" id="round-number">1</div>
+    </div>
+    
+    <button class="roll-dice-btn" id="roll-dice-btn" disabled>
+        <span class="dice-icon">🎲</span>
+        <span class="btn-text">LANZAR DADOS</span>
+    </button>
+    
+    <div class="game-status" id="game-status">
+        {% if dice_game.status == 'WAITING' %}
+            Esperando jugadores...
+        {% elif dice_game.status == 'SPINNING' %}
+            Determinando premio...
+        {% elif dice_game.status == 'PLAYING' %}
+            En juego...
+        {% else %}
+            Partida terminada
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    const ROOM_CODE = '{{ room_code }}';
+    const USER_ID = {{ user.id }};
+    const CURRENT_MULTIPLIER = '{{ dice_game.multiplier|default:"2x" }}';
+</script>
+<script src="{% static 'js/dice_table_colors.js' %}"></script>
+<script src="{% static 'js/dice_websocket.js' %}"></script>
+<script src="{% static 'js/dice_game.js' %}"></script>
+<script>
+    // Aplicar colores según el multiplicador
+    if (CURRENT_MULTIPLIER) {
+        applyPrizeColors(CURRENT_MULTIPLIER);
+    }
+</script>
+{% endblock %}
+

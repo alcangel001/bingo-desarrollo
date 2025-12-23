@@ -8,7 +8,8 @@ from .models import (
     User, Game, Player, ChatMessage, PercentageSettings, Raffle,
     FlashMessage, Message, CreditRequest, WithdrawalRequest, Transaction,
     BankAccount, PrintableCard, Announcement, BingoTicket, DailyBingoSchedule, BingoTicketSettings,
-    AccountsReceivable, AccountsReceivablePayment, PackageTemplate, Franchise, FranchiseManual
+    AccountsReceivable, AccountsReceivablePayment, PackageTemplate, Franchise, FranchiseManual,
+    DiceModuleSettings, DiceGame, DicePlayer, DiceRound, DiceMatchmakingQueue
 )
 
 # --- Admin para el Modelo de Usuario ---
@@ -365,3 +366,50 @@ class FranchiseManualAdmin(admin.ModelAdmin):
         ('Metadata', {'fields': ('updated_by', 'created_at', 'updated_at')}),
     )
     raw_id_fields = ('franchise', 'updated_by')
+
+
+@admin.register(DiceModuleSettings)
+class DiceModuleSettingsAdmin(admin.ModelAdmin):
+    list_display = ('is_module_enabled', 'base_entry_price', 'platform_commission_percentage', 'show_in_lobby', 'last_updated')
+    readonly_fields = ('last_updated', 'updated_by')
+    
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    def has_add_permission(self, request):
+        # Solo permitir un objeto de configuración
+        return not DiceModuleSettings.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        return False  # No permitir eliminar la configuración
+
+
+@admin.register(DiceGame)
+class DiceGameAdmin(admin.ModelAdmin):
+    list_display = ('room_code', 'status', 'entry_price', 'multiplier', 'final_prize', 'winner', 'created_at')
+    list_filter = ('status', 'multiplier', 'created_at')
+    search_fields = ('room_code', 'winner__username')
+    readonly_fields = ('room_code', 'created_at', 'started_at', 'finished_at')
+
+
+@admin.register(DicePlayer)
+class DicePlayerAdmin(admin.ModelAdmin):
+    list_display = ('user', 'game', 'lives', 'total_score', 'is_eliminated', 'joined_at')
+    list_filter = ('is_eliminated', 'game__status')
+    search_fields = ('user__username', 'game__room_code')
+
+
+@admin.register(DiceRound)
+class DiceRoundAdmin(admin.ModelAdmin):
+    list_display = ('game', 'round_number', 'eliminated_player', 'created_at')
+    list_filter = ('round_number', 'created_at')
+    search_fields = ('game__room_code', 'eliminated_player__username')
+
+
+@admin.register(DiceMatchmakingQueue)
+class DiceMatchmakingQueueAdmin(admin.ModelAdmin):
+    list_display = ('user', 'entry_price', 'status', 'joined_at', 'matched_at')
+    list_filter = ('status', 'entry_price', 'joined_at')
+    search_fields = ('user__username',)
+    readonly_fields = ('joined_at', 'matched_at')

@@ -2474,3 +2474,507 @@ class FranchiseManual(models.Model):
     
     def __str__(self):
         return f"Manual - {self.franchise.name}"
+
+
+class DiceModuleSettings(models.Model):
+    """
+    ConfiguraciÃ³n global del mÃ³dulo de dados.
+    Solo puede ser modificada por super administradores.
+    """
+    # Control de activaciÃ³n
+    is_module_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Activar MÃ³dulo de Dados",
+        help_text="Solo super administradores pueden activar este mÃ³dulo. Si estÃ¡ desactivado, el mÃ³dulo NO aparece en ninguna parte del sistema."
+    )
+    
+    # ConfiguraciÃ³n de premios
+    base_entry_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.10'),
+        validators=[MinValueValidator(Decimal('0.10'))],
+        verbose_name="Precio de Entrada Base (MÃ­nimo)",
+        help_text="Precio mÃ­nimo de entrada. Los organizadores pueden establecer precios mayores. MÃ­nimo: $0.10"
+    )
+    
+    # Permitir precio personalizado por partida
+    allow_custom_entry_price = models.BooleanField(
+        default=True,
+        verbose_name="Permitir Precio Personalizado",
+        help_text="Si estÃ¡ activo, los organizadores pueden establecer el precio de entrada manualmente para cada partida"
+    )
+    
+    # Precio mÃ¡ximo (opcional)
+    max_entry_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.10'))],
+        verbose_name="Precio MÃ¡ximo (Opcional)",
+        help_text="Precio mÃ¡ximo permitido. Si estÃ¡ vacÃ­o, no hay lÃ­mite mÃ¡ximo."
+    )
+    
+    # Multiplicadores y probabilidades
+    multiplier_probabilities = models.JSONField(
+        default=dict,
+        help_text="Probabilidades de cada multiplicador. Ej: {'2x': 0.60, '3x': 0.25, '100x': 0.002}"
+    )
+    
+    # ConfiguraciÃ³n de partidas
+    max_players_per_game = models.PositiveIntegerField(
+        default=3,
+        validators=[MinValueValidator(3), MaxValueValidator(3)],
+        verbose_name="Jugadores por Partida",
+        help_text="Siempre debe ser 3"
+    )
+    
+    # Sistema de Power-Ups (opcional)
+    power_ups_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Activar Power-Ups",
+        help_text="Permitir compra de power-ups antes de la partida"
+    )
+    
+    # ComisiÃ³n de la plataforma
+    platform_commission_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('5.00'),
+        validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('50.00'))],
+        verbose_name="ComisiÃ³n de Plataforma (%)",
+        help_text="Porcentaje que se cobra del premio total"
+    )
+    
+    # Control de visibilidad
+    show_in_lobby = models.BooleanField(
+        default=True,
+        verbose_name="Mostrar en Lobby",
+        help_text="Si estÃ¡ activo, muestra el botÃ³n en el lobby principal"
+    )
+    
+    last_updated = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dice_module_updates',
+        help_text="Ãšltimo super admin que modificÃ³ esta configuraciÃ³n"
+    )
+    
+    class Meta:
+        verbose_name = "ConfiguraciÃ³n MÃ³dulo de Dados"
+        verbose_name_plural = "ConfiguraciÃ³n MÃ³dulo de Dados"
+    
+    @classmethod
+    def get_settings(cls):
+        """Obtiene o crea la configuraciÃ³n (singleton)"""
+        settings, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                'is_module_enabled': False,
+                'multiplier_probabilities': {
+                    '2x': 0.60,
+                    '3x': 0.25,
+                    '5x': 0.10,
+                    '10x': 0.03,
+                    '25x': 0.01,
+                    '100x': 0.005,
+                    '500x': 0.003,
+                    '1000x': 0.002
+                }
+            }
+        )
+        return settings
+    
+    def __str__(self):
+        status = "ACTIVO" if self.is_module_enabled else "INACTIVO"
+        return f"MÃ³dulo de Dados - {status}"
+
+
+class FranchisePremiumModule(models.Model):
+    """
+    RelaciÃ³n entre franquicia y mÃ³dulos premium activos.
+    Permite que cada franquicia pague por mÃ³dulos especÃ­ficos.
+    """
+    # franchise = models.ForeignKey(
+    #     'Franchise',  # String, no importaciÃ³n directa - protege si no existe
+    #     on_delete=models.CASCADE,
+    #     related_name='premium_modules',
+    #     null=True,
+    #     blank=True,
+    #     help_text="Franquicia (opcional). Si es NULL, es para usuarios sin franquicia."
+    # )
+    
+    module_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('DICE_BATTLE', 'Dice Battle (Dados entre 3)'),
+        ],
+        default='DICE_BATTLE',
+        verbose_name="Tipo de MÃ³dulo"
+    )
+    
+    is_active = models.BooleanField(
+        default=False,
+        verbose_name="MÃ³dulo Activo para esta Franquicia",
+        help_text="Si estÃ¡ activo, los usuarios de esta franquicia pueden ver y usar este mÃ³dulo"
+    )
+    
+    purchased_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Compra",
+        help_text="CuÃ¡ndo se comprÃ³ este mÃ³dulo"
+    )
+    
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de ExpiraciÃ³n",
+        help_text="Si tiene fecha de expiraciÃ³n, el mÃ³dulo se desactiva automÃ¡ticamente"
+    )
+    
+    purchase_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Precio de Compra",
+        help_text="Precio que pagÃ³ la franquicia por este mÃ³dulo"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "MÃ³dulo Premium de Franquicia"
+        verbose_name_plural = "MÃ³dulos Premium de Franquicias"
+    
+    def clean(self):
+        """ValidaciÃ³n personalizada en lugar de unique_together para evitar errores"""
+        from django.core.exceptions import ValidationError
+        
+        if self.franchise:
+            # Solo validar unicidad si franchise existe
+            existing = FranchisePremiumModule.objects.filter(
+                franchise=self.franchise,
+                module_type=self.module_type
+            ).exclude(pk=self.pk if self.pk else None)
+            
+            if existing.exists():
+                raise ValidationError(
+                    f"Ya existe un mÃ³dulo {self.get_module_type_display()} para esta franquicia"
+                )
+    
+    def __str__(self):
+        franchise_name = self.franchise.name if self.franchise else "Sin Franquicia"
+        status = "ACTIVO" if self.is_active else "INACTIVO"
+        return f"{franchise_name} - {self.get_module_type_display()} - {status}"
+    
+    @property
+    def is_currently_active(self):
+        """Verifica si el mÃ³dulo estÃ¡ activo y no ha expirado"""
+        if not self.is_active:
+            return False
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+        return True
+
+
+class DiceGame(models.Model):
+    """
+    Partida de dados entre 3 jugadores.
+    Similar a Game pero completamente independiente.
+    """
+    STATUS_CHOICES = [
+        ('WAITING', 'Esperando jugadores'),
+        ('SPINNING', 'Determinando premio'),
+        ('PLAYING', 'En juego'),
+        ('FINISHED', 'Terminada'),
+    ]
+    
+    # IdentificaciÃ³n
+    room_code = models.CharField(
+        max_length=10,
+        unique=True,
+        db_index=True,
+        help_text="CÃ³digo Ãºnico de la sala"
+    )
+    
+    # Estado
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='WAITING',
+        db_index=True
+    )
+    
+    # Precio de entrada para ESTA partida especÃ­fica
+    entry_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.10'),
+        validators=[MinValueValidator(Decimal('0.10'))],
+        verbose_name="Precio de Entrada",
+        help_text="Precio que pagan los 3 jugadores para entrar a esta partida. MÃ­nimo: $0.10"
+    )
+    
+    # Premio
+    base_prize = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Premio Base (sin multiplicador)"
+    )
+    
+    multiplier = models.CharField(
+        max_length=10,
+        default='1x',
+        help_text="Multiplicador aleatorio (2x, 3x, 100x, etc.)"
+    )
+    
+    final_prize = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Premio Final (con multiplicador)"
+    )
+    
+    # Jugadores
+    players = models.ManyToManyField(
+        User,
+        through='DicePlayer',
+        related_name='dice_games',
+        help_text="Jugadores en esta partida"
+    )
+    
+    # Ganador
+    winner = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='won_dice_games',
+        verbose_name="Ganador"
+    )
+    
+    # Franquicia (si aplica) - OPCIONAL
+    # franchise = models.ForeignKey(
+    #     'Franchise',  # String, no importaciÃ³n directa
+    #     on_delete=models.SET_NULL,
+    #     null=True,
+    #     blank=True,
+    #     related_name='dice_games',
+    #     help_text="Franquicia (opcional). Solo se usa si el sistema de franquicias estÃ¡ activo."
+    # )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Partida de Dados"
+        verbose_name_plural = "Partidas de Dados"
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Dice Game {self.room_code} - {self.get_status_display()}"
+    
+    def generate_room_code(self):
+        """Genera un cÃ³digo Ãºnico de sala"""
+        import random
+        import string
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        while DiceGame.objects.filter(room_code=code).exists():
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        return code
+    
+    def save(self, *args, **kwargs):
+        if not self.room_code:
+            self.room_code = self.generate_room_code()
+        super().save(*args, **kwargs)
+    
+    def clean(self):
+        """ValidaciÃ³n personalizada del precio."""
+        from django.core.exceptions import ValidationError
+        
+        # Verificar mÃ­nimo
+        if self.entry_price < Decimal('0.10'):
+            raise ValidationError({
+                'entry_price': 'El precio de entrada debe ser al menos $0.10 (10 centavos)'
+            })
+        
+        # Verificar mÃ¡ximo (si estÃ¡ configurado)
+        settings = DiceModuleSettings.get_settings()
+        if settings.max_entry_price and self.entry_price > settings.max_entry_price:
+            raise ValidationError({
+                'entry_price': f'El precio mÃ¡ximo permitido es ${settings.max_entry_price}'
+            })
+    
+    def calculate_base_prize(self):
+        """Calcula el premio base (3 jugadores Ã— precio de entrada)."""
+        return self.entry_price * Decimal('3')
+    
+    def spin_prize(self):
+        """
+        Determina el multiplicador aleatorio basado en probabilidades.
+        """
+        import random
+        settings = DiceModuleSettings.get_settings()
+        probabilities = settings.multiplier_probabilities
+        
+        # Generar nÃºmero aleatorio entre 0 y 1
+        rand = random.random()
+        cumulative = 0.0
+        
+        # Ordenar probabilidades de menor a mayor
+        sorted_probs = sorted(probabilities.items(), key=lambda x: float(x[1]))
+        
+        for multiplier, prob in sorted_probs:
+            cumulative += float(prob)
+            if rand <= cumulative:
+                self.multiplier = multiplier
+                break
+        
+        # Calcular premio final
+        multiplier_value = float(self.multiplier.replace('x', ''))
+        self.final_prize = self.base_prize * Decimal(str(multiplier_value))
+        
+        # Aplicar comisiÃ³n de plataforma
+        commission = self.final_prize * (settings.platform_commission_percentage / 100)
+        self.final_prize = self.final_prize - commission
+        
+        self.status = 'SPINNING'
+        self.save()
+        
+        return self.multiplier, self.final_prize
+
+
+class DicePlayer(models.Model):
+    """
+    Jugador en una partida de dados.
+    Similar a Player pero para dados.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='dice_player_instances'
+    )
+    
+    game = models.ForeignKey(
+        DiceGame,
+        on_delete=models.CASCADE,
+        related_name='dice_players'
+    )
+    
+    # Estado del jugador
+    is_eliminated = models.BooleanField(default=False)
+    lives = models.PositiveIntegerField(default=3, help_text="Vidas restantes")
+    total_score = models.PositiveIntegerField(default=0, help_text="Puntos acumulados")
+    
+    # Power-Ups usados
+    power_ups_used = models.JSONField(
+        default=list,
+        help_text="Lista de power-ups usados en esta partida"
+    )
+    
+    # Timestamps
+    joined_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('user', 'game')
+        verbose_name = "Jugador de Dados"
+        verbose_name_plural = "Jugadores de Dados"
+    
+    def __str__(self):
+        return f"{self.user.username} en {self.game.room_code}"
+
+
+class DiceRound(models.Model):
+    """
+    Ronda individual dentro de una partida de dados.
+    """
+    game = models.ForeignKey(
+        DiceGame,
+        on_delete=models.CASCADE,
+        related_name='rounds'
+    )
+    
+    round_number = models.PositiveIntegerField(
+        default=1,
+        verbose_name="NÃºmero de Ronda"
+    )
+    
+    # Resultados de cada jugador
+    player_results = models.JSONField(
+        default=dict,
+        help_text="Dict con user_id: [dado1, dado2, suma]"
+    )
+    
+    # Jugador eliminado en esta ronda (si aplica)
+    eliminated_player = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eliminated_in_rounds'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['round_number']
+        verbose_name = "Ronda de Dados"
+        verbose_name_plural = "Rondas de Dados"
+    
+    def __str__(self):
+        return f"Ronda {self.round_number} - {self.game.room_code}"
+
+
+class DiceMatchmakingQueue(models.Model):
+    """
+    Cola de jugadores esperando partida.
+    Sistema automÃ¡tico que agrupa de 3 en 3.
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='dice_queue_entry',
+        help_text="Un usuario solo puede estar en la cola una vez"
+    )
+    
+    # Precio que el jugador quiere pagar
+    entry_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.10'))],
+        verbose_name="Precio de Entrada Deseado",
+        help_text="Precio que el jugador estÃ¡ dispuesto a pagar. MÃ­nimo: $0.10"
+    )
+    
+    # Estado
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('WAITING', 'Esperando jugadores'),
+            ('MATCHED', 'Emparejado - Creando partida'),
+            ('TIMEOUT', 'Timeout - Cancelado'),
+        ],
+        default='WAITING'
+    )
+    
+    # Timestamps
+    joined_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    matched_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Cola de Matchmaking"
+        verbose_name_plural = "Colas de Matchmaking"
+        ordering = ['joined_at']  # FIFO (First In, First Out)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.get_status_display()}"

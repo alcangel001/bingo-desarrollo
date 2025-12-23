@@ -150,6 +150,14 @@ urlpatterns = [
     path('franchise/bank-accounts/<int:account_id>/toggle/', views.franchise_owner_toggle_bank_account, name='franchise_owner_toggle_bank_account'),
     # Landing de franquicia (DEBE estar al final para no capturar rutas específicas)
     path('franchise/<slug:franchise_slug>/', views.franchise_landing, name='franchise_landing'),
+    # Módulo de Dados Premium
+    path('dice/', views.dice_lobby, name='dice_lobby'),
+    path('dice/join-queue/', views.join_dice_queue, name='join_dice_queue'),
+    path('dice/leave-queue/', views.leave_dice_queue, name='leave_dice_queue'),
+    path('dice/queue-status/', views.dice_queue_status, name='dice_queue_status'),
+    path('dice/game/<str:room_code>/', views.dice_game_room, name='dice_game_room'),
+    # Admin (Solo Super Admin)
+    path('admin-panel/dice-settings/', views.admin_dice_module_settings, name='admin_dice_module_settings'),
 ]
 
 
