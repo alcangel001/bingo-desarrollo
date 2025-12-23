@@ -500,11 +500,14 @@ def lobby(request):
     # Verificar si el módulo de dados está habilitado y si el usuario puede acceder
     from .utils.dice_module import is_dice_module_enabled, can_user_access_dice_module
     dice_module_enabled = False
-    if request.user.is_authenticated:
-        dice_module_enabled_global = is_dice_module_enabled()
-        if dice_module_enabled_global:
+    dice_module_enabled_global = is_dice_module_enabled()
+    if dice_module_enabled_global:
+        if request.user.is_authenticated:
             can_access, _ = can_user_access_dice_module(request.user)
             dice_module_enabled = can_access
+        else:
+            # Usuario no autenticado - solo mostrar si está habilitado globalmente
+            dice_module_enabled = True
 
     context = {
         'games': active_games,

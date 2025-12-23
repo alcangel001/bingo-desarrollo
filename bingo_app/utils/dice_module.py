@@ -61,7 +61,8 @@ def can_user_access_dice_module(user):
     2. Si el usuario tiene franquicia:
        - La franquicia debe tener el módulo premium activo
     3. Si el usuario NO tiene franquicia:
-       - Debe existir un FranchisePremiumModule con franchise=None e is_active=True
+       - Si existe sistema de franquicias: debe existir un FranchisePremiumModule global activo
+       - Si NO existe sistema de franquicias: permitir acceso automáticamente
     """
     # Paso 1: Verificar activación global
     if not is_dice_module_enabled():
@@ -69,52 +70,62 @@ def can_user_access_dice_module(user):
     
     # Paso 2: Verificar franquicia de forma SEGURA
     try:
-        from bingo_app.models import FranchisePremiumModule
-        
         Franchise = _get_franchise_model()
         
-        if Franchise:
-            # Sistema de franquicias existe
+        # Si NO hay sistema de franquicias, permitir acceso automáticamente
+        if not Franchise:
+            return True, "Acceso permitido"
+        
+        # Sistema de franquicias existe - verificar módulo premium
+        try:
+            from bingo_app.models import FranchisePremiumModule
+            
             has_franchise, user_franchise = _user_has_franchise(user)
             
             if has_franchise and user_franchise:
-                # Usuario tiene franquicia - verificar módulo premium
-                try:
-                    premium_module = FranchisePremiumModule.objects.filter(
-                        franchise=user_franchise,
-                        module_type='DICE_BATTLE',
-                        is_active=True
-                    ).first()
-                    
-                    if not premium_module or not premium_module.is_currently_active:
-                        return False, "Tu franquicia no tiene acceso a este módulo premium"
-                    
+                # Usuario tiene franquicia - verificar módulo premium de la franquicia
+                premium_module = FranchisePremiumModule.objects.filter(
+                    franchise=user_franchise,
+                    module_type='DICE_BATTLE',
+                    is_active=True
+                ).first()
+                
+                if premium_module and premium_module.is_currently_active:
                     return True, "Acceso permitido"
-                except Exception as e:
-                    # Si hay error, NO bloquear - permitir acceso
-                    return True, "Acceso permitido (modo seguro)"
-            else:
-                # Usuario sin franquicia - verificar módulo global
-                try:
-                    premium_module = FranchisePremiumModule.objects.filter(
+                else:
+                    # Franquicia no tiene módulo premium, pero verificar si hay módulo global
+                    global_module = FranchisePremiumModule.objects.filter(
                         franchise__isnull=True,
                         module_type='DICE_BATTLE',
                         is_active=True
                     ).first()
                     
-                    if not premium_module or not premium_module.is_currently_active:
-                        return False, "Este módulo premium no está disponible para tu cuenta"
-                    
+                    if global_module and global_module.is_currently_active:
+                        return True, "Acceso permitido"
+                    else:
+                        return False, "Tu franquicia no tiene acceso a este módulo premium"
+            else:
+                # Usuario sin franquicia - verificar módulo global
+                global_module = FranchisePremiumModule.objects.filter(
+                    franchise__isnull=True,
+                    module_type='DICE_BATTLE',
+                    is_active=True
+                ).first()
+                
+                # Si existe módulo global activo, permitir acceso
+                if global_module and global_module.is_currently_active:
                     return True, "Acceso permitido"
-                except Exception as e:
-                    return True, "Acceso permitido (modo seguro)"
-        else:
-            # No hay sistema de franquicias - permitir acceso si módulo está activado
-            return True, "Acceso permitido"
+                else:
+                    # Si NO existe módulo global pero el módulo está activado globalmente,
+                    # permitir acceso (comportamiento por defecto si no hay franquicias configuradas)
+                    return True, "Acceso permitido"
+                    
+        except Exception as e:
+            # Si hay error al verificar módulos premium, permitir acceso por defecto
+            return True, "Acceso permitido (modo seguro)"
             
     except Exception as e:
-        # CUALQUIER error = NO bloquear el sistema de franquicias
-        # Permitir acceso para no interrumpir
+        # CUALQUIER error = NO bloquear - permitir acceso por defecto
         return True, "Acceso permitido (modo seguro por error)"
 
 
