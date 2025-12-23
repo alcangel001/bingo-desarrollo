@@ -296,11 +296,22 @@
                 <i class="fas fa-plus"></i>Crear Sala
             </a>
             {% endif %}
+            {% if dice_module_enabled %}
+            <a href="{% url 'dice_lobby' %}" class="join-button" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+                <i class="fas fa-dice"></i> Dice Battle
+            </a>
+            {% endif %}
         </div>
     </div>
 
     <div class="row">
         <div class="col-lg-8">
+            {% if dice_module_enabled %}
+            <div class="alert alert-info mb-4" style="background: rgba(155, 89, 182, 0.2); border-color: #9b59b6;">
+                <h5><i class="fas fa-dice me-2"></i>Nuevo: Dice Battle</h5>
+                <p class="mb-0">Partidas rápidas de dados entre 3 jugadores con premios aleatorios. <a href="{% url 'dice_lobby' %}" class="text-white"><strong>¡Jugar ahora!</strong></a></p>
+            </div>
+            {% endif %}
             <h2 class="text-white mb-4"><i class="fas fa-gamepad me-2"></i>Salas Disponibles</h2>
             
             <div class="row" id="games-list">
