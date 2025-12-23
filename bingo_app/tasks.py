@@ -101,19 +101,38 @@ def process_matchmaking_queue():
                 # Por ahora, usar threading con mejor manejo
                 from .models import DiceGame
                 import threading
+                import django
+                django.setup()  # Asegurar que Django esté configurado en el thread
+                
                 def change_to_playing():
                     import time
                     time.sleep(7)  # Esperar 7 segundos para que termine la animación
                     try:
+                        # Importar dentro del thread para evitar problemas
                         from django.db import transaction
+                        from .models import DiceGame as DG
+                        
+                        print(f"🔄 Intentando cambiar estado de {dice_game.room_code} a PLAYING...")
+                        
                         with transaction.atomic():
-                            game = DiceGame.objects.select_for_update().get(room_code=dice_game.room_code)
+                            game = DG.objects.select_for_update().get(room_code=dice_game.room_code)
+                            print(f"📊 Estado actual: {game.status}")
+                            
                             if game.status == 'SPINNING':
                                 game.status = 'PLAYING'
                                 game.save(update_fields=['status'])
-                                # Notificar cambio de estado vía WebSocket
-                                notify_game_status_change(game)
                                 print(f"✅ Cambiado estado de {game.room_code} a PLAYING")
+                                
+                                # Notificar cambio de estado vía WebSocket
+                                try:
+                                    notify_game_status_change(game)
+                                    print(f"📢 Notificación de cambio de estado enviada")
+                                except Exception as notify_error:
+                                    print(f"⚠️ Error al notificar cambio de estado: {notify_error}")
+                                    import traceback
+                                    traceback.print_exc()
+                            else:
+                                print(f"⚠️ El estado ya no es SPINNING, es {game.status}")
                     except DiceGame.DoesNotExist:
                         print(f"⚠️ Partida {dice_game.room_code} no encontrada al cambiar estado")
                     except Exception as e:
@@ -124,6 +143,7 @@ def process_matchmaking_queue():
                 # Ejecutar en hilo separado para no bloquear
                 thread = threading.Thread(target=change_to_playing, daemon=True)
                 thread.start()
+                print(f"🧵 Thread iniciado para cambiar estado de {dice_game.room_code} después de 7 segundos")
                 
                 return dice_game
         except Exception as e:
