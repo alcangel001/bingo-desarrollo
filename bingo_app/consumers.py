@@ -979,10 +979,6 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
         die2 = random.randint(1, 6)
         total = die1 + die2
         
-        # Actualizar el resultado del jugador (si es necesario guardarlo)
-        player.last_roll = total
-        await database_sync_to_async(player.save)()
-        
         # Notificar a todos los jugadores
         await self.channel_layer.group_send(
             self.room_group_name,
