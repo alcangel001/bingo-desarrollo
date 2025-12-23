@@ -118,6 +118,38 @@
     const ROOM_CODE = '{{ room_code }}';
     const USER_ID = {{ user.id }};
     const CURRENT_MULTIPLIER = '{{ dice_game.multiplier|default:"2x" }}';
+    
+    // Datos iniciales de los jugadores desde el backend
+    const INITIAL_PLAYERS = [
+        {% for player in players %}
+        {
+            user_id: {{ player.user.id }},
+            username: '{{ player.user.username }}',
+            avatar_url: '{% if player.user.get_avatar_url %}{{ player.user.get_avatar_url }}{% else %}{% static "avatars/default/male.png" %}{% endif %}',
+            lives: {{ player.lives }},
+            is_eliminated: {{ player.is_eliminated|lower }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Inicializar jugadores cuando se carga la página
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof INITIAL_PLAYERS !== 'undefined' && INITIAL_PLAYERS.length > 0) {
+            INITIAL_PLAYERS.forEach((player, index) => {
+                const seatIndex = index + 1;
+                const nameEl = document.getElementById(`name-${seatIndex}`);
+                const avatarEl = document.getElementById(`avatar-${seatIndex}`);
+                const statusEl = document.getElementById(`status-${seatIndex}`);
+                
+                if (nameEl) nameEl.textContent = player.username;
+                if (avatarEl) avatarEl.src = player.avatar_url;
+                if (statusEl) {
+                    statusEl.style.color = player.is_eliminated ? '#ff4444' : '#44ff44';
+                    statusEl.textContent = player.is_eliminated ? '✕' : '●';
+                }
+            });
+        }
+    });
 </script>
 <script src="{% static 'js/dice_table_colors.js' %}"></script>
 <script src="{% static 'js/dice_websocket.js' %}"></script>
