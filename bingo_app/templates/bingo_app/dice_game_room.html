@@ -167,30 +167,22 @@
             const finalPrize = '{{ dice_game.final_prize|default:"0" }}';
             
             if (multiplier && multiplier !== '1x' && multiplier !== '') {
-                // Ya se determinó el premio, iniciar animación
+                // Ya se determinó el premio, iniciar animación después de un pequeño delay
                 setTimeout(() => {
                     if (typeof showPrizeSpinAnimation === 'function') {
                         showPrizeSpinAnimation(multiplier, finalPrize);
-                    } else {
-                        // Fallback: habilitar después de 7 segundos
-                        setTimeout(() => {
-                            if (rollBtn) {
-                                rollBtn.disabled = false;
-                                if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
-                            }
-                        }, 7000);
                     }
                 }, 500);
-            } else {
-                // Aún no se determinó, esperar notificación WebSocket
-                // Habilitar después de máximo 10 segundos como fallback
-                setTimeout(() => {
-                    if (rollBtn && rollBtn.disabled) {
-                        rollBtn.disabled = false;
-                        if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
-                    }
-                }, 10000);
             }
+            
+            // Fallback: si después de 15 segundos aún estamos en SPINNING, habilitar botón
+            setTimeout(() => {
+                if (rollBtn && rollBtn.disabled) {
+                    console.log('⏱️ Fallback: habilitando botón después de timeout');
+                    rollBtn.disabled = false;
+                    if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
+                }
+            }, 15000);
         }
     });
 </script>

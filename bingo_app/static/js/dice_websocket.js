@@ -83,6 +83,7 @@ function handleDiceMessage(data) {
             
         case 'game_status_changed':
             // Estado del juego cambió (SPINNING -> PLAYING)
+            console.log('📢 Cambio de estado recibido:', data.status);
             handleGameStatusChange(data);
             break;
             
@@ -94,6 +95,7 @@ function handleDiceMessage(data) {
         case 'error':
             // Error del servidor
             console.error('Error del servidor:', data.message);
+            alert(data.message || 'Ha ocurrido un error');
             // Re-habilitar botón si fue un error
             const rollBtn = document.getElementById('roll-dice-btn');
             if (rollBtn) {
@@ -104,12 +106,17 @@ function handleDiceMessage(data) {
 }
 
 function showPrizeSpinAnimation(multiplier, finalPrize) {
+    console.log('🎰 Iniciando animación del premio:', multiplier, finalPrize);
     const spinAnimation = document.getElementById('spin-animation');
     const prizeDisplay = document.getElementById('prize-display');
+    const rollBtn = document.getElementById('roll-dice-btn');
+    
+    // Asegurar que el botón esté deshabilitado durante la animación
+    if (rollBtn) rollBtn.disabled = true;
     
     // Mostrar animación de spin
-    spinAnimation.style.display = 'flex';
-    prizeDisplay.style.display = 'none';
+    if (spinAnimation) spinAnimation.style.display = 'flex';
+    if (prizeDisplay) prizeDisplay.style.display = 'none';
     
     // Simular spin (1-2 segundos)
     let spinCount = 0;
@@ -120,25 +127,35 @@ function showPrizeSpinAnimation(multiplier, finalPrize) {
             clearInterval(spinInterval);
             
             // Aplicar colores del multiplicador real
-            applyPrizeColors(multiplier);
+            if (typeof applyPrizeColors === 'function') {
+                applyPrizeColors(multiplier);
+            }
             
             // Mostrar premio final
-            spinAnimation.style.display = 'none';
-            prizeDisplay.style.display = 'block';
-            document.getElementById('prize-amount').textContent = `$${parseFloat(finalPrize).toLocaleString()}`;
-            document.getElementById('prize-multiplier').textContent = multiplier;
+            if (spinAnimation) spinAnimation.style.display = 'none';
+            if (prizeDisplay) prizeDisplay.style.display = 'block';
             
-            // Cambiar estado del juego
-            document.getElementById('game-status').textContent = '¡Premio determinado! Preparando partida...';
+            const prizeAmount = document.getElementById('prize-amount');
+            const prizeMultiplier = document.getElementById('prize-multiplier');
+            if (prizeAmount) prizeAmount.textContent = `$${parseFloat(finalPrize).toLocaleString()}`;
+            if (prizeMultiplier) prizeMultiplier.textContent = multiplier;
             
-            // Después de 2 segundos, comenzar el juego y habilitar botón
+            // Cambiar estado del juego (pero NO habilitar botón aquí, esperar notificación WebSocket)
+            const gameStatusEl = document.getElementById('game-status');
+            if (gameStatusEl) {
+                gameStatusEl.textContent = '¡Premio determinado! Esperando inicio del juego...';
+            }
+            
+            console.log('🎰 Animación completada, esperando notificación de cambio de estado...');
+            
+            // Fallback: si no llega la notificación en 10 segundos, habilitar el botón de todas formas
             setTimeout(() => {
-                document.getElementById('game-status').textContent = 'En juego - ¡Lanza los dados!';
-                const rollBtn = document.getElementById('roll-dice-btn');
-                if (rollBtn) {
+                if (rollBtn && rollBtn.disabled) {
+                    console.log('⏱️ Timeout: habilitando botón por fallback');
                     rollBtn.disabled = false;
+                    if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
                 }
-            }, 2000);
+            }, 10000);
         }
     }, 50);
 }
