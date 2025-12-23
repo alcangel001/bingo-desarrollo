@@ -12,10 +12,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='announcement',
-            name='link',
-        ),
         migrations.AlterField(
             model_name='dicematchmakingqueue',
             name='user',
