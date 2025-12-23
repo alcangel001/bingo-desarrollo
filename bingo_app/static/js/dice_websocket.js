@@ -69,6 +69,17 @@ function handleDiceMessage(data) {
             // Dados lanzados - actualizar UI
             updateDiceRoll(data);
             break;
+            
+        case 'error':
+            // Error del servidor
+            console.error('Error del servidor:', data.message);
+            alert(data.message || 'Ha ocurrido un error');
+            // Re-habilitar botón si fue un error
+            const rollBtn = document.getElementById('roll-dice-btn');
+            if (rollBtn) {
+                rollBtn.disabled = false;
+            }
+            break;
     }
 }
 
