@@ -31,10 +31,6 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'MÃ³dulos Premium de Franquicias',
             },
         ),
-        migrations.RemoveField(
-            model_name='announcement',
-            name='link',
-        ),
         migrations.CreateModel(
             name='DiceGame',
             fields=[
