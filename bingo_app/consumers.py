@@ -891,36 +891,64 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
     """
     
     async def connect(self):
-        # Verificar autenticación
-        self.user = self.scope.get('user')
-        if not self.user or self.user.is_anonymous:
-            await self.close()
-            return
-        
-        self.room_code = self.scope['url_route']['kwargs']['room_code']
-        self.room_group_name = f'dice_game_{self.room_code}'
-        
-        # Verificar que el usuario es parte de la partida
-        dice_game = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
-        player = await database_sync_to_async(DicePlayer.objects.filter)(
-            game=dice_game,
-            user=self.user
-        ).first()
-        
-        if not player:
-            await self.close()
-            return
-        
-        # Unirse al grupo
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
-        
+        # Aceptar conexión primero para poder enviar errores
         await self.accept()
         
-        # Enviar estado actual del juego
-        await self.send_game_state()
+        try:
+            # Verificar autenticación
+            self.user = self.scope.get('user')
+            if not self.user or self.user.is_anonymous:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'Debes estar autenticado para jugar'
+                }))
+                await self.close()
+                return
+            
+            self.room_code = self.scope['url_route']['kwargs']['room_code']
+            self.room_group_name = f'dice_game_{self.room_code}'
+            
+            # Verificar que el usuario es parte de la partida
+            try:
+                dice_game = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
+            except DiceGame.DoesNotExist:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'Partida no encontrada'
+                }))
+                await self.close()
+                return
+            
+            player = await database_sync_to_async(DicePlayer.objects.filter)(
+                game=dice_game,
+                user=self.user
+            ).first()
+            
+            if not player:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'No eres parte de esta partida'
+                }))
+                await self.close()
+                return
+            
+            # Unirse al grupo
+            await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
+            
+            # Enviar estado actual del juego
+            await self.send_game_state()
+        except Exception as e:
+            import traceback
+            print(f"Error en connect DiceGameConsumer: {e}")
+            print(traceback.format_exc())
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': f'Error al conectar: {str(e)}'
+            }))
+            await self.close()
     
     async def disconnect(self, close_code):
         # Salir del grupo

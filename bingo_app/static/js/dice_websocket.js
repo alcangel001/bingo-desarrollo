@@ -6,6 +6,8 @@ function connectDiceWebSocket(roomCode) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/dice/game/${roomCode}/`;
     
+    console.log('🔄 Intentando conectar WebSocket a:', wsUrl);
+    
     diceSocket = new WebSocket(wsUrl);
     
     diceSocket.onopen = function(e) {
@@ -13,22 +15,41 @@ function connectDiceWebSocket(roomCode) {
     };
     
     diceSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        handleDiceMessage(data);
+        try {
+            const data = JSON.parse(e.data);
+            console.log('📨 Mensaje recibido:', data.type);
+            
+            // Manejar errores del servidor
+            if (data.type === 'error') {
+                console.error('❌ Error del servidor:', data.message);
+                alert(data.message || 'Error de conexión');
+                return;
+            }
+            
+            handleDiceMessage(data);
+        } catch (error) {
+            console.error('❌ Error al parsear mensaje:', error);
+        }
     };
     
     diceSocket.onerror = function(error) {
         console.error('❌ Error en WebSocket:', error);
+        console.error('Estado WebSocket:', diceSocket.readyState);
     };
     
     diceSocket.onclose = function(e) {
-        console.log('🔌 Desconectado de partida de dados');
-        // Intentar reconectar después de 3 segundos
-        setTimeout(() => {
-            if (roomCode) {
-                connectDiceWebSocket(roomCode);
-            }
-        }, 3000);
+        console.log('🔌 Desconectado de partida de dados. Código:', e.code, 'Razón:', e.reason);
+        
+        // No reconectar si fue un cierre intencional (código 1000) o error de autenticación
+        if (e.code !== 1000 && e.code !== 1008) {
+            // Intentar reconectar después de 3 segundos solo si no fue un cierre intencional
+            setTimeout(() => {
+                if (roomCode && (!diceSocket || diceSocket.readyState === WebSocket.CLOSED)) {
+                    console.log('🔄 Intentando reconectar...');
+                    connectDiceWebSocket(roomCode);
+                }
+            }, 3000);
+        }
     };
 }
 
@@ -73,7 +94,6 @@ function handleDiceMessage(data) {
         case 'error':
             // Error del servidor
             console.error('Error del servidor:', data.message);
-            alert(data.message || 'Ha ocurrido un error');
             // Re-habilitar botón si fue un error
             const rollBtn = document.getElementById('roll-dice-btn');
             if (rollBtn) {
