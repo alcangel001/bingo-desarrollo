@@ -112,6 +112,15 @@
 
 {% block content %}
 <div class="dice-lobby-container">
+    {% if active_game %}
+    <div class="alert alert-warning" style="background: rgba(255, 193, 7, 0.2); border: 2px solid #ffc107; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
+        <h5><i class="fas fa-exclamation-triangle me-2"></i>Partida Activa Encontrada</h5>
+        <p>Tienes una partida en curso. Serás redirigido automáticamente...</p>
+        <a href="{% url 'dice_game_room' active_game.room_code %}" class="btn btn-warning">
+            <i class="fas fa-play me-2"></i>Ir a mi Partida ({{ active_game.room_code }})
+        </a>
+    </div>
+    {% endif %}
     <h1 class="text-white mb-4">🎲 Dice Battle</h1>
     
     <!-- Selector de Precio -->

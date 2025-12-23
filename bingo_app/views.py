@@ -5947,6 +5947,12 @@ def dice_lobby(request):
         status='WAITING'
     ).first()
     
+    # Verificar si el usuario tiene una partida activa/en curso
+    active_game = DiceGame.objects.filter(
+        dice_players__user=request.user,
+        status__in=['SPINNING', 'PLAYING']
+    ).order_by('-created_at').first()
+    
     context = {
         'settings': settings,
         'waiting_games': waiting_games,
@@ -5954,7 +5960,13 @@ def dice_lobby(request):
         'min_price': Decimal('0.10'),
         'max_price': settings.max_entry_price,
         'user_in_queue': user_queue_entry is not None,
+        'active_game': active_game,
     }
+    
+    # Si tiene una partida activa, redirigir automáticamente
+    if active_game:
+        messages.info(request, f'Volviendo a tu partida activa: {active_game.room_code}')
+        return redirect('dice_game_room', room_code=active_game.room_code)
     
     return render(request, 'bingo_app/dice_lobby.html', context)
 
@@ -6061,32 +6073,51 @@ def leave_dice_queue(request):
 @dice_module_required
 def dice_queue_status(request):
     """
-    Verifica el estado de la cola del usuario.
+    Verifica el estado de la cola del usuario y partidas activas.
     """
     try:
+        # PRIMERO: Verificar si el usuario tiene una partida activa/en curso
+        active_game = DiceGame.objects.filter(
+            dice_players__user=request.user,
+            status__in=['SPINNING', 'PLAYING', 'WAITING']
+        ).order_by('-created_at').first()
+        
+        if active_game:
+            return JsonResponse({
+                'status': 'matched',
+                'room_code': active_game.room_code,
+                'message': 'Tienes una partida activa'
+            })
+        
+        # SEGUNDO: Verificar si está en cola
         queue_entry = DiceMatchmakingQueue.objects.filter(
             user=request.user,
             status='WAITING'
         ).first()
         
         if not queue_entry:
+            # Verificar si tiene una entrada MATCHED (partida recién creada)
+            matched_entry = DiceMatchmakingQueue.objects.filter(
+                user=request.user,
+                status='MATCHED'
+            ).order_by('-matched_at').first()
+            
+            if matched_entry:
+                # Buscar la partida más reciente
+                dice_game = DiceGame.objects.filter(
+                    dice_players__user=request.user,
+                    status__in=['SPINNING', 'PLAYING']
+                ).order_by('-created_at').first()
+                
+                if dice_game:
+                    return JsonResponse({
+                        'status': 'matched',
+                        'room_code': dice_game.room_code
+                    })
+            
             return JsonResponse({
                 'status': 'not_in_queue'
             })
-        
-        # Verificar si fue emparejado
-        if queue_entry.status == 'MATCHED':
-            # Buscar la partida
-            dice_game = DiceGame.objects.filter(
-                dice_players__user=request.user,
-                status__in=['SPINNING', 'PLAYING']
-            ).order_by('-created_at').first()
-            
-            if dice_game:
-                return JsonResponse({
-                    'status': 'matched',
-                    'room_code': dice_game.room_code
-                })
         
         return JsonResponse({
             'status': 'waiting',
