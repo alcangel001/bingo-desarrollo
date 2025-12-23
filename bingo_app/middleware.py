@@ -5,8 +5,26 @@ import os
 class RailwayHostMiddleware(MiddlewareMixin):
     """
     Middleware para permitir automáticamente dominios de Railway.
-    Django no acepta wildcards en ALLOWED_HOSTS, así que validamos aquí.
+    Django valida ALLOWED_HOSTS en CommonMiddleware, pero podemos interceptar
+    antes modificando settings.ALLOWED_HOSTS antes de que se valide.
     """
+    def __init__(self, get_response):
+        super().__init__(get_response)
+        # Modificar ALLOWED_HOSTS al cargar el middleware (antes de que Django valide)
+        if os.environ.get('RAILWAY_ENVIRONMENT'):
+            from django.conf import settings
+            # Agregar patrón para dominios de Railway si no existe ya
+            # Django no acepta wildcards, así que agregamos dominios comunes
+            railway_domains = [
+                'web-production-14f41.up.railway.app',
+                'web-production-2d504.up.railway.app',
+                # Agregar cualquier dominio que termine con .up.railway.app
+                # Lo hacemos dinámicamente validando el host en process_request
+            ]
+            for domain in railway_domains:
+                if domain not in settings.ALLOWED_HOSTS:
+                    settings.ALLOWED_HOSTS.append(domain)
+    
     def process_request(self, request):
         # Solo aplicar en Railway
         if not os.environ.get('RAILWAY_ENVIRONMENT'):
@@ -17,9 +35,8 @@ class RailwayHostMiddleware(MiddlewareMixin):
             # Limpiar el host (quitar puerto si existe)
             host = host.split(':')[0].lower()
             
-            # Si el host termina con .up.railway.app, permitirlo
+            # Si el host termina con .up.railway.app, agregarlo a ALLOWED_HOSTS si no está
             if host.endswith('.up.railway.app'):
-                # Temporalmente agregar el host a ALLOWED_HOSTS si no está
                 from django.conf import settings
                 if host not in settings.ALLOWED_HOSTS:
                     settings.ALLOWED_HOSTS.append(host)
