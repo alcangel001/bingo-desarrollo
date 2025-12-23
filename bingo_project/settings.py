@@ -147,9 +147,27 @@ LOGGING = {
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# Limpiar espacios en blanco
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS if host.strip()]
+
 RAILWAY_PUBLIC_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
 if RAILWAY_PUBLIC_DOMAIN and RAILWAY_PUBLIC_DOMAIN not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+# Agregar automáticamente todos los dominios de Railway
+# Detecta si estamos en Railway por la variable de entorno RAILWAY_ENVIRONMENT
+if os.environ.get('RAILWAY_ENVIRONMENT'):
+    # Agregar dominios comunes de Railway
+    railway_domains = [
+        'web-production-14f41.up.railway.app',
+        'web-production-2d504.up.railway.app',
+    ]
+    for domain in railway_domains:
+        if domain not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(domain)
+    
+    # También agregar cualquier dominio que termine con .up.railway.app
+    # Necesitamos validar dinámicamente en el middleware porque Django no acepta wildcards
 
 # Dominio para identificar tráfico de la aplicación (no de anuncios publicitarios)
 TRACKING_DOMAIN = 'rifasjaj.com'
@@ -255,6 +273,7 @@ CHANNEL_LAYERS = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'bingo_app.middleware.RailwayHostMiddleware',  # Debe ir ANTES de CommonMiddleware para validar hosts
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'allauth.account.middleware.AccountMiddleware',
@@ -265,7 +284,6 @@ MIDDLEWARE = [
     'bingo_app.middleware.FlashMessageMiddleware',  # Middleware para mensajes flash
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'bingo_app.middleware.FlashMessageMiddleware',
 ]
 
 ROOT_URLCONF = 'bingo_project.urls'

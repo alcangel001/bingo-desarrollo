@@ -1,5 +1,31 @@
 # middleware.py
 from django.utils.deprecation import MiddlewareMixin
+import os
+
+class RailwayHostMiddleware(MiddlewareMixin):
+    """
+    Middleware para permitir automáticamente dominios de Railway.
+    Django no acepta wildcards en ALLOWED_HOSTS, así que validamos aquí.
+    """
+    def process_request(self, request):
+        # Solo aplicar en Railway
+        if not os.environ.get('RAILWAY_ENVIRONMENT'):
+            return None
+        
+        host = request.get_host()
+        if host:
+            # Limpiar el host (quitar puerto si existe)
+            host = host.split(':')[0].lower()
+            
+            # Si el host termina con .up.railway.app, permitirlo
+            if host.endswith('.up.railway.app'):
+                # Temporalmente agregar el host a ALLOWED_HOSTS si no está
+                from django.conf import settings
+                if host not in settings.ALLOWED_HOSTS:
+                    settings.ALLOWED_HOSTS.append(host)
+        
+        return None
+
 
 class FlashMessageMiddleware(MiddlewareMixin):
     def process_request(self, request):
