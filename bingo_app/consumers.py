@@ -919,10 +919,14 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 await self.close()
                 return
             
-            player = await database_sync_to_async(DicePlayer.objects.filter)(
-                game=dice_game,
-                user=self.user
-            ).first()
+            # Obtener jugador correctamente usando database_sync_to_async
+            def get_player(dice_game, user):
+                try:
+                    return DicePlayer.objects.get(game=dice_game, user=user)
+                except DicePlayer.DoesNotExist:
+                    return None
+            
+            player = await database_sync_to_async(get_player)(dice_game, self.user)
             
             if not player:
                 await self.send(text_data=json.dumps({
@@ -977,48 +981,71 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
         """
         import random
         
-        # Obtener juego
-        dice_game = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
-        
-        # Verificar que el juego esté en estado PLAYING
-        if dice_game.status != 'PLAYING':
+        try:
+            def roll_dice_and_validate(room_code, user_id):
+                try:
+                    dice_game = DiceGame.objects.get(room_code=room_code)
+                    
+                    # Verificar que el juego esté en estado PLAYING
+                    if dice_game.status != 'PLAYING':
+                        return {'error': 'El juego aún no ha comenzado. Espera a que termine la animación del premio.'}
+                    
+                    # Obtener jugador
+                    try:
+                        player = DicePlayer.objects.get(game=dice_game, user_id=user_id)
+                    except DicePlayer.DoesNotExist:
+                        return {'error': 'No eres parte de esta partida.'}
+                    
+                    # Verificar que el jugador no esté eliminado
+                    if player.is_eliminated:
+                        return {'error': 'Ya estás eliminado de esta partida.'}
+                    
+                    # Lanzar dados (esto se hace en el servidor para evitar trampas)
+                    die1 = random.randint(1, 6)
+                    die2 = random.randint(1, 6)
+                    total = die1 + die2
+                    
+                    return {
+                        'user_id': user_id,
+                        'username': player.user.username,
+                        'die1': die1,
+                        'die2': die2,
+                        'total': total,
+                    }
+                except DiceGame.DoesNotExist:
+                    return {'error': 'Partida no encontrada'}
+                except Exception as e:
+                    return {'error': f'Error: {str(e)}'}
+            
+            result = await database_sync_to_async(roll_dice_and_validate)(self.room_code, self.scope['user'].id)
+            
+            if 'error' in result:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': result['error']
+                }))
+                return
+            
+            # Notificar a todos los jugadores
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'dice_rolled',
+                    'user_id': result['user_id'],
+                    'username': result['username'],
+                    'die1': result['die1'],
+                    'die2': result['die2'],
+                    'total': result['total'],
+                }
+            )
+        except Exception as e:
+            import traceback
+            print(f"Error en handle_roll_dice: {e}")
+            print(traceback.format_exc())
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'El juego aún no ha comenzado. Espera a que termine la animación del premio.'
+                'message': 'Error al lanzar dados'
             }))
-            return
-        
-        # Obtener jugador
-        player = await database_sync_to_async(DicePlayer.objects.get)(
-            game=dice_game,
-            user=self.scope['user']
-        )
-        
-        # Verificar que el jugador no esté eliminado
-        if player.is_eliminated:
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Ya estás eliminado de esta partida.'
-            }))
-            return
-        
-        # Lanzar dados (esto se hace en el servidor para evitar trampas)
-        die1 = random.randint(1, 6)
-        die2 = random.randint(1, 6)
-        total = die1 + die2
-        
-        # Notificar a todos los jugadores
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'dice_rolled',
-                'user_id': self.scope['user'].id,
-                'username': self.scope['user'].username,
-                'die1': die1,
-                'die2': die2,
-                'total': total,
-            }
-        )
     
     async def dice_rolled(self, event):
         """
@@ -1081,38 +1108,54 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
         Envía el estado actual del juego al conectarse.
         """
         try:
-            dice_game = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
+            def get_game_state(room_code):
+                try:
+                    dice_game = DiceGame.objects.get(room_code=room_code)
+                    players_data = []
+                    
+                    for p in dice_game.dice_players.all():
+                        avatar_url = '/static/avatars/default/male.png'
+                        
+                        # Obtener avatar de forma segura
+                        try:
+                            if hasattr(p.user, 'get_avatar_url'):
+                                avatar_url = p.user.get_avatar_url()
+                            elif hasattr(p.user, 'avatar') and p.user.avatar:
+                                if hasattr(p.user.avatar, 'custom_avatar') and p.user.avatar.custom_avatar:
+                                    avatar_url = p.user.avatar.custom_avatar.url
+                        except:
+                            pass  # Usar avatar por defecto si falla
+                        
+                        players_data.append({
+                            'user_id': p.user.id,
+                            'username': p.user.username,
+                            'avatar_url': avatar_url,
+                            'lives': p.lives,
+                            'is_eliminated': p.is_eliminated,
+                        })
+                    
+                    return {
+                        'type': 'game_state',
+                        'status': dice_game.status,
+                        'multiplier': dice_game.multiplier,
+                        'final_prize': str(dice_game.final_prize),
+                        'players': players_data,
+                    }
+                except DiceGame.DoesNotExist:
+                    return {
+                        'type': 'error',
+                        'message': 'Partida no encontrada'
+                    }
             
-            players_data = []
-            for p in await database_sync_to_async(list)(dice_game.dice_players.all()):
-                avatar_url = ''
-                if hasattr(p.user, 'get_avatar_url'):
-                    avatar_url = await database_sync_to_async(lambda: p.user.get_avatar_url())()
-                elif hasattr(p.user, 'avatar'):
-                    avatar = await database_sync_to_async(lambda: getattr(p.user, 'avatar', None))()
-                    if avatar:
-                        avatar_url = await database_sync_to_async(lambda: avatar.custom_avatar.url if hasattr(avatar, 'custom_avatar') and avatar.custom_avatar else '')()
-                
-                players_data.append({
-                    'user_id': p.user.id,
-                    'username': p.user.username,
-                    'avatar_url': avatar_url or '/static/avatars/default/male.png',
-                    'lives': p.lives,
-                    'is_eliminated': p.is_eliminated,
-                })
-            
-            state = {
-                'type': 'game_state',
-                'status': dice_game.status,
-                'multiplier': dice_game.multiplier,
-                'final_prize': str(dice_game.final_prize),
-                'players': players_data,
-            }
+            state = await database_sync_to_async(get_game_state)(self.room_code)
             await self.send(text_data=json.dumps(state))
-        except DiceGame.DoesNotExist:
+        except Exception as e:
+            import traceback
+            print(f"Error en send_game_state: {e}")
+            print(traceback.format_exc())
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'Partida no encontrada'
+                'message': 'Error al obtener estado del juego'
             }))
     
     async def handle_player_ready(self, data):
