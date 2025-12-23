@@ -987,8 +987,10 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                     dice_game = DiceGame.objects.get(room_code=room_code)
                     
                     # Verificar que el juego esté en estado PLAYING
-                    if dice_game.status != 'PLAYING':
+                    if dice_game.status == 'SPINNING':
                         return {'error': 'El juego aún no ha comenzado. Espera a que termine la animación del premio.'}
+                    elif dice_game.status != 'PLAYING':
+                        return {'error': f'El juego no está disponible para lanzar dados. Estado actual: {dice_game.status}'}
                     
                     # Obtener jugador
                     try:
