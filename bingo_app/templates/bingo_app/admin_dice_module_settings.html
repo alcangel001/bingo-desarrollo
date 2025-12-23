@@ -1,0 +1,112 @@
+{% extends 'bingo_app/base.html' %}
+{% load static %}
+
+{% block title %}Configuración Módulo de Dados - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-dice me-2"></i>Configuración del Módulo de Dados</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_module_enabled" id="is_module_enabled" {% if settings.is_module_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="is_module_enabled">
+                                    <strong>Activar Módulo de Dados</strong>
+                                    <br>
+                                    <small class="text-muted">Si está desactivado, el módulo NO aparecerá en ninguna parte del sistema</small>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="base_entry_price" class="form-label">Precio de Entrada Base (Mínimo)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" name="base_entry_price" id="base_entry_price" 
+                                       value="{{ settings.base_entry_price }}" step="0.01" min="0.10" required>
+                            </div>
+                            <small class="form-text text-muted">Precio mínimo de entrada. Mínimo: $0.10</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="allow_custom_entry_price" id="allow_custom_entry_price" {% if settings.allow_custom_entry_price %}checked{% endif %}>
+                                <label class="form-check-label" for="allow_custom_entry_price">
+                                    Permitir Precio Personalizado
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="max_entry_price" class="form-label">Precio Máximo (Opcional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" name="max_entry_price" id="max_entry_price" 
+                                       value="{{ settings.max_entry_price }}" step="0.01" min="0.10">
+                            </div>
+                            <small class="form-text text-muted">Si está vacío, no hay límite máximo</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="platform_commission_percentage" class="form-label">Comisión de Plataforma (%)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="platform_commission_percentage" id="platform_commission_percentage" 
+                                       value="{{ settings.platform_commission_percentage }}" step="0.01" min="0" max="50" required>
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="show_in_lobby" id="show_in_lobby" {% if settings.show_in_lobby %}checked{% endif %}>
+                                <label class="form-check-label" for="show_in_lobby">
+                                    Mostrar en Lobby
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="power_ups_enabled" id="power_ups_enabled" {% if settings.power_ups_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="power_ups_enabled">
+                                    Activar Power-Ups
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <strong>Última actualización:</strong> 
+                            {% if settings.last_updated %}
+                                {{ settings.last_updated|date:"d/m/Y H:i" }}
+                                {% if settings.updated_by %}
+                                    por {{ settings.updated_by.username }}
+                                {% endif %}
+                            {% else %}
+                                Nunca
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Guardar Configuración
+                            </button>
+                            <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

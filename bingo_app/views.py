@@ -496,6 +496,15 @@ def lobby(request):
     
     # Fetch active announcements for the lobby
     announcements = Announcement.objects.filter(is_active=True).order_by('order')
+    
+    # Verificar si el módulo de dados está habilitado y si el usuario puede acceder
+    from .utils.dice_module import is_dice_module_enabled, can_user_access_dice_module
+    dice_module_enabled = False
+    if request.user.is_authenticated:
+        dice_module_enabled_global = is_dice_module_enabled()
+        if dice_module_enabled_global:
+            can_access, _ = can_user_access_dice_module(request.user)
+            dice_module_enabled = can_access
 
     context = {
         'games': active_games,
@@ -503,6 +512,7 @@ def lobby(request):
         'wins_count': wins_count,
         'announcements': announcements, # Add this line
         'joined_game_ids': joined_game_ids,
+        'dice_module_enabled': dice_module_enabled,
     }
     
     return render(request, 'bingo_app/lobby.html', context)
