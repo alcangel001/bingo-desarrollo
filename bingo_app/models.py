@@ -2938,13 +2938,13 @@ class DiceRound(models.Model):
 class DiceMatchmakingQueue(models.Model):
     """
     Cola de jugadores esperando partida.
-    Sistema automÃ¡tico que agrupa de 3 en 3.
+    Sistema automático que agrupa de 3 en 3.
     """
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='dice_queue_entry',
-        help_text="Un usuario solo puede estar en la cola una vez"
+        related_name='dice_queue_entries',
+        help_text="Jugador en la cola"
     )
     
     # Precio que el jugador quiere pagar
@@ -2975,6 +2975,13 @@ class DiceMatchmakingQueue(models.Model):
         verbose_name = "Cola de Matchmaking"
         verbose_name_plural = "Colas de Matchmaking"
         ordering = ['joined_at']  # FIFO (First In, First Out)
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user'],
+                condition=models.Q(status='WAITING'),
+                name='unique_user_waiting_queue'
+            )
+        ]
     
     def __str__(self):
         return f"{self.user.username} - {self.get_status_display()}"

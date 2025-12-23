@@ -5942,14 +5942,10 @@ def dice_lobby(request):
     ).order_by('-created_at')[:10]
     
     # Verificar si el usuario está en cola
-    user_queue_entry = None
-    try:
-        user_queue_entry = DiceMatchmakingQueue.objects.get(
-            user=request.user,
-            status='WAITING'
-        )
-    except DiceMatchmakingQueue.DoesNotExist:
-        pass
+    user_queue_entry = DiceMatchmakingQueue.objects.filter(
+        user=request.user,
+        status='WAITING'
+    ).first()
     
     context = {
         'settings': settings,
