@@ -96,24 +96,34 @@ def process_matchmaking_queue():
                 # Notificar a los 3 jugadores vía WebSocket
                 notify_players_match_found(dice_game, players_list)
                 
-                # Programar cambio a PLAYING después de 5 segundos (tiempo para animación del spin)
+                # Programar cambio a PLAYING después de 7 segundos (tiempo para animación del spin)
+                # Usar Celery o simplemente cambiar directamente con un delay
+                # Por ahora, usar threading con mejor manejo
                 from .models import DiceGame
                 import threading
                 def change_to_playing():
                     import time
-                    time.sleep(5)  # Esperar 5 segundos
+                    time.sleep(7)  # Esperar 7 segundos para que termine la animación
                     try:
-                        game = DiceGame.objects.get(room_code=dice_game.room_code)
-                        if game.status == 'SPINNING':
-                            game.status = 'PLAYING'
-                            game.save()
-                            # Notificar cambio de estado vía WebSocket
-                            notify_game_status_change(game)
+                        from django.db import transaction
+                        with transaction.atomic():
+                            game = DiceGame.objects.select_for_update().get(room_code=dice_game.room_code)
+                            if game.status == 'SPINNING':
+                                game.status = 'PLAYING'
+                                game.save(update_fields=['status'])
+                                # Notificar cambio de estado vía WebSocket
+                                notify_game_status_change(game)
+                                print(f"✅ Cambiado estado de {game.room_code} a PLAYING")
                     except DiceGame.DoesNotExist:
-                        pass
+                        print(f"⚠️ Partida {dice_game.room_code} no encontrada al cambiar estado")
+                    except Exception as e:
+                        print(f"❌ Error al cambiar estado: {e}")
+                        import traceback
+                        traceback.print_exc()
                 
                 # Ejecutar en hilo separado para no bloquear
-                threading.Thread(target=change_to_playing, daemon=True).start()
+                thread = threading.Thread(target=change_to_playing, daemon=True)
+                thread.start()
                 
                 return dice_game
         except Exception as e:

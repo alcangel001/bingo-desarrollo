@@ -1114,7 +1114,7 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                     players_data = []
                     
                     for p in dice_game.dice_players.all():
-                        avatar_url = '/static/avatars/default/male.png'
+                        avatar_url = ''  # Usar string vacío para que el cliente use su lógica por defecto
                         
                         # Obtener avatar de forma segura
                         try:
