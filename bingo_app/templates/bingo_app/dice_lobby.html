@@ -254,22 +254,40 @@ function startMatchmaking(entryPrice) {
     });
 }
 
+let matchmakingCheckInterval = null;
+let checkCount = 0;
+const MAX_CHECKS = 150; // Máximo 5 minutos (150 * 2 segundos)
+
 function checkMatchmakingStatus() {
+    checkCount++;
+    
+    // Verificar si se excedió el límite de verificaciones
+    if (checkCount > MAX_CHECKS) {
+        document.getElementById('search-status').innerHTML = '<p>⏱️ Tiempo de búsqueda agotado. Por favor, intenta de nuevo.</p>';
+        document.getElementById('search-status').style.display = 'none';
+        document.getElementById('search-game-btn').disabled = false;
+        return;
+    }
+    
     fetch('{% url "dice_queue_status" %}')
         .then(response => response.json())
         .then(data => {
             if (data.status === 'matched') {
+                // Partida encontrada o activa - redirigir inmediatamente
                 window.location.href = `/dice/game/${data.room_code}/`;
             } else if (data.status === 'waiting') {
-                setTimeout(checkMatchmakingStatus, 2000);
+                // Continuar verificando cada 1.5 segundos (más frecuente)
+                setTimeout(checkMatchmakingStatus, 1500);
             } else {
+                // No está en cola ni tiene partida activa
                 document.getElementById('search-status').style.display = 'none';
                 document.getElementById('search-game-btn').disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            setTimeout(checkMatchmakingStatus, 2000);
+            // Continuar verificando incluso si hay error
+            setTimeout(checkMatchmakingStatus, 1500);
         });
 }
 
