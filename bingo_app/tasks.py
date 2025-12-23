@@ -96,6 +96,25 @@ def process_matchmaking_queue():
                 # Notificar a los 3 jugadores vía WebSocket
                 notify_players_match_found(dice_game, players_list)
                 
+                # Programar cambio a PLAYING después de 5 segundos (tiempo para animación del spin)
+                from .models import DiceGame
+                import threading
+                def change_to_playing():
+                    import time
+                    time.sleep(5)  # Esperar 5 segundos
+                    try:
+                        game = DiceGame.objects.get(room_code=dice_game.room_code)
+                        if game.status == 'SPINNING':
+                            game.status = 'PLAYING'
+                            game.save()
+                            # Notificar cambio de estado vía WebSocket
+                            notify_game_status_change(game)
+                    except DiceGame.DoesNotExist:
+                        pass
+                
+                # Ejecutar en hilo separado para no bloquear
+                threading.Thread(target=change_to_playing, daemon=True).start()
+                
                 return dice_game
         except Exception as e:
             # Si hay error, no crear partida
@@ -127,4 +146,28 @@ def notify_players_match_found(dice_game, players_list):
             )
     except Exception as e:
         print(f"Error notificando jugadores: {e}")
+
+
+def notify_game_status_change(dice_game):
+    """
+    Notifica cambio de estado del juego a todos los jugadores.
+    """
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        
+        channel_layer = get_channel_layer()
+        group_name = f'dice_game_{dice_game.room_code}'
+        
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'game_status_changed',
+                'status': dice_game.status,
+                'multiplier': dice_game.multiplier,
+                'final_prize': str(dice_game.final_prize),
+            }
+        )
+    except Exception as e:
+        print(f"Error notificando cambio de estado: {e}")
 

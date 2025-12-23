@@ -1004,20 +1004,38 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
             'multiplier': event['multiplier'],
         }))
     
-    @database_sync_to_async
-    def send_game_state(self):
+    async def game_status_changed(self, event):
+        """
+        Notifica cambio de estado del juego.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'game_status_changed',
+            'status': event['status'],
+            'multiplier': event.get('multiplier'),
+            'final_prize': event.get('final_prize'),
+        }))
+    
+    async def send_game_state(self):
         """
         Envía el estado actual del juego al conectarse.
         """
         try:
-            dice_game = DiceGame.objects.get(room_code=self.room_code)
+            dice_game = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
             
             players_data = []
-            for p in dice_game.dice_players.all():
+            for p in await database_sync_to_async(list)(dice_game.dice_players.all()):
+                avatar_url = ''
+                if hasattr(p.user, 'get_avatar_url'):
+                    avatar_url = await database_sync_to_async(lambda: p.user.get_avatar_url())()
+                elif hasattr(p.user, 'avatar'):
+                    avatar = await database_sync_to_async(lambda: getattr(p.user, 'avatar', None))()
+                    if avatar:
+                        avatar_url = await database_sync_to_async(lambda: avatar.custom_avatar.url if hasattr(avatar, 'custom_avatar') and avatar.custom_avatar else '')()
+                
                 players_data.append({
                     'user_id': p.user.id,
                     'username': p.user.username,
-                    'avatar_url': p.user.get_avatar_url() if hasattr(p.user, 'get_avatar_url') else '',
+                    'avatar_url': avatar_url or '/static/avatars/default/male.png',
                     'lives': p.lives,
                     'is_eliminated': p.is_eliminated,
                 })
@@ -1029,9 +1047,9 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 'final_prize': str(dice_game.final_prize),
                 'players': players_data,
             }
-            return self.send(text_data=json.dumps(state))
+            await self.send(text_data=json.dumps(state))
         except DiceGame.DoesNotExist:
-            return self.send(text_data=json.dumps({
+            await self.send(text_data=json.dumps({
                 'type': 'error',
                 'message': 'Partida no encontrada'
             }))

@@ -59,6 +59,16 @@ function handleDiceMessage(data) {
             // Estado actual del juego
             updateGameState(data);
             break;
+            
+        case 'game_status_changed':
+            // Estado del juego cambió (SPINNING -> PLAYING)
+            handleGameStatusChange(data);
+            break;
+            
+        case 'dice_rolled':
+            // Dados lanzados - actualizar UI
+            updateDiceRoll(data);
+            break;
     }
 }
 
@@ -70,14 +80,12 @@ function showPrizeSpinAnimation(multiplier, finalPrize) {
     spinAnimation.style.display = 'flex';
     prizeDisplay.style.display = 'none';
     
-    // Simular spin (1 segundo)
-    let currentMultiplier = 2;
+    // Simular spin (1-2 segundos)
+    let spinCount = 0;
     const spinInterval = setInterval(() => {
-        const randomMultipliers = ['2x', '3x', '5x', '10x', '25x', '100x', '500x', '1000x'];
-        const random = randomMultipliers[Math.floor(Math.random() * randomMultipliers.length)];
-        currentMultiplier++;
+        spinCount++;
         
-        if (currentMultiplier > 20) {
+        if (spinCount > 40) { // ~2 segundos a 50ms
             clearInterval(spinInterval);
             
             // Aplicar colores del multiplicador real
@@ -92,11 +100,14 @@ function showPrizeSpinAnimation(multiplier, finalPrize) {
             // Cambiar estado del juego
             document.getElementById('game-status').textContent = '¡Premio determinado! Preparando partida...';
             
-            // Después de 3 segundos, comenzar el juego
+            // Después de 2 segundos, comenzar el juego y habilitar botón
             setTimeout(() => {
-                document.getElementById('game-status').textContent = 'En juego...';
-                document.getElementById('roll-dice-btn').disabled = false;
-            }, 3000);
+                document.getElementById('game-status').textContent = 'En juego - ¡Lanza los dados!';
+                const rollBtn = document.getElementById('roll-dice-btn');
+                if (rollBtn) {
+                    rollBtn.disabled = false;
+                }
+            }, 2000);
         }
     }, 50);
 }
@@ -149,6 +160,23 @@ function updateGameState(data) {
     
     if (data.multiplier) {
         applyPrizeColors(data.multiplier);
+    }
+    
+    // Habilitar botón según el estado del juego
+    const rollBtn = document.getElementById('roll-dice-btn');
+    const gameStatusEl = document.getElementById('game-status');
+    
+    if (data.status === 'PLAYING') {
+        if (rollBtn) rollBtn.disabled = false;
+        if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
+    } else if (data.status === 'SPINNING') {
+        if (rollBtn) rollBtn.disabled = true;
+        if (gameStatusEl) gameStatusEl.textContent = 'Determinando premio...';
+        
+        // Si ya hay multiplicador, mostrar animación de spin
+        if (data.multiplier && data.final_prize) {
+            showPrizeSpinAnimation(data.multiplier, data.final_prize);
+        }
     }
 }
 

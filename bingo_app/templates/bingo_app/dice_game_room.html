@@ -149,6 +149,49 @@
                 }
             });
         }
+        
+        // Verificar estado del juego y habilitar botón si está en PLAYING
+        const gameStatus = '{{ dice_game.status }}';
+        const rollBtn = document.getElementById('roll-dice-btn');
+        const gameStatusEl = document.getElementById('game-status');
+        
+        if (gameStatus === 'PLAYING' && rollBtn) {
+            rollBtn.disabled = false;
+            if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
+        } else if (gameStatus === 'SPINNING' && rollBtn) {
+            rollBtn.disabled = true;
+            if (gameStatusEl) gameStatusEl.textContent = 'Determinando premio...';
+            
+            // Si ya hay multiplicador, mostrar animación
+            const multiplier = '{{ dice_game.multiplier|default:"" }}';
+            const finalPrize = '{{ dice_game.final_prize|default:"0" }}';
+            
+            if (multiplier && multiplier !== '1x' && multiplier !== '') {
+                // Ya se determinó el premio, iniciar animación
+                setTimeout(() => {
+                    if (typeof showPrizeSpinAnimation === 'function') {
+                        showPrizeSpinAnimation(multiplier, finalPrize);
+                    } else {
+                        // Fallback: habilitar después de 7 segundos
+                        setTimeout(() => {
+                            if (rollBtn) {
+                                rollBtn.disabled = false;
+                                if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
+                            }
+                        }, 7000);
+                    }
+                }, 500);
+            } else {
+                // Aún no se determinó, esperar notificación WebSocket
+                // Habilitar después de máximo 10 segundos como fallback
+                setTimeout(() => {
+                    if (rollBtn && rollBtn.disabled) {
+                        rollBtn.disabled = false;
+                        if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
+                    }
+                }, 10000);
+            }
+        }
     });
 </script>
 <script src="{% static 'js/dice_table_colors.js' %}"></script>
