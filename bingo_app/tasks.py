@@ -89,9 +89,12 @@ def process_matchmaking_queue():
             
             print(f"✅ [MATCHMAKING] Precio ${price} (iteración {iteration}): ¡3 jugadores encontrados! Creando partida...")
             print(f"   Jugadores: {[p.user.username for p in players_list]}")
+            print(f"   IDs de cola: {[p.id for p in players_list]}")
+            print(f"   Saldos: {[(p.user.username, float(p.user.credit_balance)) for p in players_list]}")
             
             # Crear partida con los 3 jugadores
             try:
+                print(f"   🔄 Iniciando transacción para crear partida...")
                 with transaction.atomic():
                     # Bloquear créditos de los 3 jugadores
                     for queue_entry in players_list:

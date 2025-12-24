@@ -6192,7 +6192,13 @@ def dice_queue_status(request):
         
         print(f"🔄 [QUEUE_STATUS] Ejecutando matchmaking... Total en cola: {waiting_count}, Mismo precio: {same_price_count}")
         
-        matchmaking_result = process_matchmaking_queue()
+        try:
+            matchmaking_result = process_matchmaking_queue()
+        except Exception as e:
+            print(f"❌ [QUEUE_STATUS] Error ejecutando matchmaking: {e}")
+            import traceback
+            traceback.print_exc()
+            matchmaking_result = None
         
         # Si se creó una partida, verificar si el usuario está en ella
         if matchmaking_result:
