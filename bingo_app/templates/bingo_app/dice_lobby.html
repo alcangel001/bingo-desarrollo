@@ -172,15 +172,17 @@
     
     <!-- Estado de búsqueda -->
     <div id="search-status" class="text-white text-center mt-4" style="display: none;">
-        <div class="spinner-border" role="status">
+        <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Buscando...</span>
         </div>
-        <p class="mt-2">Buscando oponentes...</p>
-        <button id="cancel-search-btn" class="btn btn-danger mt-2">Cancelar búsqueda</button>
+        <p class="mt-2 mb-2" id="search-counter">Buscando oponentes...</p>
+        <p class="text-white-50 small mb-2">Esperando a que se unan más jugadores...</p>
+        <button id="cancel-search-btn" class="btn btn-danger mt-2">
+            <i class="fas fa-times me-2"></i>Salir de la cola
+        </button>
     </div>
 </div>
 
-<script src="{% static 'js/dice_matchmaking.js' %}"></script>
 <script>
 let selectedPrice = 0.10;
 
@@ -225,6 +227,7 @@ document.getElementById('search-game-btn').addEventListener('click', function() 
 function startMatchmaking(entryPrice) {
     document.getElementById('search-game-btn').disabled = true;
     document.getElementById('search-status').style.display = 'block';
+    checkCount = 0; // Resetear contador
     
     fetch('{% url "join_dice_queue" %}', {
         method: 'POST',
@@ -234,23 +237,35 @@ function startMatchmaking(entryPrice) {
         },
         body: `entry_price=${entryPrice}`
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || `Error ${response.status}: ${response.statusText}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
-        if (data.status === 'matched') {
+        if (data.success === false) {
+            throw new Error(data.error || 'Error al buscar partida');
+        }
+        
+        if (data.status === 'matched' && data.room_code) {
+            // Partida encontrada inmediatamente - redirigir
             window.location.href = `/dice/game/${data.room_code}/`;
         } else if (data.status === 'waiting') {
-            // Seguir esperando - verificar cada 2 segundos
+            // Seguir esperando - verificar cada 1.5 segundos
             checkMatchmakingStatus();
         } else {
-            alert(data.error || 'Error al buscar partida');
-            document.getElementById('search-status').style.display = 'none';
-            document.getElementById('search-game-btn').disabled = false;
+            throw new Error(data.error || 'Error desconocido al buscar partida');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error en matchmaking:', error);
+        alert(error.message || 'Error al buscar partida. Por favor, intenta de nuevo.');
         document.getElementById('search-status').style.display = 'none';
         document.getElementById('search-game-btn').disabled = false;
+        checkCount = 0; // Resetear contador
     });
 }
 
@@ -261,47 +276,94 @@ const MAX_CHECKS = 150; // Máximo 5 minutos (150 * 2 segundos)
 function checkMatchmakingStatus() {
     checkCount++;
     
+    // Actualizar contador visual
+    const statusEl = document.getElementById('search-status');
+    const counterEl = document.getElementById('search-counter');
+    if (counterEl) {
+        counterEl.textContent = `Buscando oponentes... (${checkCount}/${MAX_CHECKS})`;
+    }
+    
     // Verificar si se excedió el límite de verificaciones
     if (checkCount > MAX_CHECKS) {
-        document.getElementById('search-status').innerHTML = '<p>⏱️ Tiempo de búsqueda agotado. Por favor, intenta de nuevo.</p>';
-        document.getElementById('search-status').style.display = 'none';
+        if (statusEl) {
+            statusEl.innerHTML = '<p class="text-warning">⏱️ Tiempo de búsqueda agotado. Por favor, intenta de nuevo.</p><button id="cancel-search-btn" class="btn btn-danger mt-2" onclick="location.reload()">Cerrar</button>';
+        }
         document.getElementById('search-game-btn').disabled = false;
         return;
     }
     
     fetch('{% url "dice_queue_status" %}')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.status === 'matched') {
+            if (data.status === 'matched' && data.room_code) {
                 // Partida encontrada o activa - redirigir inmediatamente
+                console.log('✅ Partida encontrada, redirigiendo a:', data.room_code);
                 window.location.href = `/dice/game/${data.room_code}/`;
             } else if (data.status === 'waiting') {
                 // Continuar verificando cada 1.5 segundos (más frecuente)
                 setTimeout(checkMatchmakingStatus, 1500);
+            } else if (data.status === 'not_in_queue') {
+                // Ya no está en cola - puede haber sido emparejado o salió
+                // Verificar una vez más si tiene partida activa
+                setTimeout(() => {
+                    fetch('{% url "dice_queue_status" %}')
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.status === 'matched' && d.room_code) {
+                                window.location.href = `/dice/game/${d.room_code}/`;
+                            } else {
+                                if (statusEl) statusEl.style.display = 'none';
+                                document.getElementById('search-game-btn').disabled = false;
+                            }
+                        });
+                }, 500);
             } else {
-                // No está en cola ni tiene partida activa
-                document.getElementById('search-status').style.display = 'none';
-                document.getElementById('search-game-btn').disabled = false;
+                // Estado desconocido - continuar verificando
+                setTimeout(checkMatchmakingStatus, 1500);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            // Continuar verificando incluso si hay error
-            setTimeout(checkMatchmakingStatus, 1500);
+            console.error('Error verificando estado:', error);
+            // Continuar verificando incluso si hay error (puede ser temporal)
+            if (checkCount < MAX_CHECKS) {
+                setTimeout(checkMatchmakingStatus, 2000);
+            } else {
+                if (statusEl) statusEl.style.display = 'none';
+                document.getElementById('search-game-btn').disabled = false;
+            }
         });
 }
 
 // Cancelar búsqueda
 document.getElementById('cancel-search-btn').addEventListener('click', function() {
+    // Detener el polling
+    checkCount = MAX_CHECKS + 1; // Forzar detención
+    
     fetch('{% url "leave_dice_queue" %}', {
         method: 'POST',
         headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
             'X-CSRFToken': getCookie('csrftoken')
         }
     })
-    .then(() => {
+    .then(response => response.json())
+    .then(data => {
+        console.log('Salida de cola:', data);
         document.getElementById('search-status').style.display = 'none';
         document.getElementById('search-game-btn').disabled = false;
+        checkCount = 0; // Resetear contador
+    })
+    .catch(error => {
+        console.error('Error al salir de cola:', error);
+        // Aún así, ocultar el estado de búsqueda
+        document.getElementById('search-status').style.display = 'none';
+        document.getElementById('search-game-btn').disabled = false;
+        checkCount = 0; // Resetear contador
     });
 });
 

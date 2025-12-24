@@ -6035,8 +6035,12 @@ def join_dice_queue(request):
             })
             
     except Exception as e:
+        import traceback
+        print(f"Error en join_dice_queue: {e}")
+        print(traceback.format_exc())
         return JsonResponse({
             'success': False,
+            'status': 'error',
             'error': str(e)
         }, status=400)
 
