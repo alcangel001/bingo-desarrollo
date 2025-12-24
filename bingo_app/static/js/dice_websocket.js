@@ -250,7 +250,28 @@ function updateRoundResults(results, eliminated) {
     console.log('🔄 Jugadores disponibles:', players);
     
     // Asegurar que siempre se muestren los 3 cuadros de resultados
-    // Primero, actualizar todos los asientos (1, 2, 3) con los resultados disponibles
+    // Primero, crear un mapa de user_id -> seatNum para acceso rápido
+    const playerIdToSeatMap = {};
+    players.forEach((player, index) => {
+        if (player && player.user_id) {
+            playerIdToSeatMap[String(player.user_id)] = index + 1;
+        }
+    });
+    
+    // También buscar por data-player-id en los elementos del DOM
+    for (let seatNum = 1; seatNum <= 3; seatNum++) {
+        const playerSeat = document.getElementById(`player-${seatNum}`);
+        if (playerSeat) {
+            const playerIdAttr = playerSeat.getAttribute('data-player-id');
+            if (playerIdAttr) {
+                playerIdToSeatMap[String(playerIdAttr)] = seatNum;
+            }
+        }
+    }
+    
+    console.log('🔄 Mapa de jugadores a asientos:', playerIdToSeatMap);
+    
+    // Actualizar todos los asientos (1, 2, 3) con los resultados disponibles
     for (let seatNum = 1; seatNum <= 3; seatNum++) {
         const diceElement = document.getElementById(`dice-${seatNum}`);
         if (diceElement) {
@@ -259,26 +280,29 @@ function updateRoundResults(results, eliminated) {
                 // Buscar si hay un resultado para este asiento
                 let foundResult = false;
                 
-                // Buscar en los resultados usando el user_id del jugador en este asiento
-                if (players[seatNum - 1]) {
-                    const playerId = String(players[seatNum - 1].user_id);
-                    if (results && results[playerId]) {
-                        let total;
-                        if (Array.isArray(results[playerId])) {
-                            total = results[playerId][2]; // El total está en el índice 2
-                        } else if (typeof results[playerId] === 'object' && results[playerId].total) {
-                            total = results[playerId].total;
-                        } else {
-                            total = results[playerId]; // Asumir que es el total directamente
+                // Buscar en los resultados usando el mapa de user_id -> seatNum
+                if (results) {
+                    for (const [playerId, resultData] of Object.entries(results)) {
+                        const mappedSeat = playerIdToSeatMap[String(playerId)];
+                        if (mappedSeat === seatNum) {
+                            let total;
+                            if (Array.isArray(resultData)) {
+                                total = resultData[2]; // El total está en el índice 2
+                            } else if (typeof resultData === 'object' && resultData.total) {
+                                total = resultData.total;
+                            } else {
+                                total = resultData; // Asumir que es el total directamente
+                            }
+                            
+                            console.log(`✅ Actualizando dice-${seatNum} (jugador ${playerId}) con total: ${total}`);
+                            diceValue.textContent = total;
+                            diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
+                            setTimeout(() => {
+                                diceValue.style.animation = '';
+                            }, 500);
+                            foundResult = true;
+                            break; // Ya encontramos el resultado para este asiento
                         }
-                        
-                        console.log(`✅ Actualizando dice-${seatNum} (jugador ${playerId}) con total: ${total}`);
-                        diceValue.textContent = total;
-                        diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
-                        setTimeout(() => {
-                            diceValue.style.animation = '';
-                        }, 500);
-                        foundResult = true;
                     }
                 }
                 
