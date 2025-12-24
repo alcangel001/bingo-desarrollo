@@ -19,19 +19,23 @@ def process_matchmaking_queue():
     """
     print(f"🔄 [MATCHMAKING] Iniciando proceso de matchmaking...")
     
-    # Obtener todos los precios únicos en la cola
-    unique_prices = DiceMatchmakingQueue.objects.filter(
-        status='WAITING'
-    ).values_list('entry_price', flat=True).distinct()
+    # Obtener todos los precios únicos en la cola (sin duplicados)
+    all_waiting = DiceMatchmakingQueue.objects.filter(status='WAITING')
+    unique_prices = list(set(all_waiting.values_list('entry_price', flat=True)))
     
-    print(f"🔄 [MATCHMAKING] Precios únicos encontrados: {list(unique_prices)}")
+    print(f"🔄 [MATCHMAKING] Total en cola: {all_waiting.count()}")
+    print(f"🔄 [MATCHMAKING] Precios únicos encontrados: {unique_prices}")
+    
+    # Mostrar todos los usuarios en cola
+    for q in all_waiting[:10]:  # Mostrar hasta 10
+        print(f"   - {q.user.username}: ${q.entry_price}, estado: {q.status}, unido: {q.joined_at}")
     
     for price in unique_prices:
         # Buscar jugadores que busquen este precio específico
+        # NO filtrar por tiempo - solo por estado WAITING
         waiting_players_query = DiceMatchmakingQueue.objects.filter(
             status='WAITING',
-            entry_price=price,
-            joined_at__gte=timezone.now() - timedelta(minutes=5)  # Timeout de 5 minutos
+            entry_price=price
         ).order_by('joined_at')
         
         # Convertir a lista para contar correctamente
@@ -41,6 +45,7 @@ def process_matchmaking_queue():
         print(f"🔄 [MATCHMAKING] Precio ${price}: {player_count} jugadores esperando")
         if player_count > 0:
             print(f"   Jugadores: {[p.user.username for p in waiting_players_list]}")
+            print(f"   IDs de cola: {[p.id for p in waiting_players_list]}")
         
         if player_count < 3:
             print(f"⏳ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores ({player_count}/3)")

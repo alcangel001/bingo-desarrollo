@@ -6035,14 +6035,14 @@ def join_dice_queue(request):
             joined_at__lt=timezone.now() - timedelta(minutes=10)
         ).update(status='TIMEOUT')
         
-        # Verificar si ya está en cola (solo entradas recientes)
+        # Verificar si ya está en cola (cualquier entrada WAITING, sin importar el tiempo)
         existing_queue = DiceMatchmakingQueue.objects.filter(
             user=request.user,
-            status='WAITING',
-            joined_at__gte=timezone.now() - timedelta(minutes=10)
+            status='WAITING'
         ).first()
         
         if existing_queue:
+            print(f"⚠️ [JOIN_QUEUE] Usuario {request.user.username} ya está en cola (ID: {existing_queue.id})")
             return JsonResponse({
                 'success': False,
                 'error': 'Ya estás en la cola de espera'
