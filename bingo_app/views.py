@@ -6011,18 +6011,19 @@ def join_dice_queue(request):
                 'error': 'Saldo insuficiente'
             }, status=400)
         
-        # Verificar si el usuario tiene una partida activa
-        active_game = DiceGame.objects.filter(
-            dice_players__user=request.user,
-            status__in=['WAITING', 'SPINNING', 'PLAYING']
-        ).first()
+        # Verificar si el usuario tiene una partida activa (usar DicePlayer directamente)
+        from .models import DicePlayer
+        active_player = DicePlayer.objects.filter(
+            user=request.user,
+            game__status__in=['WAITING', 'SPINNING', 'PLAYING']
+        ).select_related('game').first()
         
-        if active_game:
+        if active_player:
             return JsonResponse({
                 'success': False,
                 'error': 'Ya tienes una partida activa',
                 'status': 'matched',
-                'room_code': active_game.room_code
+                'room_code': active_player.game.room_code
             }, status=400)
         
         # Limpiar entradas antiguas en cola del usuario
@@ -6059,13 +6060,17 @@ def join_dice_queue(request):
         result = process_matchmaking_queue()
         
         if result:
-            # Partida encontrada - verificar que el usuario esté en la partida
-            dice_game = DiceGame.objects.filter(
-                dice_players__user=request.user,
-                room_code=result.room_code
+            # Partida encontrada - verificar que el usuario esté en la partida usando DicePlayer
+            from .models import DicePlayer
+            result.refresh_from_db()  # Asegurar que la partida esté actualizada
+            
+            player = DicePlayer.objects.filter(
+                user=request.user,
+                game=result
             ).first()
             
-            if dice_game:
+            if player:
+                print(f"✅ [JOIN_QUEUE] Usuario {request.user.username} está en partida {result.room_code}")
                 return JsonResponse({
                     'success': True,
                     'status': 'matched',
@@ -6074,21 +6079,27 @@ def join_dice_queue(request):
                 })
             else:
                 # El usuario no está en la partida (puede ser un problema de timing)
+                print(f"⚠️ [JOIN_QUEUE] Usuario {request.user.username} NO está en partida {result.room_code}")
+                print(f"   Jugadores en partida: {[p.user.username for p in result.dice_players.all()]}")
+                
                 # Esperar un momento y verificar de nuevo
                 import time
                 time.sleep(0.5)
-                dice_game = DiceGame.objects.filter(
-                    dice_players__user=request.user,
-                    room_code=result.room_code
+                player = DicePlayer.objects.filter(
+                    user=request.user,
+                    game=result
                 ).first()
                 
-                if dice_game:
+                if player:
+                    print(f"✅ [JOIN_QUEUE] Usuario encontrado después de esperar")
                     return JsonResponse({
                         'success': True,
                         'status': 'matched',
                         'room_code': result.room_code,
                         'message': '¡Partida encontrada!'
                     })
+                else:
+                    print(f"❌ [JOIN_QUEUE] Usuario aún no está en partida después de esperar")
         
         # Esperando más jugadores
         return JsonResponse({
@@ -6145,19 +6156,38 @@ def dice_queue_status(request):
     """
     try:
         # PRIMERO: Verificar si el usuario tiene una partida activa/en curso
-        active_game = DiceGame.objects.filter(
-            dice_players__user=request.user,
-            status__in=['SPINNING', 'PLAYING', 'WAITING']
-        ).order_by('-created_at').first()
+        # Usar DicePlayer directamente es más confiable
+        from .models import DicePlayer
+        active_player = DicePlayer.objects.filter(
+            user=request.user,
+            game__status__in=['SPINNING', 'PLAYING', 'WAITING']
+        ).select_related('game').order_by('-game__created_at').first()
         
-        if active_game:
+        if active_player:
+            print(f"✅ [QUEUE_STATUS] Usuario {request.user.username} tiene partida activa: {active_player.game.room_code}")
             return JsonResponse({
                 'status': 'matched',
-                'room_code': active_game.room_code,
+                'room_code': active_player.game.room_code,
                 'message': 'Tienes una partida activa'
             })
         
-        # SEGUNDO: Ejecutar proceso de matchmaking para intentar encontrar partida
+        # SEGUNDO: Verificar si el usuario tiene una partida activa (verificar directamente con DicePlayer)
+        # Esto es más confiable que usar dice_players__user
+        from .models import DicePlayer
+        active_player = DicePlayer.objects.filter(
+            user=request.user,
+            game__status__in=['SPINNING', 'PLAYING', 'WAITING']
+        ).select_related('game').order_by('-game__created_at').first()
+        
+        if active_player:
+            print(f"✅ [QUEUE_STATUS] Usuario {request.user.username} tiene partida activa: {active_player.game.room_code}")
+            return JsonResponse({
+                'status': 'matched',
+                'room_code': active_player.game.room_code,
+                'message': '¡Partida encontrada!'
+            })
+        
+        # TERCERO: Ejecutar proceso de matchmaking para intentar encontrar partida
         # Esto es importante porque puede haber 3 usuarios esperando
         from .tasks import process_matchmaking_queue
         matchmaking_result = process_matchmaking_queue()
@@ -6165,31 +6195,40 @@ def dice_queue_status(request):
         # Si se creó una partida, verificar si el usuario está en ella
         if matchmaking_result:
             print(f"🔄 [QUEUE_STATUS] Matchmaking creó partida: {matchmaking_result.room_code}")
-            dice_game = DiceGame.objects.filter(
-                dice_players__user=request.user,
-                room_code=matchmaking_result.room_code
+            
+            # Refrescar desde la base de datos para asegurar que los jugadores estén guardados
+            matchmaking_result.refresh_from_db()
+            
+            # Verificar directamente con DicePlayer
+            player = DicePlayer.objects.filter(
+                user=request.user,
+                game=matchmaking_result
             ).first()
             
-            if dice_game:
-                print(f"✅ [QUEUE_STATUS] Usuario {request.user.username} está en partida {dice_game.room_code}")
+            if player:
+                print(f"✅ [QUEUE_STATUS] Usuario {request.user.username} está en partida {matchmaking_result.room_code}")
                 return JsonResponse({
                     'status': 'matched',
-                    'room_code': dice_game.room_code,
+                    'room_code': matchmaking_result.room_code,
                     'message': '¡Partida encontrada!'
                 })
             else:
                 print(f"⚠️ [QUEUE_STATUS] Usuario {request.user.username} NO está en partida {matchmaking_result.room_code}")
-                # Verificar si hay otra partida activa para este usuario
-                other_game = DiceGame.objects.filter(
-                    dice_players__user=request.user,
-                    status__in=['SPINNING', 'PLAYING', 'WAITING']
-                ).exclude(room_code=matchmaking_result.room_code).first()
+                print(f"   Jugadores en partida: {[p.user.username for p in matchmaking_result.dice_players.all()]}")
                 
-                if other_game:
-                    print(f"✅ [QUEUE_STATUS] Usuario tiene otra partida activa: {other_game.room_code}")
+                # Esperar un momento y verificar de nuevo (problema de timing)
+                import time
+                time.sleep(0.3)
+                player = DicePlayer.objects.filter(
+                    user=request.user,
+                    game=matchmaking_result
+                ).first()
+                
+                if player:
+                    print(f"✅ [QUEUE_STATUS] Usuario encontrado después de esperar")
                     return JsonResponse({
                         'status': 'matched',
-                        'room_code': other_game.room_code,
+                        'room_code': matchmaking_result.room_code,
                         'message': '¡Partida encontrada!'
                     })
         

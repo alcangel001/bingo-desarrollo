@@ -98,12 +98,20 @@ def process_matchmaking_queue():
                 )
                 
                 # Agregar jugadores a la partida
+                created_players = []
                 for queue_entry in players_list:
-                    DicePlayer.objects.create(
+                    # Refrescar el usuario para asegurar datos actualizados
+                    queue_entry.user.refresh_from_db()
+                    
+                    # Crear el jugador
+                    player = DicePlayer.objects.create(
                         user=queue_entry.user,
                         game=dice_game,
                         lives=3,
                     )
+                    created_players.append(player)
+                    print(f"   ✅ Jugador {queue_entry.user.username} agregado a partida {dice_game.room_code}")
+                    
                     # Marcar como emparejado y limpiar cualquier otra entrada en cola del usuario
                     queue_entry.status = 'MATCHED'
                     queue_entry.matched_at = timezone.now()
@@ -116,6 +124,15 @@ def process_matchmaking_queue():
                     ).exclude(
                         id=queue_entry.id
                     ).update(status='TIMEOUT')
+                
+                # Refrescar la partida para asegurar que los jugadores estén guardados
+                dice_game.refresh_from_db()
+                
+                # Verificar que los 3 jugadores estén en la partida
+                players_in_game = list(dice_game.dice_players.all())
+                print(f"   📊 Jugadores en partida después de crear: {len(players_in_game)}")
+                for p in players_in_game:
+                    print(f"      - {p.user.username} (ID: {p.user.id})")
                 
                 # SPIN DEL PREMIO (determinar multiplicador)
                 dice_game.spin_prize()
