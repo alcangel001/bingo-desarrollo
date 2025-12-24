@@ -5932,6 +5932,32 @@ def dice_lobby(request):
     """
     settings = DiceModuleSettings.get_settings()
     
+    # Verificar si el usuario tiene una partida activa/en curso PRIMERO
+    active_game = DiceGame.objects.filter(
+        dice_players__user=request.user,
+        status__in=['WAITING', 'SPINNING', 'PLAYING']
+    ).order_by('-created_at').first()
+    
+    # Si tiene una partida activa, limpiar cualquier entrada en cola y redirigir
+    if active_game:
+        # Limpiar entradas en cola del usuario
+        DiceMatchmakingQueue.objects.filter(
+            user=request.user,
+            status__in=['WAITING', 'MATCHED']
+        ).update(status='TIMEOUT')
+        
+        messages.info(request, f'Volviendo a tu partida activa: {active_game.room_code}')
+        return redirect('dice_game_room', room_code=active_game.room_code)
+    
+    # Limpiar entradas antiguas en cola (más de 10 minutos)
+    from django.utils import timezone
+    from datetime import timedelta
+    DiceMatchmakingQueue.objects.filter(
+        user=request.user,
+        status='WAITING',
+        joined_at__lt=timezone.now() - timedelta(minutes=10)
+    ).update(status='TIMEOUT')
+    
     # Partidas esperando jugadores
     waiting_games = DiceGame.objects.filter(
         status='WAITING'
@@ -5941,17 +5967,12 @@ def dice_lobby(request):
         player_count__lt=3
     ).order_by('-created_at')[:10]
     
-    # Verificar si el usuario está en cola
+    # Verificar si el usuario está en cola (solo entradas recientes)
     user_queue_entry = DiceMatchmakingQueue.objects.filter(
         user=request.user,
-        status='WAITING'
+        status='WAITING',
+        joined_at__gte=timezone.now() - timedelta(minutes=10)
     ).first()
-    
-    # Verificar si el usuario tiene una partida activa/en curso
-    active_game = DiceGame.objects.filter(
-        dice_players__user=request.user,
-        status__in=['SPINNING', 'PLAYING']
-    ).order_by('-created_at').first()
     
     context = {
         'settings': settings,
@@ -5960,13 +5981,8 @@ def dice_lobby(request):
         'min_price': Decimal('0.10'),
         'max_price': settings.max_entry_price,
         'user_in_queue': user_queue_entry is not None,
-        'active_game': active_game,
+        'active_game': None,  # Ya verificamos arriba
     }
-    
-    # Si tiene una partida activa, redirigir automáticamente
-    if active_game:
-        messages.info(request, f'Volviendo a tu partida activa: {active_game.room_code}')
-        return redirect('dice_game_room', room_code=active_game.room_code)
     
     return render(request, 'bingo_app/dice_lobby.html', context)
 
@@ -5995,10 +6011,34 @@ def join_dice_queue(request):
                 'error': 'Saldo insuficiente'
             }, status=400)
         
-        # Verificar si ya está en cola
+        # Verificar si el usuario tiene una partida activa
+        active_game = DiceGame.objects.filter(
+            dice_players__user=request.user,
+            status__in=['WAITING', 'SPINNING', 'PLAYING']
+        ).first()
+        
+        if active_game:
+            return JsonResponse({
+                'success': False,
+                'error': 'Ya tienes una partida activa',
+                'status': 'matched',
+                'room_code': active_game.room_code
+            }, status=400)
+        
+        # Limpiar entradas antiguas en cola del usuario
+        from django.utils import timezone
+        from datetime import timedelta
+        DiceMatchmakingQueue.objects.filter(
+            user=request.user,
+            status='WAITING',
+            joined_at__lt=timezone.now() - timedelta(minutes=10)
+        ).update(status='TIMEOUT')
+        
+        # Verificar si ya está en cola (solo entradas recientes)
         existing_queue = DiceMatchmakingQueue.objects.filter(
             user=request.user,
-            status='WAITING'
+            status='WAITING',
+            joined_at__gte=timezone.now() - timedelta(minutes=10)
         ).first()
         
         if existing_queue:
@@ -6152,6 +6192,12 @@ def dice_game_room(request, room_code):
         if not player:
             messages.error(request, 'No eres parte de esta partida')
             return redirect('dice_lobby')
+        
+        # LIMPIAR cualquier entrada en cola del usuario (por si hay entradas antiguas)
+        DiceMatchmakingQueue.objects.filter(
+            user=request.user,
+            status__in=['WAITING', 'MATCHED']
+        ).update(status='TIMEOUT')
         
         # Obtener todos los jugadores
         players = dice_game.dice_players.all()

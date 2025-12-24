@@ -80,10 +80,17 @@ def process_matchmaking_queue():
                         game=dice_game,
                         lives=3,
                     )
-                    # Marcar como emparejado
+                    # Marcar como emparejado y limpiar cualquier otra entrada en cola del usuario
                     queue_entry.status = 'MATCHED'
                     queue_entry.matched_at = timezone.now()
                     queue_entry.save()
+                    
+                    # Limpiar cualquier otra entrada en cola del mismo usuario (por si hay duplicados)
+                    DiceMatchmakingQueue.objects.filter(
+                        user=queue_entry.user,
+                        status='WAITING',
+                        id__ne=queue_entry.id
+                    ).update(status='TIMEOUT')
                 
                 # SPIN DEL PREMIO (determinar multiplicador)
                 dice_game.spin_prize()
