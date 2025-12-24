@@ -238,42 +238,66 @@ function updateDiceRoll(data) {
 
 function updateRoundResults(results, eliminated) {
     console.log('🔄 Actualizando resultados de ronda:', results);
+    console.log('🔄 Jugador eliminado:', eliminated);
     
     // Mapear user_id a seatNum usando INITIAL_PLAYERS
     const players = typeof INITIAL_PLAYERS !== 'undefined' ? INITIAL_PLAYERS : [];
+    console.log('🔄 INITIAL_PLAYERS:', players);
     
-    // Actualizar resultados de cada jugador
+    // Primero, asegurarnos de que TODOS los resultados se muestren
+    // Actualizar resultados de cada jugador que lanzó
     Object.keys(results).forEach((playerId) => {
+        const playerIdInt = parseInt(playerId);
+        console.log(`🔄 Procesando resultado para playerId: ${playerIdInt}`);
+        
         // Buscar el jugador en INITIAL_PLAYERS
-        const playerIndex = players.findIndex(p => p.user_id === parseInt(playerId));
+        const playerIndex = players.findIndex(p => p.user_id === playerIdInt);
+        console.log(`🔄 Índice encontrado en INITIAL_PLAYERS: ${playerIndex}`);
         
         if (playerIndex !== -1) {
             const seatNum = playerIndex + 1;
+            console.log(`🔄 Actualizando asiento ${seatNum} con resultado:`, results[playerId]);
+            
             const diceElement = document.getElementById(`dice-${seatNum}`);
             if (diceElement) {
                 const diceValue = diceElement.querySelector('.dice-value');
                 if (diceValue && results[playerId]) {
                     // results[playerId] puede ser un array [die1, die2, total] o un objeto
-                    const total = Array.isArray(results[playerId]) ? results[playerId][2] : results[playerId].total || results[playerId];
+                    let total;
+                    if (Array.isArray(results[playerId])) {
+                        total = results[playerId][2]; // El total está en el índice 2
+                    } else if (typeof results[playerId] === 'object' && results[playerId].total) {
+                        total = results[playerId].total;
+                    } else {
+                        total = results[playerId]; // Asumir que es el total directamente
+                    }
+                    
+                    console.log(`✅ Actualizando dice-${seatNum} con total: ${total}`);
                     diceValue.textContent = total;
                     diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
                     setTimeout(() => {
                         diceValue.style.animation = '';
                     }, 500);
+                } else {
+                    console.warn(`⚠️ No se encontró diceValue para dice-${seatNum}`);
                 }
+            } else {
+                console.warn(`⚠️ No se encontró diceElement para dice-${seatNum}`);
             }
         } else {
             // Fallback: buscar por nombre de usuario si no está en INITIAL_PLAYERS
-            console.warn(`Jugador con ID ${playerId} no encontrado en INITIAL_PLAYERS`);
+            console.warn(`⚠️ Jugador con ID ${playerId} no encontrado en INITIAL_PLAYERS`);
         }
     });
     
     // Mostrar jugador eliminado
     if (eliminated) {
+        console.log(`🔄 Marcando jugador eliminado: ${eliminated}`);
         // Buscar por nombre de usuario en INITIAL_PLAYERS
         const eliminatedPlayerIndex = players.findIndex(p => p.username === eliminated);
         if (eliminatedPlayerIndex !== -1) {
             const seatNum = eliminatedPlayerIndex + 1;
+            console.log(`✅ Jugador eliminado encontrado en asiento ${seatNum}`);
             const eliminatedSeat = document.getElementById(`player-${seatNum}`);
             if (eliminatedSeat) {
                 eliminatedSeat.classList.add('eliminated');
@@ -283,6 +307,8 @@ function updateRoundResults(results, eliminated) {
                 statusEl.style.color = '#ff4444';
                 statusEl.textContent = '✕';
             }
+        } else {
+            console.warn(`⚠️ Jugador eliminado ${eliminated} no encontrado en INITIAL_PLAYERS`);
         }
     }
 }
