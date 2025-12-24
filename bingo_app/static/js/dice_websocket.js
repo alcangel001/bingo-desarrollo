@@ -62,8 +62,20 @@ function handleDiceMessage(data) {
             break;
             
         case 'round_result':
-            // Resultado de ronda
+            // Resultado de ronda - TODOS los jugadores han lanzado
+            console.log('📊 Resultado de ronda completo recibido:', data);
             updateRoundResults(data.results, data.eliminated);
+            // Deshabilitar botón después del resultado de ronda hasta la siguiente ronda
+            const rollBtn = document.getElementById('roll-dice-btn');
+            if (rollBtn) {
+                rollBtn.disabled = true;
+            }
+            // Re-habilitar después de mostrar resultados (2 segundos)
+            setTimeout(() => {
+                if (rollBtn) {
+                    rollBtn.disabled = false;
+                }
+            }, 2000);
             break;
             
         case 'game_finished':
