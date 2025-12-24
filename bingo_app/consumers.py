@@ -936,6 +936,30 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 await self.close()
                 return
             
+            # Verificar si el juego debería cambiar de SPINNING a PLAYING
+            # Si lleva más de 7 segundos en SPINNING, cambiarlo automáticamente
+            if dice_game.status == 'SPINNING' and dice_game.started_at:
+                from django.utils import timezone
+                from datetime import timedelta
+                time_elapsed = timezone.now() - dice_game.started_at
+                if time_elapsed.total_seconds() > 7:
+                    # Ya debería estar en PLAYING, cambiarlo
+                    def change_status_to_playing():
+                        try:
+                            game = DiceGame.objects.get(room_code=dice_game.room_code)
+                            if game.status == 'SPINNING':
+                                game.status = 'PLAYING'
+                                game.save(update_fields=['status'])
+                                from .tasks import notify_game_status_change
+                                notify_game_status_change(game)
+                                print(f"✅ Estado cambiado de SPINNING a PLAYING para {game.room_code} (verificación al conectar)")
+                        except Exception as e:
+                            print(f"❌ Error al cambiar estado al conectar: {e}")
+                    
+                    await database_sync_to_async(change_status_to_playing)()
+                    # Recargar el juego para tener el estado actualizado
+                    dice_game = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
+            
             # Unirse al grupo
             await self.channel_layer.group_add(
                 self.room_group_name,
