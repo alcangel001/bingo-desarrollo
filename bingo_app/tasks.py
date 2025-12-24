@@ -17,18 +17,23 @@ def process_matchmaking_queue():
     Proceso que se ejecuta cada 2-3 segundos.
     Agrupa jugadores de 3 en 3 y crea partidas.
     """
-    print(f"🔄 [MATCHMAKING] Iniciando proceso de matchmaking...")
+    print(f"🔄 [MATCHMAKING] ========== INICIANDO PROCESO DE MATCHMAKING ==========")
     
     # Obtener todos los precios únicos en la cola (sin duplicados)
     all_waiting = DiceMatchmakingQueue.objects.filter(status='WAITING')
     unique_prices = list(set(all_waiting.values_list('entry_price', flat=True)))
     
-    print(f"🔄 [MATCHMAKING] Total en cola: {all_waiting.count()}")
+    total_count = all_waiting.count()
+    print(f"🔄 [MATCHMAKING] Total en cola: {total_count}")
     print(f"🔄 [MATCHMAKING] Precios únicos encontrados: {unique_prices}")
     
     # Mostrar todos los usuarios en cola
     for q in all_waiting[:10]:  # Mostrar hasta 10
         print(f"   - {q.user.username}: ${q.entry_price}, estado: {q.status}, unido: {q.joined_at}")
+    
+    if total_count == 0:
+        print(f"⏳ [MATCHMAKING] No hay jugadores en cola, terminando...")
+        return None
     
     games_created = []
     
@@ -79,6 +84,7 @@ def process_matchmaking_queue():
             
             if len(players_list) < 3:
                 print(f"⚠️ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores válidos después de validar saldo ({len(players_list)}/3)")
+                print(f"   Jugadores con saldo suficiente: {[p.user.username for p in players_list]}")
                 break  # No hay suficientes jugadores válidos, pasar al siguiente precio
             
             print(f"✅ [MATCHMAKING] Precio ${price} (iteración {iteration}): ¡3 jugadores encontrados! Creando partida...")
@@ -225,10 +231,16 @@ def process_matchmaking_queue():
                 print(f"❌ [MATCHMAKING] Error creando partida: {e}")
                 import traceback
                 traceback.print_exc()
-                break  # Salir del loop para este precio
+                # NO hacer break aquí - continuar intentando con el siguiente grupo
+                continue  # Continuar con la siguiente iteración
     
     # Retornar la primera partida creada (o None si no se creó ninguna)
-    return games_created[0] if games_created else None
+    if games_created:
+        print(f"✅ [MATCHMAKING] ========== MATCHMAKING COMPLETADO: {len(games_created)} partida(s) creada(s) ==========")
+        return games_created[0]
+    else:
+        print(f"⏳ [MATCHMAKING] ========== MATCHMAKING COMPLETADO: No se crearon partidas ==========")
+        return None
 
 
 def notify_players_match_found(dice_game, players_list):

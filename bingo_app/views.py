@@ -6176,11 +6176,21 @@ def dice_queue_status(request):
         # TERCERO: Ejecutar proceso de matchmaking para intentar encontrar partida
         # Esto es importante porque puede haber 3 usuarios esperando
         from .tasks import process_matchmaking_queue
+        
+        # Verificar cuántos jugadores hay esperando antes de ejecutar matchmaking
+        waiting_count = DiceMatchmakingQueue.objects.filter(status='WAITING').count()
+        same_price_count = DiceMatchmakingQueue.objects.filter(
+            status='WAITING',
+            entry_price=queue_entry.entry_price if queue_entry else None
+        ).count() if queue_entry else 0
+        
+        print(f"🔄 [QUEUE_STATUS] Ejecutando matchmaking... Total en cola: {waiting_count}, Mismo precio: {same_price_count}")
+        
         matchmaking_result = process_matchmaking_queue()
         
         # Si se creó una partida, verificar si el usuario está en ella
         if matchmaking_result:
-            print(f"🔄 [QUEUE_STATUS] Matchmaking creó partida: {matchmaking_result.room_code}")
+            print(f"✅ [QUEUE_STATUS] Matchmaking creó partida: {matchmaking_result.room_code}")
             
             # Refrescar desde la base de datos para asegurar que los jugadores estén guardados
             matchmaking_result.refresh_from_db()
@@ -6204,7 +6214,7 @@ def dice_queue_status(request):
                 
                 # Esperar un momento y verificar de nuevo (problema de timing)
                 import time
-                time.sleep(0.3)
+                time.sleep(0.5)
                 player = DicePlayer.objects.filter(
                     user=request.user,
                     game=matchmaking_result
@@ -6217,6 +6227,8 @@ def dice_queue_status(request):
                         'room_code': matchmaking_result.room_code,
                         'message': '¡Partida encontrada!'
                     })
+        else:
+            print(f"⏳ [QUEUE_STATUS] Matchmaking no creó partida (puede que no haya suficientes jugadores válidos)")
         
         # TERCERO: Verificar si está en cola
         queue_entry = DiceMatchmakingQueue.objects.filter(
