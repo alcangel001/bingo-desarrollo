@@ -6042,11 +6042,13 @@ def join_dice_queue(request):
         ).first()
         
         if existing_queue:
-            print(f"⚠️ [JOIN_QUEUE] Usuario {request.user.username} ya está en cola (ID: {existing_queue.id})")
+            print(f"ℹ️ [JOIN_QUEUE] Usuario {request.user.username} ya está en cola (ID: {existing_queue.id}), continuando búsqueda...")
+            # En lugar de devolver error, devolver éxito para que el frontend continúe verificando
             return JsonResponse({
-                'success': False,
-                'error': 'Ya estás en la cola de espera'
-            }, status=400)
+                'success': True,
+                'status': 'waiting',
+                'message': 'Ya estás en la cola, buscando oponentes...'
+            })
         
         # Crear entrada en cola
         queue_entry = DiceMatchmakingQueue.objects.create(
@@ -6249,9 +6251,18 @@ def dice_queue_status(request):
             })
         
         print(f"⏳ [QUEUE_STATUS] Usuario {request.user.username} en cola, estado: WAITING")
+        
+        # Informar cuántos usuarios hay esperando con el mismo precio
+        same_price_count = DiceMatchmakingQueue.objects.filter(
+            status='WAITING',
+            entry_price=queue_entry.entry_price
+        ).count()
+        
         return JsonResponse({
             'status': 'waiting',
-            'entry_price': float(queue_entry.entry_price)
+            'entry_price': float(queue_entry.entry_price),
+            'players_waiting': same_price_count,
+            'message': f'Buscando oponentes... ({same_price_count}/3 jugadores con precio ${queue_entry.entry_price})'
         })
     except Exception as e:
         import traceback

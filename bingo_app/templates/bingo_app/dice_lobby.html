@@ -247,6 +247,12 @@ function startMatchmaking(entryPrice) {
     })
     .then(data => {
         if (data.success === false) {
+            // Si el error es que ya está en cola, continuar verificando
+            if (data.error && data.error.includes('Ya estás en la cola')) {
+                console.log('ℹ️ Ya en cola, continuando búsqueda...');
+                checkMatchmakingStatus();
+                return;
+            }
             throw new Error(data.error || 'Error al buscar partida');
         }
         
@@ -254,7 +260,7 @@ function startMatchmaking(entryPrice) {
             // Partida encontrada inmediatamente - redirigir
             window.location.href = `/dice/game/${data.room_code}/`;
         } else if (data.status === 'waiting') {
-            // Seguir esperando - verificar cada 1.5 segundos
+            // Seguir esperando - verificar cada 1 segundo
             checkMatchmakingStatus();
         } else {
             throw new Error(data.error || 'Error desconocido al buscar partida');
@@ -308,6 +314,13 @@ function checkMatchmakingStatus() {
                 window.location.href = `/dice/game/${data.room_code}/`;
                 return; // No continuar verificando
             } else if (data.status === 'waiting') {
+                // Mostrar información de cuántos jugadores están esperando
+                if (data.players_waiting !== undefined) {
+                    const counterEl = document.getElementById('search-counter');
+                    if (counterEl && data.message) {
+                        counterEl.textContent = data.message;
+                    }
+                }
                 // Continuar verificando cada 1 segundo (más frecuente para detectar partidas rápidamente)
                 setTimeout(checkMatchmakingStatus, 1000);
             } else if (data.status === 'not_in_queue') {
