@@ -65,15 +65,18 @@ function handleDiceMessage(data) {
             // Resultado de ronda - TODOS los jugadores han lanzado
             console.log('📊 Resultado de ronda completo recibido:', data);
             updateRoundResults(data.results, data.eliminated);
-            // Deshabilitar botón después del resultado de ronda hasta la siguiente ronda
-            const rollBtn = document.getElementById('roll-dice-btn');
-            if (rollBtn) {
-                rollBtn.disabled = true;
-            }
-            // Re-habilitar después de mostrar resultados (2 segundos)
+            // NO deshabilitar el botón aquí - ya está deshabilitado desde rollDice()
+            // Solo asegurar que esté deshabilitado y re-habilitarlo después de mostrar resultados (2 segundos)
+            // para la siguiente ronda
             setTimeout(() => {
+                const rollBtn = document.getElementById('roll-dice-btn');
                 if (rollBtn) {
-                    rollBtn.disabled = false;
+                    // Verificar que el juego aún esté en curso antes de re-habilitar
+                    const gameStatusEl = document.getElementById('game-status');
+                    if (gameStatusEl && gameStatusEl.textContent.includes('En juego')) {
+                        rollBtn.disabled = false;
+                        console.log('✅ Botón re-habilitado para siguiente ronda');
+                    }
                 }
             }, 2000);
             break;

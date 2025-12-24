@@ -11,21 +11,34 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function rollDice() {
+    console.log('🎲 Función rollDice() llamada');
     const rollBtn = document.getElementById('roll-dice-btn');
+    
+    if (!rollBtn) {
+        console.error('❌ No se encontró el botón roll-dice-btn');
+        return;
+    }
     
     // Verificar que el botón no esté deshabilitado
     if (rollBtn.disabled) {
-        console.log('El botón está deshabilitado. El juego aún no ha comenzado.');
+        console.log('⚠️ El botón está deshabilitado. Estado:', rollBtn.disabled);
         return;
     }
     
     // Verificar conexión WebSocket
-    if (!diceSocket || diceSocket.readyState !== WebSocket.OPEN) {
-        console.error('WebSocket no está conectado');
+    if (!diceSocket) {
+        console.error('❌ diceSocket no está definido');
         alert('Error: No hay conexión con el servidor. Por favor, recarga la página.');
         return;
     }
     
+    if (diceSocket.readyState !== WebSocket.OPEN) {
+        console.error('❌ WebSocket no está conectado. Estado:', diceSocket.readyState);
+        alert('Error: No hay conexión con el servidor. Por favor, recarga la página.');
+        return;
+    }
+    
+    console.log('✅ Enviando mensaje roll_dice al servidor');
     rollBtn.disabled = true;
     
     // Enviar lanzamiento al servidor vía WebSocket
@@ -33,6 +46,7 @@ function rollDice() {
         type: 'roll_dice'
     }));
     
+    console.log('✅ Mensaje enviado, iniciando animación');
     // Mostrar animación de lanzamiento
     animateDiceRoll();
 }
