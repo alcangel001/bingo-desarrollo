@@ -6285,12 +6285,12 @@ def dice_queue_status(request):
         })
     except Exception as e:
         import traceback
-        print(f"Error en dice_queue_status: {e}")
+        print(f"❌ [QUEUE_STATUS] Error en dice_queue_status: {e}")
         print(traceback.format_exc())
         return JsonResponse({
             'status': 'error',
             'error': str(e)
-        }, status=400)
+        }, status=500)  # Cambiar a 500 para errores del servidor, no 400
 
 
 @login_required
