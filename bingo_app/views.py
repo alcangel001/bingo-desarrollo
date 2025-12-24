@@ -6059,20 +6059,43 @@ def join_dice_queue(request):
         result = process_matchmaking_queue()
         
         if result:
-            # Partida encontrada
-            return JsonResponse({
-                'success': True,
-                'status': 'matched',
-                'room_code': result.room_code,
-                'message': '¡Partida encontrada!'
-            })
-        else:
-            # Esperando más jugadores
-            return JsonResponse({
-                'success': True,
-                'status': 'waiting',
-                'message': 'Buscando oponentes...'
-            })
+            # Partida encontrada - verificar que el usuario esté en la partida
+            dice_game = DiceGame.objects.filter(
+                dice_players__user=request.user,
+                room_code=result.room_code
+            ).first()
+            
+            if dice_game:
+                return JsonResponse({
+                    'success': True,
+                    'status': 'matched',
+                    'room_code': result.room_code,
+                    'message': '¡Partida encontrada!'
+                })
+            else:
+                # El usuario no está en la partida (puede ser un problema de timing)
+                # Esperar un momento y verificar de nuevo
+                import time
+                time.sleep(0.5)
+                dice_game = DiceGame.objects.filter(
+                    dice_players__user=request.user,
+                    room_code=result.room_code
+                ).first()
+                
+                if dice_game:
+                    return JsonResponse({
+                        'success': True,
+                        'status': 'matched',
+                        'room_code': result.room_code,
+                        'message': '¡Partida encontrada!'
+                    })
+        
+        # Esperando más jugadores
+        return JsonResponse({
+            'success': True,
+            'status': 'waiting',
+            'message': 'Buscando oponentes...'
+        })
             
     except Exception as e:
         import traceback
@@ -6118,6 +6141,7 @@ def leave_dice_queue(request):
 def dice_queue_status(request):
     """
     Verifica el estado de la cola del usuario y partidas activas.
+    También ejecuta el proceso de matchmaking para encontrar partidas.
     """
     try:
         # PRIMERO: Verificar si el usuario tiene una partida activa/en curso
@@ -6133,7 +6157,26 @@ def dice_queue_status(request):
                 'message': 'Tienes una partida activa'
             })
         
-        # SEGUNDO: Verificar si está en cola
+        # SEGUNDO: Ejecutar proceso de matchmaking para intentar encontrar partida
+        # Esto es importante porque puede haber 3 usuarios esperando
+        from .tasks import process_matchmaking_queue
+        matchmaking_result = process_matchmaking_queue()
+        
+        # Si se creó una partida, verificar si el usuario está en ella
+        if matchmaking_result:
+            dice_game = DiceGame.objects.filter(
+                dice_players__user=request.user,
+                room_code=matchmaking_result.room_code
+            ).first()
+            
+            if dice_game:
+                return JsonResponse({
+                    'status': 'matched',
+                    'room_code': dice_game.room_code,
+                    'message': '¡Partida encontrada!'
+                })
+        
+        # TERCERO: Verificar si está en cola
         queue_entry = DiceMatchmakingQueue.objects.filter(
             user=request.user,
             status='WAITING'
@@ -6150,7 +6193,7 @@ def dice_queue_status(request):
                 # Buscar la partida más reciente
                 dice_game = DiceGame.objects.filter(
                     dice_players__user=request.user,
-                    status__in=['SPINNING', 'PLAYING']
+                    status__in=['SPINNING', 'PLAYING', 'WAITING']
                 ).order_by('-created_at').first()
                 
                 if dice_game:
@@ -6168,6 +6211,9 @@ def dice_queue_status(request):
             'entry_price': float(queue_entry.entry_price)
         })
     except Exception as e:
+        import traceback
+        print(f"Error en dice_queue_status: {e}")
+        print(traceback.format_exc())
         return JsonResponse({
             'status': 'error',
             'error': str(e)
