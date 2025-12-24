@@ -317,18 +317,17 @@ function updateRoundResults(results, eliminated) {
         }
     }
     
-    // También actualizar usando el método original para compatibilidad
+    // También actualizar usando el método original para compatibilidad (usando el mapa)
     if (results) {
         Object.keys(results).forEach((playerId) => {
             const playerIdInt = parseInt(playerId);
             console.log(`🔄 Procesando resultado para playerId: ${playerIdInt}`);
             
-            // Buscar el jugador en la lista de jugadores
-            const playerIndex = players.findIndex(p => p.user_id === playerIdInt);
-            console.log(`🔄 Índice encontrado: ${playerIndex}`);
+            // Usar el mapa para encontrar el asiento
+            const seatNum = playerIdToSeatMap[String(playerId)];
+            console.log(`🔄 Asiento encontrado en mapa: ${seatNum}`);
             
-            if (playerIndex !== -1 && playerIndex < 3) {
-                const seatNum = playerIndex + 1;
+            if (seatNum && seatNum >= 1 && seatNum <= 3) {
                 const diceElement = document.getElementById(`dice-${seatNum}`);
                 if (diceElement) {
                     const diceValue = diceElement.querySelector('.dice-value');
@@ -342,9 +341,16 @@ function updateRoundResults(results, eliminated) {
                             total = results[playerId];
                         }
                         
+                        console.log(`✅ Actualizando dice-${seatNum} (jugador ${playerId}) con total: ${total} [método compatibilidad]`);
                         diceValue.textContent = total;
+                        diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
+                        setTimeout(() => {
+                            diceValue.style.animation = '';
+                        }, 500);
                     }
                 }
+            } else {
+                console.warn(`⚠️ No se encontró asiento para jugador ${playerId} en el mapa`);
             }
         });
     }
