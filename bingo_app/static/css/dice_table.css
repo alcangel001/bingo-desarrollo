@@ -407,18 +407,148 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-    .table-surface {
-        width: 400px;
-        height: 400px;
+    .game-table-container {
+        height: 60vh;
+        margin: 10px auto;
     }
     
-    .player-avatar {
-        width: 80px;
-        height: 80px;
+    .table-surface {
+        width: 350px;
+        height: 350px;
+        border-width: 8px;
+    }
+    
+    .table-center {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .prize-display {
+        padding: 15px;
+        border-width: 2px;
+    }
+    
+    .prize-label {
+        font-size: 10px;
+        margin-bottom: 5px;
     }
     
     .prize-amount {
-        font-size: 32px;
+        font-size: 24px;
+        margin-bottom: 3px;
+    }
+    
+    .prize-multiplier {
+        font-size: 16px;
+    }
+    
+    .player-avatar {
+        width: 70px;
+        height: 70px;
+        border-width: 3px;
+    }
+    
+    .player-info {
+        padding: 8px 12px;
+        min-width: 120px;
+    }
+    
+    .player-name {
+        font-size: 14px;
+    }
+    
+    .player-stack {
+        font-size: 14px;
+    }
+    
+    .player-dice {
+        padding: 10px 15px;
+        min-width: 80px;
+    }
+    
+    .dice-value {
+        font-size: 24px;
+    }
+    
+    /* Ajustar posiciones para móviles */
+    .player-top {
+        top: 20px;
+    }
+    
+    .player-left {
+        left: 20px;
+    }
+    
+    .player-right {
+        right: 20px;
+    }
+    
+    .game-controls {
+        padding: 15px;
+    }
+    
+    .roll-dice-btn {
+        padding: 15px 25px;
+        font-size: 14px;
+    }
+    
+    .round-number {
+        font-size: 24px;
+    }
+    
+    .game-status {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .game-table-container {
+        height: 50vh;
+    }
+    
+    .table-surface {
+        width: 280px;
+        height: 280px;
+    }
+    
+    .table-center {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .prize-display {
+        padding: 10px;
+    }
+    
+    .prize-amount {
+        font-size: 20px;
+    }
+    
+    .prize-multiplier {
+        font-size: 14px;
+    }
+    
+    .player-avatar {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .player-info {
+        padding: 6px 10px;
+        min-width: 100px;
+    }
+    
+    .player-name {
+        font-size: 12px;
+    }
+    
+    .player-dice {
+        padding: 8px 12px;
+        min-width: 70px;
+    }
+    
+    .dice-value {
+        font-size: 20px;
     }
 }
 

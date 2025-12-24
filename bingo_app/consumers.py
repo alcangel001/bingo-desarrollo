@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime
 from collections import defaultdict
 from .models import Game, Player, ChatMessage, Transaction, Message, User, DiceGame, DicePlayer
+from django.utils import timezone
 from django.db.models import Sum
 
 # Manager global para auto-calling persistente
@@ -1026,10 +1027,33 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                     if player.is_eliminated:
                         return {'error': 'Ya estás eliminado de esta partida.'}
                     
+                    # Verificar si el jugador ya lanzó en esta ronda
+                    # Obtener la ronda actual (o crear una nueva)
+                    from .models import DiceRound
+                    current_round = dice_game.rounds.filter(eliminated_player__isnull=True).order_by('-round_number').first()
+                    
+                    if not current_round:
+                        # Crear nueva ronda
+                        last_round = dice_game.rounds.order_by('-round_number').first()
+                        round_number = (last_round.round_number + 1) if last_round else 1
+                        current_round = DiceRound.objects.create(
+                            game=dice_game,
+                            round_number=round_number,
+                            player_results={}
+                        )
+                    
+                    # Verificar si el jugador ya lanzó en esta ronda
+                    if str(user_id) in current_round.player_results:
+                        return {'error': 'Ya lanzaste los dados en esta ronda. Espera a que todos terminen.'}
+                    
                     # Lanzar dados (esto se hace en el servidor para evitar trampas)
                     die1 = random.randint(1, 6)
                     die2 = random.randint(1, 6)
                     total = die1 + die2
+                    
+                    # Guardar resultado en la ronda
+                    current_round.player_results[str(user_id)] = [die1, die2, total]
+                    current_round.save()
                     
                     return {
                         'user_id': user_id,
@@ -1037,6 +1061,8 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         'die1': die1,
                         'die2': die2,
                         'total': total,
+                        'round_number': current_round.round_number,
+                        'current_round_id': current_round.id,
                     }
                 except DiceGame.DoesNotExist:
                     return {'error': 'Partida no encontrada'}
@@ -1052,7 +1078,7 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 }))
                 return
             
-            # Notificar a todos los jugadores
+            # Notificar a todos los jugadores del lanzamiento
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -1064,6 +1090,172 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                     'total': result['total'],
                 }
             )
+            
+            # Verificar si todos los jugadores han lanzado en esta ronda
+            def check_round_complete(round_id):
+                try:
+                    from .models import DiceRound, DicePlayer
+                    current_round = DiceRound.objects.get(id=round_id)
+                    dice_game = current_round.game
+                    
+                    # Obtener jugadores activos (no eliminados)
+                    active_players = DicePlayer.objects.filter(
+                        game=dice_game,
+                        is_eliminated=False
+                    )
+                    
+                    # Verificar si todos han lanzado
+                    if len(current_round.player_results) >= active_players.count():
+                        # Todos han lanzado, procesar ronda
+                        return process_round_results(dice_game, current_round)
+                    
+                    return None
+                except Exception as e:
+                    print(f"Error verificando ronda completa: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return None
+            
+            def process_round_results(dice_game, current_round):
+                """Procesa los resultados de la ronda y determina el perdedor"""
+                from .models import DicePlayer
+                from django.db import transaction
+                
+                with transaction.atomic():
+                    # Obtener todos los jugadores activos
+                    active_players = list(DicePlayer.objects.filter(
+                        game=dice_game,
+                        is_eliminated=False
+                    ).select_for_update())
+                    
+                    if len(active_players) <= 1:
+                        # Solo queda 1 jugador, es el ganador
+                        winner = active_players[0]
+                        dice_game.winner = winner.user
+                        dice_game.status = 'FINISHED'
+                        dice_game.finished_at = timezone.now()
+                        dice_game.save()
+                        
+                        # Acreditar premio al ganador
+                        from .models import Transaction
+                        winner.user.credit_balance += dice_game.final_prize
+                        winner.user.save()
+                        Transaction.objects.create(
+                            user=winner.user,
+                            amount=dice_game.final_prize,
+                            transaction_type='DICE_WIN',
+                            description=f"Ganador de partida de dados {dice_game.room_code}"
+                        )
+                        
+                        return {
+                            'round_complete': True,
+                            'round_number': current_round.round_number,
+                            'results': current_round.player_results,
+                            'eliminated': None,
+                            'winner': winner.user.username,
+                            'game_finished': True,
+                            'final_prize': str(dice_game.final_prize)
+                        }
+                    
+                    # Encontrar el jugador con el número más bajo
+                    lowest_total = float('inf')
+                    loser_player = None
+                    
+                    for player in active_players:
+                        player_result = current_round.player_results.get(str(player.user.id))
+                        if player_result:
+                            total = player_result[2]  # El total está en el índice 2
+                            if total < lowest_total:
+                                lowest_total = total
+                                loser_player = player
+                    
+                    # Reducir vida del perdedor
+                    if loser_player:
+                        loser_player.lives -= 1
+                        current_round.eliminated_player = loser_player.user
+                        
+                        if loser_player.lives <= 0:
+                            loser_player.is_eliminated = True
+                            eliminated_msg = loser_player.user.username
+                        else:
+                            eliminated_msg = None
+                        
+                        loser_player.save()
+                        current_round.save()
+                        
+                        # Verificar si solo queda 1 jugador
+                        remaining_players = DicePlayer.objects.filter(
+                            game=dice_game,
+                            is_eliminated=False
+                        )
+                        
+                        if remaining_players.count() == 1:
+                            # Hay un ganador
+                            winner = remaining_players.first()
+                            dice_game.winner = winner.user
+                            dice_game.status = 'FINISHED'
+                            dice_game.finished_at = timezone.now()
+                            dice_game.save()
+                            
+                            # Acreditar premio
+                            from .models import Transaction
+                            winner.user.credit_balance += dice_game.final_prize
+                            winner.user.save()
+                            Transaction.objects.create(
+                                user=winner.user,
+                                amount=dice_game.final_prize,
+                                transaction_type='DICE_WIN',
+                                description=f"Ganador de partida de dados {dice_game.room_code}"
+                            )
+                            
+                            return {
+                                'round_complete': True,
+                                'round_number': current_round.round_number,
+                                'results': current_round.player_results,
+                                'eliminated': eliminated_msg,
+                                'winner': winner.user.username,
+                                'game_finished': True,
+                                'final_prize': str(dice_game.final_prize)
+                            }
+                        
+                        return {
+                            'round_complete': True,
+                            'round_number': current_round.round_number,
+                            'results': current_round.player_results,
+                            'eliminated': eliminated_msg,
+                            'winner': None,
+                            'game_finished': False
+                        }
+                    
+                    return None
+            
+            # Verificar si la ronda está completa
+            round_result = await database_sync_to_async(check_round_complete)(result['current_round_id'])
+            
+            if round_result:
+                # Ronda completa, notificar resultados
+                if round_result.get('game_finished'):
+                    # Juego terminado
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'game_finished',
+                            'winner': round_result['winner'],
+                            'prize': round_result['final_prize'],
+                            'multiplier': dice_game.multiplier,
+                        }
+                    )
+                else:
+                    # Ronda terminada, hay perdedor pero el juego continúa
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'round_result',
+                            'round_number': round_result['round_number'],
+                            'results': round_result['results'],
+                            'eliminated': round_result.get('eliminated'),
+                        }
+                    )
         except Exception as e:
             import traceback
             print(f"Error en handle_roll_dice: {e}")
