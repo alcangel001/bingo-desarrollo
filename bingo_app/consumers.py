@@ -1297,12 +1297,41 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
         """
         Notifica resultado de una ronda.
         """
-        await self.send(text_data=json.dumps({
-            'type': 'round_result',
-            'round_number': event['round_number'],
-            'results': event['results'],
-            'eliminated': event.get('eliminated'),
-        }))
+        # Asegurar que los resultados incluyan los 3 jugadores
+        results = event.get('results', {})
+        
+        # Obtener todos los jugadores del juego para asegurar que todos estén en los resultados
+        try:
+            def get_all_players(room_code):
+                dice_game = DiceGame.objects.get(room_code=room_code)
+                return list(dice_game.dice_players.all())
+            
+            players_list = await database_sync_to_async(get_all_players)(self.room_code)
+            
+            # Crear un diccionario completo de resultados
+            complete_results = {}
+            for player in players_list:
+                player_id_str = str(player.user.id)
+                if player_id_str in results:
+                    complete_results[player_id_str] = results[player_id_str]
+                else:
+                    # Si el jugador no tiene resultado, poner un valor por defecto
+                    complete_results[player_id_str] = {'total': 0, 'die1': 0, 'die2': 0}
+            
+            await self.send(text_data=json.dumps({
+                'type': 'round_result',
+                'round_number': event['round_number'],
+                'results': complete_results,
+                'eliminated': event.get('eliminated'),
+            }))
+        except Exception as e:
+            # Si hay error, enviar los resultados originales
+            await self.send(text_data=json.dumps({
+                'type': 'round_result',
+                'round_number': event['round_number'],
+                'results': results,
+                'eliminated': event.get('eliminated'),
+            }))
     
     async def game_finished(self, event):
         """
@@ -1355,6 +1384,17 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             'avatar_url': avatar_url,
                             'lives': p.lives,
                             'is_eliminated': p.is_eliminated,
+                        })
+                    
+                    # Asegurar que siempre haya 3 jugadores en los datos
+                    # Si hay menos de 3, agregar placeholders
+                    while len(players_data) < 3:
+                        players_data.append({
+                            'user_id': None,
+                            'username': 'Esperando...',
+                            'avatar_url': '/static/avatars/default/male.png',
+                            'lives': 0,
+                            'is_eliminated': False,
                         })
                     
                     return {

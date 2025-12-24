@@ -243,62 +243,98 @@ function updateRoundResults(results, eliminated) {
     console.log('🔄 Actualizando resultados de ronda:', results);
     console.log('🔄 Jugador eliminado:', eliminated);
     
-    // Mapear user_id a seatNum usando INITIAL_PLAYERS
-    const players = typeof INITIAL_PLAYERS !== 'undefined' ? INITIAL_PLAYERS : [];
-    console.log('🔄 INITIAL_PLAYERS:', players);
+    // Usar el estado del juego guardado si está disponible, sino usar INITIAL_PLAYERS
+    const players = (window.currentGameState && window.currentGameState.players) 
+        ? window.currentGameState.players 
+        : (typeof INITIAL_PLAYERS !== 'undefined' ? INITIAL_PLAYERS : []);
+    console.log('🔄 Jugadores disponibles:', players);
     
-    // Primero, asegurarnos de que TODOS los resultados se muestren
-    // Actualizar resultados de cada jugador que lanzó
-    Object.keys(results).forEach((playerId) => {
-        const playerIdInt = parseInt(playerId);
-        console.log(`🔄 Procesando resultado para playerId: ${playerIdInt}`);
-        
-        // Buscar el jugador en INITIAL_PLAYERS
-        const playerIndex = players.findIndex(p => p.user_id === playerIdInt);
-        console.log(`🔄 Índice encontrado en INITIAL_PLAYERS: ${playerIndex}`);
-        
-        if (playerIndex !== -1) {
-            const seatNum = playerIndex + 1;
-            console.log(`🔄 Actualizando asiento ${seatNum} con resultado:`, results[playerId]);
-            
-            const diceElement = document.getElementById(`dice-${seatNum}`);
-            if (diceElement) {
-                const diceValue = diceElement.querySelector('.dice-value');
-                if (diceValue && results[playerId]) {
-                    // results[playerId] puede ser un array [die1, die2, total] o un objeto
-                    let total;
-                    if (Array.isArray(results[playerId])) {
-                        total = results[playerId][2]; // El total está en el índice 2
-                    } else if (typeof results[playerId] === 'object' && results[playerId].total) {
-                        total = results[playerId].total;
-                    } else {
-                        total = results[playerId]; // Asumir que es el total directamente
+    // Asegurar que siempre se muestren los 3 cuadros de resultados
+    // Primero, actualizar todos los asientos (1, 2, 3) con los resultados disponibles
+    for (let seatNum = 1; seatNum <= 3; seatNum++) {
+        const diceElement = document.getElementById(`dice-${seatNum}`);
+        if (diceElement) {
+            const diceValue = diceElement.querySelector('.dice-value');
+            if (diceValue) {
+                // Buscar si hay un resultado para este asiento
+                let foundResult = false;
+                
+                // Buscar en los resultados usando el user_id del jugador en este asiento
+                if (players[seatNum - 1]) {
+                    const playerId = String(players[seatNum - 1].user_id);
+                    if (results && results[playerId]) {
+                        let total;
+                        if (Array.isArray(results[playerId])) {
+                            total = results[playerId][2]; // El total está en el índice 2
+                        } else if (typeof results[playerId] === 'object' && results[playerId].total) {
+                            total = results[playerId].total;
+                        } else {
+                            total = results[playerId]; // Asumir que es el total directamente
+                        }
+                        
+                        console.log(`✅ Actualizando dice-${seatNum} (jugador ${playerId}) con total: ${total}`);
+                        diceValue.textContent = total;
+                        diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
+                        setTimeout(() => {
+                            diceValue.style.animation = '';
+                        }, 500);
+                        foundResult = true;
                     }
-                    
-                    console.log(`✅ Actualizando dice-${seatNum} con total: ${total}`);
-                    diceValue.textContent = total;
-                    diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
-                    setTimeout(() => {
-                        diceValue.style.animation = '';
-                    }, 500);
-                } else {
-                    console.warn(`⚠️ No se encontró diceValue para dice-${seatNum}`);
                 }
-            } else {
-                console.warn(`⚠️ No se encontró diceElement para dice-${seatNum}`);
+                
+                // Si no se encontró resultado, mantener el valor actual o poner '-'
+                if (!foundResult && diceValue.textContent === '-') {
+                    // Ya está en '-', no hacer nada
+                } else if (!foundResult) {
+                    // Si había un valor pero no hay resultado nuevo, mantenerlo
+                    console.log(`⚠️ No hay resultado nuevo para asiento ${seatNum}, manteniendo valor actual`);
+                }
             }
-        } else {
-            // Fallback: buscar por nombre de usuario si no está en INITIAL_PLAYERS
-            console.warn(`⚠️ Jugador con ID ${playerId} no encontrado en INITIAL_PLAYERS`);
         }
-    });
+    }
+    
+    // También actualizar usando el método original para compatibilidad
+    if (results) {
+        Object.keys(results).forEach((playerId) => {
+            const playerIdInt = parseInt(playerId);
+            console.log(`🔄 Procesando resultado para playerId: ${playerIdInt}`);
+            
+            // Buscar el jugador en la lista de jugadores
+            const playerIndex = players.findIndex(p => p.user_id === playerIdInt);
+            console.log(`🔄 Índice encontrado: ${playerIndex}`);
+            
+            if (playerIndex !== -1 && playerIndex < 3) {
+                const seatNum = playerIndex + 1;
+                const diceElement = document.getElementById(`dice-${seatNum}`);
+                if (diceElement) {
+                    const diceValue = diceElement.querySelector('.dice-value');
+                    if (diceValue && results[playerId]) {
+                        let total;
+                        if (Array.isArray(results[playerId])) {
+                            total = results[playerId][2];
+                        } else if (typeof results[playerId] === 'object' && results[playerId].total) {
+                            total = results[playerId].total;
+                        } else {
+                            total = results[playerId];
+                        }
+                        
+                        diceValue.textContent = total;
+                    }
+                }
+            }
+        });
+    }
     
     // Mostrar jugador eliminado
     if (eliminated) {
         console.log(`🔄 Marcando jugador eliminado: ${eliminated}`);
-        // Buscar por nombre de usuario en INITIAL_PLAYERS
-        const eliminatedPlayerIndex = players.findIndex(p => p.username === eliminated);
-        if (eliminatedPlayerIndex !== -1) {
+        // Buscar por user_id o username
+        const eliminatedPlayerIndex = players.findIndex(p => 
+            p.user_id === parseInt(eliminated) || 
+            p.username === eliminated ||
+            String(p.user_id) === String(eliminated)
+        );
+        if (eliminatedPlayerIndex !== -1 && eliminatedPlayerIndex < 3) {
             const seatNum = eliminatedPlayerIndex + 1;
             console.log(`✅ Jugador eliminado encontrado en asiento ${seatNum}`);
             const eliminatedSeat = document.getElementById(`player-${seatNum}`);
@@ -311,7 +347,7 @@ function updateRoundResults(results, eliminated) {
                 statusEl.textContent = '✕';
             }
         } else {
-            console.warn(`⚠️ Jugador eliminado ${eliminated} no encontrado en INITIAL_PLAYERS`);
+            console.warn(`⚠️ Jugador eliminado ${eliminated} no encontrado`);
         }
     }
 }
@@ -331,6 +367,9 @@ function updatePlayerInfo(playerId, username, avatarUrl, seatPosition) {
 }
 
 function updateGameState(data) {
+    // Guardar el estado del juego para usarlo en updateRoundResults
+    window.currentGameState = data;
+    
     if (data.players) {
         data.players.forEach((player, index) => {
             const seatNum = index + 1;
@@ -340,6 +379,12 @@ function updateGameState(data) {
                 player.avatar_url,
                 seatNum
             );
+            
+            // Guardar el user_id en el elemento del asiento para referencia
+            const playerSeat = document.getElementById(`player-${seatNum}`);
+            if (playerSeat) {
+                playerSeat.setAttribute('data-player-id', player.user_id);
+            }
         });
     }
     
