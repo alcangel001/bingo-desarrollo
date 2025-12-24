@@ -225,23 +225,52 @@ function updateDiceRoll(data) {
 }
 
 function updateRoundResults(results, eliminated) {
+    console.log('🔄 Actualizando resultados de ronda:', results);
+    
+    // Mapear user_id a seatNum usando INITIAL_PLAYERS
+    const players = typeof INITIAL_PLAYERS !== 'undefined' ? INITIAL_PLAYERS : [];
+    
     // Actualizar resultados de cada jugador
-    Object.keys(results).forEach((playerId, index) => {
-        const seatNum = index + 1;
-        const diceElement = document.getElementById(`dice-${seatNum}`);
-        if (diceElement) {
-            const diceValue = diceElement.querySelector('.dice-value');
-            if (diceValue) {
-                diceValue.textContent = results[playerId].total;
+    Object.keys(results).forEach((playerId) => {
+        // Buscar el jugador en INITIAL_PLAYERS
+        const playerIndex = players.findIndex(p => p.user_id === parseInt(playerId));
+        
+        if (playerIndex !== -1) {
+            const seatNum = playerIndex + 1;
+            const diceElement = document.getElementById(`dice-${seatNum}`);
+            if (diceElement) {
+                const diceValue = diceElement.querySelector('.dice-value');
+                if (diceValue && results[playerId]) {
+                    // results[playerId] puede ser un array [die1, die2, total] o un objeto
+                    const total = Array.isArray(results[playerId]) ? results[playerId][2] : results[playerId].total || results[playerId];
+                    diceValue.textContent = total;
+                    diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
+                    setTimeout(() => {
+                        diceValue.style.animation = '';
+                    }, 500);
+                }
             }
+        } else {
+            // Fallback: buscar por nombre de usuario si no está en INITIAL_PLAYERS
+            console.warn(`Jugador con ID ${playerId} no encontrado en INITIAL_PLAYERS`);
         }
     });
     
     // Mostrar jugador eliminado
     if (eliminated) {
-        const eliminatedSeat = document.querySelector(`[data-player-id="${eliminated}"]`);
-        if (eliminatedSeat) {
-            eliminatedSeat.classList.add('eliminated');
+        // Buscar por nombre de usuario en INITIAL_PLAYERS
+        const eliminatedPlayerIndex = players.findIndex(p => p.username === eliminated);
+        if (eliminatedPlayerIndex !== -1) {
+            const seatNum = eliminatedPlayerIndex + 1;
+            const eliminatedSeat = document.getElementById(`player-${seatNum}`);
+            if (eliminatedSeat) {
+                eliminatedSeat.classList.add('eliminated');
+            }
+            const statusEl = document.getElementById(`status-${seatNum}`);
+            if (statusEl) {
+                statusEl.style.color = '#ff4444';
+                statusEl.textContent = '✕';
+            }
         }
     }
 }
