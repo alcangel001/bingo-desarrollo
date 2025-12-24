@@ -1145,7 +1145,8 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 'eliminated': None,
                                 'winner': winner.user.username,
                                 'game_finished': True,
-                                'final_prize': str(dice_game.final_prize)
+                                'final_prize': str(dice_game.final_prize),
+                                'multiplier': dice_game.multiplier
                             }
                         
                         # Encontrar el jugador con el número más bajo
@@ -1205,7 +1206,8 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                     'eliminated': eliminated_msg,
                                     'winner': winner.user.username,
                                     'game_finished': True,
-                                    'final_prize': str(dice_game.final_prize)
+                                    'final_prize': str(dice_game.final_prize),
+                                    'multiplier': dice_game.multiplier
                                 }
                             
                             return {
@@ -1233,13 +1235,19 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 # Ronda completa, notificar resultados
                 if round_result.get('game_finished'):
                     # Juego terminado
+                    # Obtener el multiplicador del resultado o del juego
+                    multiplier = round_result.get('multiplier')
+                    if not multiplier:
+                        dice_game_refresh = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
+                        multiplier = dice_game_refresh.multiplier
+                    
                     await self.channel_layer.group_send(
                         self.room_group_name,
                         {
                             'type': 'game_finished',
                             'winner': round_result['winner'],
                             'prize': round_result['final_prize'],
-                            'multiplier': dice_game.multiplier,
+                            'multiplier': multiplier,
                         }
                     )
                 else:
