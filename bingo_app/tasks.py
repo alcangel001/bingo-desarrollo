@@ -88,8 +88,9 @@ def process_matchmaking_queue():
                     # Limpiar cualquier otra entrada en cola del mismo usuario (por si hay duplicados)
                     DiceMatchmakingQueue.objects.filter(
                         user=queue_entry.user,
-                        status='WAITING',
-                        id__ne=queue_entry.id
+                        status='WAITING'
+                    ).exclude(
+                        id=queue_entry.id
                     ).update(status='TIMEOUT')
                 
                 # SPIN DEL PREMIO (determinar multiplicador)
