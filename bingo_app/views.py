@@ -6173,6 +6173,12 @@ def dice_queue_status(request):
                 'message': 'Tienes una partida activa'
             })
         
+        # SEGUNDO: Verificar si está en cola (necesario antes de ejecutar matchmaking)
+        queue_entry = DiceMatchmakingQueue.objects.filter(
+            user=request.user,
+            status='WAITING'
+        ).first()
+        
         # TERCERO: Ejecutar proceso de matchmaking para intentar encontrar partida
         # Esto es importante porque puede haber 3 usuarios esperando
         from .tasks import process_matchmaking_queue
@@ -6230,11 +6236,12 @@ def dice_queue_status(request):
         else:
             print(f"⏳ [QUEUE_STATUS] Matchmaking no creó partida (puede que no haya suficientes jugadores válidos)")
         
-        # TERCERO: Verificar si está en cola
-        queue_entry = DiceMatchmakingQueue.objects.filter(
-            user=request.user,
-            status='WAITING'
-        ).first()
+        # CUARTO: Verificar si está en cola (ya se verificó arriba, pero verificar de nuevo por si cambió)
+        if not queue_entry:
+            queue_entry = DiceMatchmakingQueue.objects.filter(
+                user=request.user,
+                status='WAITING'
+            ).first()
         
         if not queue_entry:
             # Verificar si tiene una entrada MATCHED (partida recién creada)
