@@ -6164,17 +6164,34 @@ def dice_queue_status(request):
         
         # Si se creó una partida, verificar si el usuario está en ella
         if matchmaking_result:
+            print(f"🔄 [QUEUE_STATUS] Matchmaking creó partida: {matchmaking_result.room_code}")
             dice_game = DiceGame.objects.filter(
                 dice_players__user=request.user,
                 room_code=matchmaking_result.room_code
             ).first()
             
             if dice_game:
+                print(f"✅ [QUEUE_STATUS] Usuario {request.user.username} está en partida {dice_game.room_code}")
                 return JsonResponse({
                     'status': 'matched',
                     'room_code': dice_game.room_code,
                     'message': '¡Partida encontrada!'
                 })
+            else:
+                print(f"⚠️ [QUEUE_STATUS] Usuario {request.user.username} NO está en partida {matchmaking_result.room_code}")
+                # Verificar si hay otra partida activa para este usuario
+                other_game = DiceGame.objects.filter(
+                    dice_players__user=request.user,
+                    status__in=['SPINNING', 'PLAYING', 'WAITING']
+                ).exclude(room_code=matchmaking_result.room_code).first()
+                
+                if other_game:
+                    print(f"✅ [QUEUE_STATUS] Usuario tiene otra partida activa: {other_game.room_code}")
+                    return JsonResponse({
+                        'status': 'matched',
+                        'room_code': other_game.room_code,
+                        'message': '¡Partida encontrada!'
+                    })
         
         # TERCERO: Verificar si está en cola
         queue_entry = DiceMatchmakingQueue.objects.filter(
@@ -6197,15 +6214,18 @@ def dice_queue_status(request):
                 ).order_by('-created_at').first()
                 
                 if dice_game:
+                    print(f"✅ [QUEUE_STATUS] Usuario {request.user.username} tiene entrada MATCHED, partida: {dice_game.room_code}")
                     return JsonResponse({
                         'status': 'matched',
                         'room_code': dice_game.room_code
                     })
             
+            print(f"ℹ️ [QUEUE_STATUS] Usuario {request.user.username} no está en cola")
             return JsonResponse({
                 'status': 'not_in_queue'
             })
         
+        print(f"⏳ [QUEUE_STATUS] Usuario {request.user.username} en cola, estado: WAITING")
         return JsonResponse({
             'status': 'waiting',
             'entry_price': float(queue_entry.entry_price)

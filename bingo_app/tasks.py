@@ -17,10 +17,14 @@ def process_matchmaking_queue():
     Proceso que se ejecuta cada 2-3 segundos.
     Agrupa jugadores de 3 en 3 y crea partidas.
     """
+    print(f"🔄 [MATCHMAKING] Iniciando proceso de matchmaking...")
+    
     # Obtener todos los precios únicos en la cola
     unique_prices = DiceMatchmakingQueue.objects.filter(
         status='WAITING'
     ).values_list('entry_price', flat=True).distinct()
+    
+    print(f"🔄 [MATCHMAKING] Precios únicos encontrados: {list(unique_prices)}")
     
     for price in unique_prices:
         # Buscar 3 jugadores que busquen este precio específico
@@ -30,7 +34,11 @@ def process_matchmaking_queue():
             joined_at__gte=timezone.now() - timedelta(minutes=5)  # Timeout de 5 minutos
         ).order_by('joined_at')[:3]
         
-        if waiting_players.count() < 3:
+        player_count = waiting_players.count()
+        print(f"🔄 [MATCHMAKING] Precio ${price}: {player_count} jugadores esperando")
+        
+        if player_count < 3:
+            print(f"⏳ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores ({player_count}/3)")
             continue  # No hay suficientes jugadores para este precio
         
         # Verificar que todos tienen suficiente saldo
@@ -43,7 +51,11 @@ def process_matchmaking_queue():
                 players_list.remove(queue_entry)
         
         if len(players_list) < 3:
+            print(f"⚠️ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores válidos después de validar saldo ({len(players_list)}/3)")
             continue  # No hay suficientes jugadores válidos
+        
+        print(f"✅ [MATCHMAKING] Precio ${price}: ¡3 jugadores encontrados! Creando partida...")
+        print(f"   Jugadores: {[p.user.username for p in players_list]}")
         
         # Crear partida con los 3 jugadores
         try:
@@ -101,8 +113,16 @@ def process_matchmaking_queue():
                 dice_game.started_at = timezone.now()
                 dice_game.save()
                 
+                print(f"✅ [MATCHMAKING] Partida creada: {dice_game.room_code}")
+                print(f"   Estado: {dice_game.status}")
+                print(f"   Multiplicador: {dice_game.multiplier}")
+                print(f"   Premio: ${dice_game.final_prize}")
+                print(f"   Jugadores: {[p.user.username for p in dice_game.dice_players.all()]}")
+                
                 # Notificar a los 3 jugadores vía WebSocket
                 notify_players_match_found(dice_game, players_list)
+                
+                print(f"📢 [MATCHMAKING] Notificaciones enviadas a los 3 jugadores")
                 
                 # Programar cambio a PLAYING después de 7 segundos (tiempo para animación del spin)
                 # Usar Celery o simplemente cambiar directamente con un delay
