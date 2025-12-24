@@ -160,6 +160,70 @@ function showPrizeSpinAnimation(multiplier, finalPrize) {
     }, 50);
 }
 
+function updateDiceRoll(data) {
+    console.log('🎲 Actualizando lanzamiento de dados:', data);
+    
+    // Encontrar el asiento del jugador que lanzó
+    const players = typeof INITIAL_PLAYERS !== 'undefined' ? INITIAL_PLAYERS : [];
+    const playerIndex = players.findIndex(p => p.user_id === data.user_id);
+    
+    if (playerIndex !== -1) {
+        const seatNum = playerIndex + 1;
+        const diceElement = document.getElementById(`dice-${seatNum}`);
+        if (diceElement) {
+            const diceValue = diceElement.querySelector('.dice-value');
+            if (diceValue) {
+                diceValue.textContent = data.total;
+                diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
+                setTimeout(() => {
+                    diceValue.style.animation = '';
+                }, 500);
+            }
+        }
+    } else {
+        // Si no encontramos al jugador en INITIAL_PLAYERS, buscar por posición
+        // Asumir que los jugadores están en orden de asiento
+        const allSeats = [1, 2, 3];
+        for (let seatNum of allSeats) {
+            const nameEl = document.getElementById(`name-${seatNum}`);
+            if (nameEl && nameEl.textContent === data.username) {
+                const diceElement = document.getElementById(`dice-${seatNum}`);
+                if (diceElement) {
+                    const diceValue = diceElement.querySelector('.dice-value');
+                    if (diceValue) {
+                        diceValue.textContent = data.total;
+                        diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
+                        setTimeout(() => {
+                            diceValue.style.animation = '';
+                        }, 500);
+                    }
+                }
+                break;
+            }
+        }
+    }
+    
+    // Re-habilitar botón después de un tiempo (si no fue el usuario actual)
+    const currentUserId = typeof USER_ID !== 'undefined' ? USER_ID : null;
+    if (data.user_id !== currentUserId) {
+        setTimeout(() => {
+            const rollBtn = document.getElementById('roll-dice-btn');
+            const gameStatusEl = document.getElementById('game-status');
+            if (rollBtn && gameStatusEl && gameStatusEl.textContent.includes('En juego')) {
+                rollBtn.disabled = false;
+            }
+        }, 2000);
+    } else {
+        // Si fue el usuario actual, re-habilitar después de mostrar el resultado
+        setTimeout(() => {
+            const rollBtn = document.getElementById('roll-dice-btn');
+            if (rollBtn) {
+                rollBtn.disabled = false;
+            }
+        }, 1000);
+    }
+}
+
 function updateRoundResults(results, eliminated) {
     // Actualizar resultados de cada jugador
     Object.keys(results).forEach((playerId, index) => {
@@ -167,7 +231,9 @@ function updateRoundResults(results, eliminated) {
         const diceElement = document.getElementById(`dice-${seatNum}`);
         if (diceElement) {
             const diceValue = diceElement.querySelector('.dice-value');
-            diceValue.textContent = results[playerId].total;
+            if (diceValue) {
+                diceValue.textContent = results[playerId].total;
+            }
         }
     });
     
