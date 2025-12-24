@@ -6171,22 +6171,6 @@ def dice_queue_status(request):
                 'message': 'Tienes una partida activa'
             })
         
-        # SEGUNDO: Verificar si el usuario tiene una partida activa (verificar directamente con DicePlayer)
-        # Esto es más confiable que usar dice_players__user
-        from .models import DicePlayer
-        active_player = DicePlayer.objects.filter(
-            user=request.user,
-            game__status__in=['SPINNING', 'PLAYING', 'WAITING']
-        ).select_related('game').order_by('-game__created_at').first()
-        
-        if active_player:
-            print(f"✅ [QUEUE_STATUS] Usuario {request.user.username} tiene partida activa: {active_player.game.room_code}")
-            return JsonResponse({
-                'status': 'matched',
-                'room_code': active_player.game.room_code,
-                'message': '¡Partida encontrada!'
-            })
-        
         # TERCERO: Ejecutar proceso de matchmaking para intentar encontrar partida
         # Esto es importante porque puede haber 3 usuarios esperando
         from .tasks import process_matchmaking_queue
