@@ -27,28 +27,40 @@ def process_matchmaking_queue():
     print(f"🔄 [MATCHMAKING] Precios únicos encontrados: {list(unique_prices)}")
     
     for price in unique_prices:
-        # Buscar 3 jugadores que busquen este precio específico
-        waiting_players = DiceMatchmakingQueue.objects.filter(
+        # Buscar jugadores que busquen este precio específico
+        waiting_players_query = DiceMatchmakingQueue.objects.filter(
             status='WAITING',
             entry_price=price,
             joined_at__gte=timezone.now() - timedelta(minutes=5)  # Timeout de 5 minutos
-        ).order_by('joined_at')[:3]
+        ).order_by('joined_at')
         
-        player_count = waiting_players.count()
+        # Convertir a lista para contar correctamente
+        waiting_players_list = list(waiting_players_query[:3])
+        player_count = len(waiting_players_list)
+        
         print(f"🔄 [MATCHMAKING] Precio ${price}: {player_count} jugadores esperando")
+        if player_count > 0:
+            print(f"   Jugadores: {[p.user.username for p in waiting_players_list]}")
         
         if player_count < 3:
             print(f"⏳ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores ({player_count}/3)")
             continue  # No hay suficientes jugadores para este precio
         
+        # Usar la lista directamente
+        waiting_players = waiting_players_list
+        
         # Verificar que todos tienen suficiente saldo
-        players_list = list(waiting_players)
-        for queue_entry in players_list[:]:
-            if queue_entry.user.credit_balance < queue_entry.entry_price:
+        players_list = []
+        for queue_entry in waiting_players:
+            # Refrescar el usuario desde la base de datos para obtener el saldo actualizado
+            queue_entry.user.refresh_from_db()
+            if queue_entry.user.credit_balance >= queue_entry.entry_price:
+                players_list.append(queue_entry)
+            else:
                 # Jugador sin saldo - remover de cola
+                print(f"⚠️ [MATCHMAKING] Jugador {queue_entry.user.username} sin saldo suficiente")
                 queue_entry.status = 'TIMEOUT'
                 queue_entry.save()
-                players_list.remove(queue_entry)
         
         if len(players_list) < 3:
             print(f"⚠️ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores válidos después de validar saldo ({len(players_list)}/3)")
