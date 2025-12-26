@@ -1042,11 +1042,23 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             player_results={}
                         )
                     
-                    # Verificar si el jugador ya lanzó en esta ronda
-                    # IMPORTANTE: Solo verificar si la ronda NO tiene un jugador eliminado
-                    # Si la ronda tiene un jugador eliminado, significa que ya se procesó y se debe crear una nueva
-                    if current_round.eliminated_player is not None:
-                        # La ronda ya fue procesada (tiene un jugador eliminado), crear una nueva
+                    # Verificar si la ronda ya fue procesada
+                    # Una ronda está procesada si:
+                    # 1. Tiene un eliminated_player (se procesó y eliminó a alguien)
+                    # 2. O tiene todos los resultados de los jugadores activos (se procesó pero no eliminó a nadie)
+                    active_players_count = DicePlayer.objects.filter(
+                        game=dice_game,
+                        is_eliminated=False
+                    ).count()
+                    
+                    rounds_results_count = len(current_round.player_results) if current_round.player_results else 0
+                    is_round_processed = (
+                        current_round.eliminated_player is not None or
+                        (rounds_results_count >= active_players_count and active_players_count > 0)
+                    )
+                    
+                    if is_round_processed:
+                        # La ronda ya fue procesada, crear una nueva
                         last_round = dice_game.rounds.order_by('-round_number').first()
                         round_number = (last_round.round_number + 1) if last_round else 1
                         current_round = DiceRound.objects.create(
@@ -1054,6 +1066,7 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             round_number=round_number,
                             player_results={}
                         )
+                        print(f"✅ Creada nueva ronda {round_number} porque la ronda anterior ya fue procesada")
                     
                     # Verificar si el jugador ya lanzó en esta ronda
                     if str(user_id) in current_round.player_results:
