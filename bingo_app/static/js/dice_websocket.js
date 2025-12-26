@@ -2,6 +2,18 @@
 
 let diceSocket = null;
 
+// Objetos de audio globales para los sonidos de dados
+const rollSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2004/2004-preview.mp3');
+const hitSound = new Audio('https://assets.mixkit.co/active_storage/sfx/1017/1017-preview.mp3');
+
+// Configurar volúmenes
+rollSound.volume = 0.5;
+hitSound.volume = 0.6;
+
+// Precargar los sonidos
+rollSound.preload = 'auto';
+hitSound.preload = 'auto';
+
 function connectDiceWebSocket(roomCode) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/dice/game/${roomCode}/`;
@@ -368,24 +380,27 @@ function getRotation(number) {
 
 /**
  * Reproduce sonido de dados
+ * Sincronizado con la animación de los cubos 3D
  */
 function playDiceSound() {
     try {
-        // Intentar cargar y reproducir el sonido
-        const audio = new Audio('/static/sounds/dice_roll.mp3');
-        audio.volume = 0.5;
-        audio.play().catch(e => {
-            console.log('⚠️ No se pudo reproducir sonido de dados:', e);
+        // Detener y reiniciar sonidos si hay lanzamientos muy seguidos
+        rollSound.pause();
+        rollSound.currentTime = 0;
+        hitSound.pause();
+        hitSound.currentTime = 0;
+        
+        // Reproducir sonido de giro cuando el cubo empieza a girar
+        rollSound.play().catch(e => {
+            console.log('⚠️ Audio bloqueado o error al reproducir sonido de giro:', e);
         });
         
-        // Sonido de golpe al finalizar
+        // Sonido de impacto cuando el dado se detiene (1200ms para sincronizar con el final de la animación)
         setTimeout(() => {
-            const hitAudio = new Audio('/static/sounds/dice_hit.mp3');
-            hitAudio.volume = 0.3;
-            hitAudio.play().catch(e => {
-                console.log('⚠️ No se pudo reproducir sonido de golpe:', e);
+            hitSound.play().catch(e => {
+                console.log('⚠️ Audio bloqueado o error al reproducir sonido de impacto:', e);
             });
-        }, 1400);
+        }, 1200);
     } catch (e) {
         console.log('⚠️ Error al reproducir sonido:', e);
     }
@@ -393,9 +408,6 @@ function playDiceSound() {
 
 function updateDiceRoll(data) {
     console.log('🎲 Actualizando lanzamiento de dados:', data);
-    
-    // Reproducir sonido de dados (solo una vez por lanzamiento)
-    playDiceSound();
     
     // Encontrar el asiento del jugador que lanzó usando el mismo método que updateRoundResults
     let seatNum = null;
