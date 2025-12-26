@@ -1340,19 +1340,21 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 # Ronda completa, notificar resultados
                 if round_result.get('game_finished'):
                     # Juego terminado
+                    print(f"🏆 Juego terminado - Ganador: {round_result.get('winner')}, Premio: {round_result.get('final_prize')}")
                     # Obtener el multiplicador del resultado o del juego
                     multiplier = round_result.get('multiplier')
                     if not multiplier:
                         dice_game_refresh = await database_sync_to_async(DiceGame.objects.get)(room_code=self.room_code)
                         multiplier = dice_game_refresh.multiplier
                     
+                    print(f"📢 Enviando game_finished: winner={round_result['winner']}, prize={round_result['final_prize']}, multiplier={multiplier}")
                     await self.channel_layer.group_send(
                         self.room_group_name,
                         {
                             'type': 'game_finished',
                             'winner': round_result['winner'],
-                            'prize': round_result['final_prize'],
-                            'multiplier': multiplier,
+                            'prize': str(round_result['final_prize']),
+                            'multiplier': str(multiplier) if multiplier else 'N/A',
                         }
                     )
                 else:

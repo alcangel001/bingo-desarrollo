@@ -83,7 +83,12 @@ function handleDiceMessage(data) {
             
         case 'game_finished':
             // Juego terminado
-            showWinnerAnimation(data.winner, data.prize, data.multiplier);
+            console.log('🏆 Juego terminado:', data);
+            if (data.winner && data.prize) {
+                showWinnerAnimation(data.winner, data.prize, data.multiplier || 'N/A');
+            } else {
+                console.error('⚠️ Datos incompletos en game_finished:', data);
+            }
             break;
             
         case 'player_joined':
@@ -480,14 +485,34 @@ function handleGameStatusChange(data) {
 }
 
 function showWinnerAnimation(winner, prize, multiplier) {
-    document.getElementById('game-status').textContent = `¡${winner} ganó $${prize}!`;
-    document.getElementById('roll-dice-btn').disabled = true;
+    console.log('🎉 Mostrando animación de ganador:', { winner, prize, multiplier });
+    
+    const gameStatusEl = document.getElementById('game-status');
+    const rollBtn = document.getElementById('roll-dice-btn');
+    
+    if (gameStatusEl) {
+        gameStatusEl.textContent = `¡${winner} ganó $${parseFloat(prize).toLocaleString()}!`;
+        gameStatusEl.style.color = '#4CAF50';
+        gameStatusEl.style.fontSize = '1.5em';
+        gameStatusEl.style.fontWeight = 'bold';
+    }
+    
+    if (rollBtn) {
+        rollBtn.disabled = true;
+        rollBtn.style.opacity = '0.5';
+        rollBtn.style.cursor = 'not-allowed';
+    }
     
     // Mostrar animación de ganador
-    alert(`¡${winner} ganó $${prize} con multiplicador ${multiplier}!`);
+    const prizeFormatted = parseFloat(prize).toLocaleString('es-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    alert(`¡${winner} ganó $${prizeFormatted} con multiplicador ${multiplier}!`);
     
     // Redirigir después de 5 segundos
     setTimeout(() => {
+        console.log('🔄 Redirigiendo al lobby...');
         window.location.href = '/dice/';
     }, 5000);
 }
