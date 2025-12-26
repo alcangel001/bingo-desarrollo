@@ -1160,85 +1160,84 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 'multiplier': dice_game.multiplier
                             }
                         
-                        # Encontrar el jugador con el número más bajo
+                        # Encontrar TODOS los jugadores con el total más bajo (manejar empates)
                         lowest_total = float('inf')
-                        loser_player = None
+                        losers = []  # Lista de jugadores con el total más bajo
                         
+                        # Primero, encontrar el total más bajo
                         for player in active_players:
                             player_result = current_round.player_results.get(str(player.user.id))
                             if player_result:
                                 total = player_result[2]  # El total está en el índice 2
                                 if total < lowest_total:
                                     lowest_total = total
-                                    loser_player = player
                         
-                        # Reducir vida del perdedor
-                        if loser_player:
+                        # Luego, encontrar TODOS los jugadores con ese total más bajo
+                        for player in active_players:
+                            player_result = current_round.player_results.get(str(player.user.id))
+                            if player_result:
+                                total = player_result[2]
+                                if total == lowest_total:
+                                    losers.append(player)
+                        
+                        # Reducir vida de TODOS los perdedores (si hay empate, todos pierden)
+                        eliminated_msg = None
+                        eliminated_players = []
+                        
+                        for loser_player in losers:
                             loser_player.lives -= 1
-                            current_round.eliminated_player = loser_player.user
                             
                             if loser_player.lives <= 0:
                                 loser_player.is_eliminated = True
-                                eliminated_msg = loser_player.user.username
-                            else:
-                                eliminated_msg = None
+                                eliminated_players.append(loser_player.user.username)
                             
                             loser_player.save()
-                            current_round.save()
+                        
+                        # Si solo hay un perdedor, guardarlo en eliminated_player
+                        if len(losers) == 1:
+                            current_round.eliminated_player = losers[0].user
+                            if losers[0].lives <= 0:
+                                eliminated_msg = losers[0].user.username
+                        else:
+                            # Si hay empate, no asignar un eliminated_player específico
+                            # pero sí crear un mensaje con todos los eliminados
+                            if eliminated_players:
+                                eliminated_msg = ", ".join(eliminated_players)
+                        
+                        current_round.save()
+                        
+                        # Verificar si solo queda 1 jugador después de las eliminaciones
+                        remaining_players = DicePlayer.objects.filter(
+                            game=dice_game,
+                            is_eliminated=False
+                        )
+                        
+                        if remaining_players.count() == 1:
+                            # Hay un ganador
+                            winner = remaining_players.first()
+                            dice_game.winner = winner.user
+                            dice_game.status = 'FINISHED'
+                            dice_game.finished_at = timezone.now()
+                            dice_game.save()
                             
-                            # Verificar si solo queda 1 jugador después de la eliminación
-                            remaining_players = DicePlayer.objects.filter(
-                                game=dice_game,
-                                is_eliminated=False
+                            # Acreditar premio
+                            winner.user.credit_balance += dice_game.final_prize
+                            winner.user.save()
+                            Transaction.objects.create(
+                                user=winner.user,
+                                amount=dice_game.final_prize,
+                                transaction_type='DICE_WIN',
+                                description=f"Ganador de partida de dados {dice_game.room_code}"
                             )
                             
-                            if remaining_players.count() == 1:
-                                # Hay un ganador
-                                winner = remaining_players.first()
-                                dice_game.winner = winner.user
-                                dice_game.status = 'FINISHED'
-                                dice_game.finished_at = timezone.now()
-                                dice_game.save()
-                                
-                                # Acreditar premio
-                                winner.user.credit_balance += dice_game.final_prize
-                                winner.user.save()
-                                Transaction.objects.create(
-                                    user=winner.user,
-                                    amount=dice_game.final_prize,
-                                    transaction_type='DICE_WIN',
-                                    description=f"Ganador de partida de dados {dice_game.room_code}"
-                                )
-                                
-                                # Asegurar que los resultados incluyan TODOS los jugadores
-                                complete_round_results = {}
-                                all_players_in_game = DicePlayer.objects.filter(game=dice_game)
-                                for player in all_players_in_game:
-                                    player_id_str = str(player.user.id)
-                                    if player_id_str in current_round.player_results:
-                                        complete_round_results[player_id_str] = current_round.player_results[player_id_str]
-                                    else:
-                                        complete_round_results[player_id_str] = [0, 0, 0]
-                                
-                                return {
-                                    'round_complete': True,
-                                    'round_number': current_round.round_number,
-                                    'results': complete_round_results,
-                                    'eliminated': eliminated_msg,
-                                    'winner': winner.user.username,
-                                    'game_finished': True,
-                                    'final_prize': str(dice_game.final_prize),
-                                    'multiplier': dice_game.multiplier
-                                }
-                            
-                            # Asegurar que los resultados incluyan TODOS los jugadores activos
+                            # Asegurar que los resultados incluyan TODOS los jugadores
                             complete_round_results = {}
-                            for player in active_players:
+                            all_players_in_game = DicePlayer.objects.filter(game=dice_game)
+                            for player in all_players_in_game:
                                 player_id_str = str(player.user.id)
                                 if player_id_str in current_round.player_results:
                                     complete_round_results[player_id_str] = current_round.player_results[player_id_str]
                                 else:
-                                    # Si no tiene resultado (no debería pasar), usar valores por defecto
                                     complete_round_results[player_id_str] = [0, 0, 0]
                             
                             return {
@@ -1246,9 +1245,30 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 'round_number': current_round.round_number,
                                 'results': complete_round_results,
                                 'eliminated': eliminated_msg,
-                                'winner': None,
-                                'game_finished': False
+                                'winner': winner.user.username,
+                                'game_finished': True,
+                                'final_prize': str(dice_game.final_prize),
+                                'multiplier': dice_game.multiplier
                             }
+                        
+                        # Asegurar que los resultados incluyan TODOS los jugadores activos
+                        complete_round_results = {}
+                        for player in active_players:
+                            player_id_str = str(player.user.id)
+                            if player_id_str in current_round.player_results:
+                                complete_round_results[player_id_str] = current_round.player_results[player_id_str]
+                            else:
+                                # Si no tiene resultado (no debería pasar), usar valores por defecto
+                                complete_round_results[player_id_str] = [0, 0, 0]
+                        
+                        return {
+                            'round_complete': True,
+                            'round_number': current_round.round_number,
+                            'results': complete_round_results,
+                            'eliminated': eliminated_msg,
+                            'winner': None,
+                            'game_finished': False
+                        }
                         
                         return None
                         
