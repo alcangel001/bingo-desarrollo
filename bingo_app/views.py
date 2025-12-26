@@ -6278,10 +6278,21 @@ def dice_queue_status(request):
         print(f"⏳ [QUEUE_STATUS] Usuario {request.user.username} en cola, estado: WAITING")
         
         # Informar cuántos usuarios hay esperando con el mismo precio
+        # IMPORTANTE: Excluir usuarios que ya tienen partida activa para que el conteo sea preciso
+        from django.db.models import Exists, OuterRef
+        active_games = DiceGame.objects.filter(
+            dice_players__user=OuterRef('user'),
+            status__in=['WAITING', 'SPINNING', 'PLAYING']
+        ).exclude(status='FINISHED')
+        
         same_price_count = DiceMatchmakingQueue.objects.filter(
             status='WAITING',
             entry_price=queue_entry.entry_price
+        ).exclude(
+            Exists(active_games)
         ).count()
+        
+        print(f"📊 [QUEUE_STATUS] Jugadores válidos esperando precio ${queue_entry.entry_price}: {same_price_count}")
         
         return JsonResponse({
             'status': 'waiting',

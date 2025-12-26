@@ -21,16 +21,25 @@ def process_matchmaking_queue():
     print(f"🔄 [MATCHMAKING] ========== INICIANDO PROCESO DE MATCHMAKING ==========")
     
     # Obtener todos los precios únicos en la cola (sin duplicados)
-    all_waiting = DiceMatchmakingQueue.objects.filter(status='WAITING')
+    # IMPORTANTE: Refrescar desde la base de datos para obtener el estado más reciente
+    all_waiting = DiceMatchmakingQueue.objects.filter(status='WAITING').select_related('user')
     unique_prices = list(set(all_waiting.values_list('entry_price', flat=True)))
     
     total_count = all_waiting.count()
     print(f"🔄 [MATCHMAKING] Total en cola: {total_count}")
     print(f"🔄 [MATCHMAKING] Precios únicos encontrados: {unique_prices}")
     
-    # Mostrar todos los usuarios en cola
-    for q in all_waiting[:10]:  # Mostrar hasta 10
-        print(f"   - {q.user.username}: ${q.entry_price}, estado: {q.status}, unido: {q.joined_at}")
+    # Mostrar todos los usuarios en cola con más detalles
+    all_waiting_list = list(all_waiting[:10])  # Convertir a lista para evitar múltiples queries
+    print(f"🔄 [MATCHMAKING] Detalles de jugadores en cola ({len(all_waiting_list)}):")
+    for q in all_waiting_list:
+        # Verificar si el usuario tiene partida activa
+        has_active_game = DiceGame.objects.filter(
+            dice_players__user=q.user,
+            status__in=['WAITING', 'SPINNING', 'PLAYING']
+        ).exclude(status='FINISHED').exists()
+        active_game_info = " (TIENE PARTIDA ACTIVA)" if has_active_game else ""
+        print(f"   - {q.user.username}: ${q.entry_price}, estado: {q.status}, unido: {q.joined_at}{active_game_info}")
     
     if total_count == 0:
         print(f"⏳ [MATCHMAKING] No hay jugadores en cola, terminando...")
@@ -48,15 +57,29 @@ def process_matchmaking_queue():
             
             # Buscar jugadores que busquen este precio específico
             # NO filtrar por tiempo - solo por estado WAITING
-            # Primero contar sin bloquear para mostrar información
+            # IMPORTANTE: Excluir usuarios que ya tienen partida activa
+            # Usar subconsulta para verificar partidas activas
+            from django.db.models import Exists, OuterRef
+            active_games = DiceGame.objects.filter(
+                dice_players__user=OuterRef('user'),
+                status__in=['WAITING', 'SPINNING', 'PLAYING']
+            ).exclude(status='FINISHED')
+            
             waiting_players_query = DiceMatchmakingQueue.objects.filter(
                 status='WAITING',
                 entry_price=price
+            ).exclude(
+                Exists(active_games)
             ).order_by('joined_at')
             
             total_waiting = waiting_players_query.count()
             if iteration == 1:
-                print(f"🔄 [MATCHMAKING] Precio ${price}: {total_waiting} jugadores totales esperando")
+                print(f"🔄 [MATCHMAKING] Precio ${price}: {total_waiting} jugadores válidos esperando (excluyendo usuarios con partida activa)")
+                
+                # Mostrar detalles de los jugadores encontrados
+                waiting_list = list(waiting_players_query[:10])
+                for q in waiting_list:
+                    print(f"      ✓ {q.user.username} (ID: {q.id}, Unido: {q.joined_at})")
             
             if total_waiting < 3:
                 if iteration == 1:
