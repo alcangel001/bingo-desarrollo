@@ -6285,14 +6285,40 @@ def dice_queue_status(request):
             status__in=['WAITING', 'SPINNING', 'PLAYING']
         ).exclude(status='FINISHED')
         
-        same_price_count = DiceMatchmakingQueue.objects.filter(
+        # Contar todos los que están en WAITING con el mismo precio
+        all_waiting_same_price = DiceMatchmakingQueue.objects.filter(
             status='WAITING',
             entry_price=queue_entry.entry_price
-        ).exclude(
-            Exists(active_games)
-        ).count()
+        )
         
-        print(f"📊 [QUEUE_STATUS] Jugadores válidos esperando precio ${queue_entry.entry_price}: {same_price_count}")
+        # Contar los válidos (sin partida activa)
+        valid_waiting = all_waiting_same_price.exclude(
+            Exists(active_games)
+        )
+        
+        same_price_count = valid_waiting.count()
+        
+        # Logging detallado para debugging
+        all_count = all_waiting_same_price.count()
+        excluded_count = all_count - same_price_count
+        
+        print(f"📊 [QUEUE_STATUS] Precio ${queue_entry.entry_price}:")
+        print(f"   - Total en WAITING: {all_count}")
+        print(f"   - Con partida activa (excluidos): {excluded_count}")
+        print(f"   - Válidos para matchmaking: {same_price_count}")
+        
+        # Mostrar detalles de los jugadores excluidos
+        if excluded_count > 0:
+            excluded_entries = all_waiting_same_price.filter(
+                Exists(active_games)
+            )
+            for entry in excluded_entries:
+                active_game = DiceGame.objects.filter(
+                    dice_players__user=entry.user,
+                    status__in=['WAITING', 'SPINNING', 'PLAYING']
+                ).exclude(status='FINISHED').first()
+                if active_game:
+                    print(f"   ⚠️ {entry.user.username} excluido - tiene partida activa: {active_game.room_code} (estado: {active_game.status})")
         
         return JsonResponse({
             'status': 'waiting',

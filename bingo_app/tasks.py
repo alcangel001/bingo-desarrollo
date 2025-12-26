@@ -60,26 +60,48 @@ def process_matchmaking_queue():
             # IMPORTANTE: Excluir usuarios que ya tienen partida activa
             # Usar subconsulta para verificar partidas activas
             from django.db.models import Exists, OuterRef
+            
+            # Primero contar todos los que están en WAITING
+            all_waiting_query = DiceMatchmakingQueue.objects.filter(
+                status='WAITING',
+                entry_price=price
+            )
+            total_all_waiting = all_waiting_query.count()
+            
+            # Luego excluir los que tienen partida activa
             active_games = DiceGame.objects.filter(
                 dice_players__user=OuterRef('user'),
                 status__in=['WAITING', 'SPINNING', 'PLAYING']
             ).exclude(status='FINISHED')
             
-            waiting_players_query = DiceMatchmakingQueue.objects.filter(
-                status='WAITING',
-                entry_price=price
-            ).exclude(
+            waiting_players_query = all_waiting_query.exclude(
                 Exists(active_games)
             ).order_by('joined_at')
             
             total_waiting = waiting_players_query.count()
+            excluded_count = total_all_waiting - total_waiting
+            
             if iteration == 1:
-                print(f"🔄 [MATCHMAKING] Precio ${price}: {total_waiting} jugadores válidos esperando (excluyendo usuarios con partida activa)")
+                print(f"🔄 [MATCHMAKING] Precio ${price}:")
+                print(f"   - Total en WAITING: {total_all_waiting}")
+                print(f"   - Con partida activa (excluidos): {excluded_count}")
+                print(f"   - Válidos para matchmaking: {total_waiting}")
                 
-                # Mostrar detalles de los jugadores encontrados
+                # Mostrar detalles de los jugadores válidos
                 waiting_list = list(waiting_players_query[:10])
                 for q in waiting_list:
                     print(f"      ✓ {q.user.username} (ID: {q.id}, Unido: {q.joined_at})")
+                
+                # Mostrar detalles de los excluidos si hay
+                if excluded_count > 0:
+                    excluded_entries = all_waiting_query.filter(Exists(active_games))
+                    for entry in excluded_entries[:5]:  # Mostrar hasta 5
+                        active_game = DiceGame.objects.filter(
+                            dice_players__user=entry.user,
+                            status__in=['WAITING', 'SPINNING', 'PLAYING']
+                        ).exclude(status='FINISHED').first()
+                        if active_game:
+                            print(f"      ⚠️ {entry.user.username} excluido - partida activa: {active_game.room_code} (estado: {active_game.status})")
             
             if total_waiting < 3:
                 if iteration == 1:
