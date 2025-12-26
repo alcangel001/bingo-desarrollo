@@ -12,10 +12,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='announcement',
-            name='link',
-        ),
         migrations.AddField(
             model_name='dicemodulesettings',
             name='accumulated_pool',
