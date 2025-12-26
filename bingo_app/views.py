@@ -6184,13 +6184,27 @@ def dice_queue_status(request):
         from .tasks import process_matchmaking_queue
         
         # Verificar cuántos jugadores hay esperando antes de ejecutar matchmaking
-        waiting_count = DiceMatchmakingQueue.objects.filter(status='WAITING').count()
-        same_price_count = DiceMatchmakingQueue.objects.filter(
-            status='WAITING',
-            entry_price=queue_entry.entry_price if queue_entry else None
-        ).count() if queue_entry else 0
+        # IMPORTANTE: Usar la misma lógica de exclusión que el matchmaking
+        from django.db.models import Exists, OuterRef
+        active_games_pre = DiceGame.objects.filter(
+            dice_players__user=OuterRef('user'),
+            status__in=['WAITING', 'SPINNING', 'PLAYING']
+        ).exclude(status='FINISHED')
         
-        print(f"🔄 [QUEUE_STATUS] Ejecutando matchmaking... Total en cola: {waiting_count}, Mismo precio: {same_price_count}")
+        waiting_count = DiceMatchmakingQueue.objects.filter(status='WAITING').exclude(
+            Exists(active_games_pre)
+        ).count()
+        
+        same_price_count_pre = 0
+        if queue_entry:
+            same_price_count_pre = DiceMatchmakingQueue.objects.filter(
+                status='WAITING',
+                entry_price=queue_entry.entry_price
+            ).exclude(
+                Exists(active_games_pre)
+            ).count()
+        
+        print(f"🔄 [QUEUE_STATUS] Ejecutando matchmaking... Total válidos en cola: {waiting_count}, Mismo precio válidos: {same_price_count_pre}")
         
         try:
             matchmaking_result = process_matchmaking_queue()
