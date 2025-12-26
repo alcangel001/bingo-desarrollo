@@ -1138,10 +1138,21 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 description=f"Ganador de partida de dados {dice_game.room_code}"
                             )
                             
+                            # Asegurar que los resultados incluyan TODOS los jugadores (incluso eliminados)
+                            complete_round_results = {}
+                            all_players_in_game = DicePlayer.objects.filter(game=dice_game)
+                            for player in all_players_in_game:
+                                player_id_str = str(player.user.id)
+                                if player_id_str in current_round.player_results:
+                                    complete_round_results[player_id_str] = current_round.player_results[player_id_str]
+                                else:
+                                    # Si no tiene resultado, usar valores por defecto
+                                    complete_round_results[player_id_str] = [0, 0, 0]
+                            
                             return {
                                 'round_complete': True,
                                 'round_number': current_round.round_number,
-                                'results': current_round.player_results,
+                                'results': complete_round_results,
                                 'eliminated': None,
                                 'winner': winner.user.username,
                                 'game_finished': True,
@@ -1199,10 +1210,20 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                     description=f"Ganador de partida de dados {dice_game.room_code}"
                                 )
                                 
+                                # Asegurar que los resultados incluyan TODOS los jugadores
+                                complete_round_results = {}
+                                all_players_in_game = DicePlayer.objects.filter(game=dice_game)
+                                for player in all_players_in_game:
+                                    player_id_str = str(player.user.id)
+                                    if player_id_str in current_round.player_results:
+                                        complete_round_results[player_id_str] = current_round.player_results[player_id_str]
+                                    else:
+                                        complete_round_results[player_id_str] = [0, 0, 0]
+                                
                                 return {
                                     'round_complete': True,
                                     'round_number': current_round.round_number,
-                                    'results': current_round.player_results,
+                                    'results': complete_round_results,
                                     'eliminated': eliminated_msg,
                                     'winner': winner.user.username,
                                     'game_finished': True,
@@ -1210,10 +1231,20 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                     'multiplier': dice_game.multiplier
                                 }
                             
+                            # Asegurar que los resultados incluyan TODOS los jugadores activos
+                            complete_round_results = {}
+                            for player in active_players:
+                                player_id_str = str(player.user.id)
+                                if player_id_str in current_round.player_results:
+                                    complete_round_results[player_id_str] = current_round.player_results[player_id_str]
+                                else:
+                                    # Si no tiene resultado (no debería pasar), usar valores por defecto
+                                    complete_round_results[player_id_str] = [0, 0, 0]
+                            
                             return {
                                 'round_complete': True,
                                 'round_number': current_round.round_number,
-                                'results': current_round.player_results,
+                                'results': complete_round_results,
                                 'eliminated': eliminated_msg,
                                 'winner': None,
                                 'game_finished': False
