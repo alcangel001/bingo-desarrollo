@@ -156,7 +156,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10;
+    z-index: 15; /* Aumentado para estar por encima de los cuadros de resultados */
 }
 
 .prize-display {
@@ -318,7 +318,7 @@
     text-align: center;
     box-shadow: 0 0 20px var(--table-glow);
     position: relative;
-    z-index: 7;
+    z-index: 5; /* Reducido para estar por debajo del premio */
 }
 
 .dice-value {
@@ -479,15 +479,36 @@
     
     /* Ajustar posiciones para móviles */
     .player-top {
-        top: 20px;
+        top: 10px;
+        z-index: 4; /* Asegurar que esté por debajo del premio */
     }
     
     .player-left {
-        left: 20px;
+        left: 10px;
+        z-index: 4;
     }
     
     .player-right {
-        right: 20px;
+        right: 10px;
+        z-index: 4;
+    }
+    
+    /* Asegurar que el premio esté siempre visible en móviles */
+    .table-center {
+        z-index: 20 !important; /* Prioridad máxima en móviles */
+    }
+    
+    /* Reducir tamaño de cuadros de resultados en móviles para evitar superposición */
+    .player-dice {
+        padding: 8px 12px;
+        min-width: 70px;
+        max-width: 80px;
+        font-size: 18px;
+        z-index: 3; /* Más bajo en móviles */
+    }
+    
+    .dice-value {
+        font-size: 20px;
     }
     
     .game-controls {
@@ -521,10 +542,13 @@
     .table-center {
         width: 150px;
         height: 150px;
+        z-index: 25 !important; /* Prioridad máxima en pantallas muy pequeñas */
     }
     
     .prize-display {
         padding: 10px;
+        position: relative;
+        z-index: 26;
     }
     
     .prize-amount {
@@ -536,26 +560,46 @@
     }
     
     .player-avatar {
-        width: 60px;
-        height: 60px;
+        width: 50px;
+        height: 50px;
     }
     
     .player-info {
         padding: 6px 10px;
-        min-width: 100px;
+        min-width: 90px;
+        font-size: 11px;
     }
     
     .player-name {
+        font-size: 11px;
+    }
+    
+    .player-stack {
         font-size: 12px;
     }
     
+    /* Mover cuadros de resultados más lejos del centro en pantallas muy pequeñas */
+    .player-top {
+        top: 5px;
+    }
+    
+    .player-left {
+        left: 5px;
+    }
+    
+    .player-right {
+        right: 5px;
+    }
+    
     .player-dice {
-        padding: 8px 12px;
-        min-width: 70px;
+        padding: 6px 10px;
+        min-width: 60px;
+        max-width: 70px;
+        z-index: 2; /* Muy bajo para no tapar el premio */
     }
     
     .dice-value {
-        font-size: 20px;
+        font-size: 18px;
     }
 }
 
