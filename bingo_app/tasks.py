@@ -47,12 +47,13 @@ def process_matchmaking_queue():
             
             # Buscar jugadores que busquen este precio específico
             # NO filtrar por tiempo - solo por estado WAITING
+            # IMPORTANTE: Usar select_for_update() para bloquear las filas y evitar condiciones de carrera
             waiting_players_query = DiceMatchmakingQueue.objects.filter(
                 status='WAITING',
                 entry_price=price
-            ).order_by('joined_at')
+            ).order_by('joined_at').select_for_update(skip_locked=True)
             
-            # Convertir a lista para contar correctamente
+            # Convertir a lista para contar correctamente (esto bloquea las filas)
             waiting_players_list = list(waiting_players_query[:3])
             player_count = len(waiting_players_list)
             
@@ -96,6 +97,42 @@ def process_matchmaking_queue():
             try:
                 print(f"   🔄 Iniciando transacción para crear partida...")
                 with transaction.atomic():
+                    # Verificar nuevamente que los jugadores sigan en WAITING (doble verificación)
+                    # Esto previene condiciones de carrera donde otro proceso ya los procesó
+                    fresh_queue_entries = []
+                    for queue_entry in players_list:
+                        queue_entry.refresh_from_db()
+                        # Verificar que el jugador no esté ya en otra partida activa
+                        active_game = DiceGame.objects.filter(
+                            dice_players__user=queue_entry.user,
+                            status__in=['WAITING', 'SPINNING', 'PLAYING']
+                        ).exclude(status='FINISHED').first()
+                        
+                        if active_game:
+                            print(f"   ⚠️ Jugador {queue_entry.user.username} ya está en partida activa {active_game.room_code}, saltando...")
+                            # Marcar esta entrada como procesada para evitar intentos futuros
+                            queue_entry.status = 'TIMEOUT'
+                            queue_entry.save()
+                            continue
+                        
+                        if queue_entry.status != 'WAITING':
+                            print(f"   ⚠️ Jugador {queue_entry.user.username} ya no está en WAITING (estado: {queue_entry.status}), saltando...")
+                            continue
+                        
+                        fresh_queue_entries.append(queue_entry)
+                    
+                    # Si no tenemos 3 jugadores válidos después de la verificación, cancelar
+                    if len(fresh_queue_entries) < 3:
+                        print(f"   ⚠️ No hay suficientes jugadores válidos después de verificación ({len(fresh_queue_entries)}/3), cancelando creación de partida")
+                        # Marcar las entradas restantes como TIMEOUT para limpiar
+                        for q in fresh_queue_entries:
+                            q.status = 'TIMEOUT'
+                            q.save()
+                        break
+                    
+                    # Usar solo los jugadores válidos
+                    players_list = fresh_queue_entries
+                    
                     # Bloquear créditos de los 3 jugadores
                     for queue_entry in players_list:
                         user = queue_entry.user
