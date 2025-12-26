@@ -8,9 +8,8 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 from .models import (
-    DiceMatchmakingQueue, DiceGame, DicePlayer, DiceModuleSettings, Transaction
+    DiceMatchmakingQueue, DiceGame, DicePlayer, DiceModuleSettings, Transaction, User
 )
-from django.contrib.auth.models import User
 
 
 def process_matchmaking_queue():
