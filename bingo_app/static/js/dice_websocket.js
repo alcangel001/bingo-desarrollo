@@ -16,19 +16,25 @@ function createDiceRollSound() {
         const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
         const data = buffer.getChannelData(0);
         
-        // Generar ruido blanco con modulación para simular dados rodando
+        // Generar sonido más realista de dados rodando
+        // Combinación de ruido filtrado y múltiples frecuencias para simular el choque de dados
         for (let i = 0; i < buffer.length; i++) {
             const t = i / sampleRate;
-            const noise = (Math.random() * 2 - 1) * 0.3;
-            const modulation = Math.sin(t * 50) * 0.1; // Modulación rápida
-            const envelope = Math.max(0, 1 - t / duration); // Fade out
-            data[i] = (noise + modulation) * envelope;
+            // Ruido blanco filtrado (simula el sonido de dados chocando)
+            const noise = (Math.random() * 2 - 1) * 0.25;
+            // Múltiples modulaciones para simular múltiples dados
+            const mod1 = Math.sin(t * 120) * 0.08; // Modulación rápida
+            const mod2 = Math.sin(t * 80) * 0.06;  // Modulación media
+            const mod3 = Math.sin(t * 200) * 0.05; // Modulación muy rápida
+            // Envelope con decay exponencial
+            const envelope = Math.max(0, Math.exp(-t * 2));
+            data[i] = (noise + mod1 + mod2 + mod3) * envelope;
         }
         
         const source = audioContext.createBufferSource();
         source.buffer = buffer;
         const gainNode = audioContext.createGain();
-        gainNode.gain.value = 0.4;
+        gainNode.gain.value = 0.35; // Volumen ajustado
         source.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
@@ -43,24 +49,32 @@ function createDiceRollSound() {
 function createDiceHitSound() {
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const duration = 0.15; // Sonido corto de impacto
-        const oscillator = audioContext.createOscillator();
+        const duration = 0.2; // Sonido corto de impacto
+        
+        // Crear múltiples osciladores para un sonido más rico (simula el golpe de múltiples dados)
+        const osc1 = audioContext.createOscillator();
+        const osc2 = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
         
-        // Frecuencia que simula el golpe de dados
-        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(80, audioContext.currentTime + duration);
-        oscillator.type = 'square';
+        // Frecuencias que simulan el golpe de dados (más agudas)
+        osc1.frequency.setValueAtTime(300, audioContext.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + duration);
+        osc1.type = 'square';
         
-        // Envelope para el impacto
+        osc2.frequency.setValueAtTime(400, audioContext.currentTime);
+        osc2.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + duration);
+        osc2.type = 'sawtooth';
+        
+        // Envelope para el impacto (attack rápido, decay exponencial)
         gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 0.005);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
         
-        oscillator.connect(gainNode);
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
-        return { oscillator, gainNode, audioContext };
+        return { oscillator: osc1, oscillator2: osc2, gainNode, audioContext };
     } catch (e) {
         console.log('⚠️ Error creando sonido de impacto:', e);
         return null;
@@ -452,7 +466,11 @@ function playDiceSound() {
             const hitSoundData = createDiceHitSound();
             if (hitSoundData) {
                 hitSoundData.oscillator.start(0);
-                hitSoundData.oscillator.stop(hitSoundData.audioContext.currentTime + 0.15);
+                if (hitSoundData.oscillator2) {
+                    hitSoundData.oscillator2.start(0);
+                    hitSoundData.oscillator2.stop(hitSoundData.audioContext.currentTime + 0.2);
+                }
+                hitSoundData.oscillator.stop(hitSoundData.audioContext.currentTime + 0.2);
             }
         }, 1200);
     } catch (e) {
