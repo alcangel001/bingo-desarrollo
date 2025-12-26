@@ -52,53 +52,10 @@ function rollDice() {
 }
 
 function animateDiceRoll() {
-    // Mostrar contenedor de dados animados
-    const diceContainer = document.getElementById('dice-container');
-    if (diceContainer) {
-        diceContainer.classList.add('show');
-        
-        // Animar los dados con valores aleatorios mientras giran
-        const die1 = document.getElementById('die-1');
-        const die2 = document.getElementById('die-2');
-        
-        if (die1 && die2) {
-            // Valores de dados para mostrar durante la animación
-            const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-            
-            // Cambiar valores aleatorios mientras giran (efecto visual)
-            const rollInterval = setInterval(() => {
-                if (die1 && die2) {
-                    die1.textContent = diceFaces[Math.floor(Math.random() * 6)];
-                    die2.textContent = diceFaces[Math.floor(Math.random() * 6)];
-                }
-            }, 100);
-            
-            // Ocultar después de 1.5 segundos (tiempo suficiente para la animación)
-            setTimeout(() => {
-                if (diceContainer) {
-                    diceContainer.classList.remove('show');
-                }
-                if (rollInterval) {
-                    clearInterval(rollInterval);
-                }
-                // Resetear a "?" para la próxima vez
-                if (die1) die1.textContent = '?';
-                if (die2) die2.textContent = '?';
-            }, 1500);
-        }
-    }
-    
-    // También mantener la animación en los cuadros de resultados
-    const diceElements = document.querySelectorAll('.player-dice .dice-value');
-    diceElements.forEach(dice => {
-        dice.style.animation = 'diceRoll 0.5s ease-in-out';
-    });
-    
-    setTimeout(() => {
-        diceElements.forEach(dice => {
-            dice.style.animation = '';
-        });
-    }, 500);
+    // La animación de dados 3D se maneja en updateDiceRoll cuando llega el mensaje del servidor
+    // Esta función solo se llama cuando el usuario presiona el botón, pero la animación real
+    // se dispara cuando llega el mensaje dice_rolled del WebSocket
+    console.log('🎲 Animación de dados iniciada (esperando resultado del servidor)');
 }
 
 // CSS para animación de dados

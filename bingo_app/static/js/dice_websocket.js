@@ -346,45 +346,137 @@ function showSlotResult(multiplier, finalPrize) {
     }, 2000);
 }
 
+/**
+ * Calcula la rotación 3D para mostrar un número específico en el dado
+ * @param {number} number - Número del dado (1-6)
+ * @returns {object} Objeto con rotateX y rotateY en grados
+ */
+function getRotation(number) {
+    // Rotaciones para cada cara del dado
+    // Cada número necesita una combinación única de rotateX y rotateY
+    const rotations = {
+        1: { rotateX: 0, rotateY: 0 },        // Cara frontal
+        2: { rotateX: 0, rotateY: -90 },     // Cara derecha
+        3: { rotateX: 0, rotateY: 180 },    // Cara trasera
+        4: { rotateX: 0, rotateY: 90 },      // Cara izquierda
+        5: { rotateX: -90, rotateY: 0 },    // Cara superior
+        6: { rotateX: 90, rotateY: 0 }      // Cara inferior
+    };
+    
+    return rotations[number] || rotations[1];
+}
+
+/**
+ * Reproduce sonido de dados
+ */
+function playDiceSound() {
+    try {
+        // Intentar cargar y reproducir el sonido
+        const audio = new Audio('/static/sounds/dice_roll.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e => {
+            console.log('⚠️ No se pudo reproducir sonido de dados:', e);
+        });
+        
+        // Sonido de golpe al finalizar
+        setTimeout(() => {
+            const hitAudio = new Audio('/static/sounds/dice_hit.mp3');
+            hitAudio.volume = 0.3;
+            hitAudio.play().catch(e => {
+                console.log('⚠️ No se pudo reproducir sonido de golpe:', e);
+            });
+        }, 1400);
+    } catch (e) {
+        console.log('⚠️ Error al reproducir sonido:', e);
+    }
+}
+
 function updateDiceRoll(data) {
     console.log('🎲 Actualizando lanzamiento de dados:', data);
     
+    // Reproducir sonido de dados
+    playDiceSound();
+    
     // Encontrar el asiento del jugador que lanzó
+    let seatNum = null;
+    
+    // Primero intentar con INITIAL_PLAYERS
     const players = typeof INITIAL_PLAYERS !== 'undefined' ? INITIAL_PLAYERS : [];
     const playerIndex = players.findIndex(p => p.user_id === data.user_id);
     
     if (playerIndex !== -1) {
-        const seatNum = playerIndex + 1;
-        const diceElement = document.getElementById(`dice-${seatNum}`);
-        if (diceElement) {
-            const diceValue = diceElement.querySelector('.dice-value');
-            if (diceValue) {
-                diceValue.textContent = data.total;
-                diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
-                setTimeout(() => {
-                    diceValue.style.animation = '';
-                }, 500);
+        seatNum = playerIndex + 1;
+    } else {
+        // Si no encontramos al jugador en INITIAL_PLAYERS, buscar por username o usar window.currentGameState
+        if (window.currentGameState && window.currentGameState.players) {
+            const player = window.currentGameState.players.find(p => p.user_id === data.user_id);
+            if (player) {
+                const index = window.currentGameState.players.indexOf(player);
+                seatNum = index + 1;
             }
         }
-    } else {
-        // Si no encontramos al jugador en INITIAL_PLAYERS, buscar por posición
-        // Asumir que los jugadores están en orden de asiento
-        const allSeats = [1, 2, 3];
-        for (let seatNum of allSeats) {
-            const nameEl = document.getElementById(`name-${seatNum}`);
-            if (nameEl && nameEl.textContent === data.username) {
+        
+        // Si aún no encontramos, buscar por nombre
+        if (!seatNum) {
+            for (let i = 1; i <= 3; i++) {
+                const nameEl = document.getElementById(`name-${i}`);
+                if (nameEl && nameEl.textContent === data.username) {
+                    seatNum = i;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (seatNum) {
+        // Animar los cubos 3D
+        const cube1 = document.getElementById(`cube-${seatNum}-1`);
+        const cube2 = document.getElementById(`cube-${seatNum}-2`);
+        const dice3dContainer = document.getElementById(`dice-3d-${seatNum}`);
+        
+        if (cube1 && cube2 && dice3dContainer) {
+            // Mostrar contenedor de dados 3D
+            dice3dContainer.style.display = 'flex';
+            
+            // Agregar clase de animación de vuelo
+            cube1.classList.add('rolling');
+            cube2.classList.add('rolling');
+            
+            // Calcular rotaciones finales para cada dado
+            const rotation1 = getRotation(data.die1);
+            const rotation2 = getRotation(data.die2);
+            
+            // Después de 1.5 segundos, aplicar rotación final
+            setTimeout(() => {
+                // Remover clase de animación
+                cube1.classList.remove('rolling');
+                cube2.classList.remove('rolling');
+                
+                // Aplicar rotación final para mostrar el número correcto
+                cube1.style.transform = `rotateX(${rotation1.rotateX}deg) rotateY(${rotation1.rotateY}deg)`;
+                cube2.style.transform = `rotateX(${rotation2.rotateX}deg) rotateY(${rotation2.rotateY}deg)`;
+                
+                // Actualizar el valor numérico también (por compatibilidad)
                 const diceElement = document.getElementById(`dice-${seatNum}`);
                 if (diceElement) {
                     const diceValue = diceElement.querySelector('.dice-value');
                     if (diceValue) {
                         diceValue.textContent = data.total;
-                        diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
-                        setTimeout(() => {
-                            diceValue.style.animation = '';
-                        }, 500);
                     }
                 }
-                break;
+            }, 1500);
+        } else {
+            // Fallback: si no hay cubos 3D, usar el método anterior
+            const diceElement = document.getElementById(`dice-${seatNum}`);
+            if (diceElement) {
+                const diceValue = diceElement.querySelector('.dice-value');
+                if (diceValue) {
+                    diceValue.textContent = data.total;
+                    diceValue.style.animation = 'diceRoll 0.5s ease-in-out';
+                    setTimeout(() => {
+                        diceValue.style.animation = '';
+                    }, 500);
+                }
             }
         }
     }

@@ -322,6 +322,10 @@
     box-shadow: 0 0 20px var(--table-glow);
     position: relative;
     z-index: 5; /* Reducido para estar por debajo del premio */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
 }
 
 .dice-value {
@@ -329,7 +333,109 @@
     font-weight: bold;
     color: var(--table-accent);
     text-shadow: 0 0 10px var(--table-glow);
+    display: none; /* Ocultar el valor numérico, ahora usamos cubos 3D */
 }
+
+/* Dados 3D Premium */
+.dice-3d-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+}
+
+.scene {
+    width: 60px;
+    height: 60px;
+    perspective: 300px;
+    display: inline-block;
+    margin: 5px;
+}
+
+.cube {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 1.5s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+}
+
+.cube.rolling {
+    animation: dice-fly 1.5s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+}
+
+@keyframes dice-fly {
+    0% {
+        transform: translateY(0) rotateX(0deg) rotateY(0deg);
+    }
+    25% {
+        transform: translateY(-30px) rotateX(180deg) rotateY(180deg);
+    }
+    50% {
+        transform: translateY(0) rotateX(360deg) rotateY(360deg);
+    }
+    75% {
+        transform: translateY(-20px) rotateX(540deg) rotateY(540deg);
+    }
+    100% {
+        transform: translateY(0) rotateX(720deg) rotateY(720deg);
+    }
+}
+
+.cube__face {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border: 2px solid #d4af37;
+    background: linear-gradient(145deg, #ffffff, #e6e6e6);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.3);
+    backface-visibility: hidden;
+}
+
+/* Posiciones de las caras del cubo */
+.face-1 { transform: rotateY(0deg) translateZ(30px); }
+.face-2 { transform: rotateY(90deg) translateZ(30px); }
+.face-3 { transform: rotateY(180deg) translateZ(30px); }
+.face-4 { transform: rotateY(-90deg) translateZ(30px); }
+.face-5 { transform: rotateX(90deg) translateZ(30px); }
+.face-6 { transform: rotateX(-90deg) translateZ(30px); }
+
+/* Puntos en las caras del dado */
+.dot {
+    width: 12px;
+    height: 12px;
+    background: #333;
+    border-radius: 50%;
+    position: absolute;
+    box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Patrones de puntos para cada cara */
+.face-1 .dot { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.face-2 .dot:nth-child(1) { top: 25%; left: 25%; }
+.face-2 .dot:nth-child(2) { bottom: 25%; right: 25%; }
+.face-3 .dot:nth-child(1) { top: 25%; left: 25%; }
+.face-3 .dot:nth-child(2) { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.face-3 .dot:nth-child(3) { bottom: 25%; right: 25%; }
+.face-4 .dot:nth-child(1) { top: 25%; left: 25%; }
+.face-4 .dot:nth-child(2) { top: 25%; right: 25%; }
+.face-4 .dot:nth-child(3) { bottom: 25%; left: 25%; }
+.face-4 .dot:nth-child(4) { bottom: 25%; right: 25%; }
+.face-5 .dot:nth-child(1) { top: 25%; left: 25%; }
+.face-5 .dot:nth-child(2) { top: 25%; right: 25%; }
+.face-5 .dot:nth-child(3) { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.face-5 .dot:nth-child(4) { bottom: 25%; left: 25%; }
+.face-5 .dot:nth-child(5) { bottom: 25%; right: 25%; }
+.face-6 .dot:nth-child(1) { top: 25%; left: 25%; }
+.face-6 .dot:nth-child(2) { top: 25%; right: 25%; }
+.face-6 .dot:nth-child(3) { top: 50%; left: 25%; }
+.face-6 .dot:nth-child(4) { top: 50%; right: 25%; }
+.face-6 .dot:nth-child(5) { bottom: 25%; left: 25%; }
+.face-6 .dot:nth-child(6) { bottom: 25%; right: 25%; }
 
 /* Controles del Juego */
 .game-controls {
