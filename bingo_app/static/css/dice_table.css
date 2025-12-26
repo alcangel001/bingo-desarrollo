@@ -224,7 +224,7 @@
     top: 50px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 6;
+    z-index: 20; /* Mayor que el premio para estar por encima */
 }
 
 /* Jugador Izquierda */
@@ -479,23 +479,26 @@
     
     /* Ajustar posiciones para móviles */
     .player-top {
-        top: 10px;
-        z-index: 4; /* Asegurar que esté por debajo del premio */
+        top: 5px; /* Más arriba para evitar superposición con el premio */
+        z-index: 25; /* Mayor que el premio para estar por encima */
     }
     
     .player-left {
         left: 10px;
-        z-index: 4;
+        z-index: 5; /* Por debajo del premio pero visible */
     }
     
     .player-right {
         right: 10px;
-        z-index: 4;
+        z-index: 5; /* Por debajo del premio pero visible */
     }
     
-    /* Asegurar que el premio esté siempre visible en móviles */
+    /* Asegurar que el premio esté visible pero no tape al jugador de arriba */
     .table-center {
-        z-index: 20 !important; /* Prioridad máxima en móviles */
+        z-index: 15; /* Menor que el jugador de arriba */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
     
     /* Reducir tamaño de cuadros de resultados en móviles para evitar superposición */
@@ -504,7 +507,11 @@
         min-width: 70px;
         max-width: 80px;
         font-size: 18px;
-        z-index: 3; /* Más bajo en móviles */
+    }
+    
+    /* El cuadro de resultados del jugador de arriba debe estar por encima */
+    .player-top .player-dice {
+        z-index: 26; /* Mayor que todo para estar siempre visible */
     }
     
     .dice-value {
@@ -542,13 +549,16 @@
     .table-center {
         width: 150px;
         height: 150px;
-        z-index: 25 !important; /* Prioridad máxima en pantallas muy pequeñas */
+        z-index: 15; /* Menor que el jugador de arriba */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
     
     .prize-display {
         padding: 10px;
         position: relative;
-        z-index: 26;
+        z-index: 16;
     }
     
     .prize-amount {
@@ -580,22 +590,29 @@
     
     /* Mover cuadros de resultados más lejos del centro en pantallas muy pequeñas */
     .player-top {
-        top: 5px;
+        top: 0px; /* Muy arriba para evitar superposición */
+        z-index: 30; /* Máxima prioridad para el jugador de arriba */
     }
     
     .player-left {
         left: 5px;
+        z-index: 5;
     }
     
     .player-right {
         right: 5px;
+        z-index: 5;
     }
     
     .player-dice {
         padding: 6px 10px;
         min-width: 60px;
         max-width: 70px;
-        z-index: 2; /* Muy bajo para no tapar el premio */
+    }
+    
+    /* El cuadro de resultados del jugador de arriba debe estar siempre visible */
+    .player-top .player-dice {
+        z-index: 31; /* Máxima prioridad */
     }
     
     .dice-value {
