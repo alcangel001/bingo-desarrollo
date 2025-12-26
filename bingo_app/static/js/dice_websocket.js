@@ -459,6 +459,9 @@ function updateDiceRoll(data) {
         const dice3dContainer = document.getElementById(`dice-3d-${seatNum}`);
         
         if (cube1 && cube2 && dice3dContainer) {
+            // Reproducir sonido de giro cuando el cubo empieza a girar
+            playDiceSound();
+            
             // Mostrar contenedor de dados 3D
             dice3dContainer.style.display = 'flex';
             
