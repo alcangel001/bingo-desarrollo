@@ -237,6 +237,19 @@ def process_matchmaking_queue():
                     # Calcular premio base
                     base_prize = price * Decimal('3')  # 3 jugadores
                     
+                    # CARGAR AL POZO: 80% de las entradas totales van al pozo acumulado
+                    total_entries = price * Decimal('3')  # 3 jugadores
+                    pool_contribution = total_entries * Decimal('0.80')  # 80%
+                    house_profit = total_entries * Decimal('0.20')  # 20% ganancia de la casa
+                    
+                    # Actualizar el pozo acumulado
+                    settings = DiceModuleSettings.get_settings()
+                    settings.accumulated_pool += pool_contribution
+                    settings.save()
+                    
+                    print(f"💰 [POOL] Carga al pozo: ${pool_contribution} (80% de ${total_entries}), Ganancia casa: ${house_profit} (20%)")
+                    print(f"💰 [POOL] Pozo acumulado actualizado: ${settings.accumulated_pool}")
+                    
                     # Crear partida
                     dice_game = DiceGame.objects.create(
                         entry_price=price,

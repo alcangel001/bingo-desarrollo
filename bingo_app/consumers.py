@@ -1240,6 +1240,29 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             winner.user.credit_balance += dice_game.final_prize
                             winner.user.save()
                             
+                            # RESTAR PREMIO DEL POZO ACUMULADO
+                            from .models import DiceModuleSettings
+                            settings = DiceModuleSettings.get_settings()
+                            settings.refresh_from_db()
+                            
+                            pool_before = settings.accumulated_pool
+                            if settings.accumulated_pool >= dice_game.final_prize:
+                                settings.accumulated_pool -= dice_game.final_prize
+                                settings.save()
+                                print(f"💰 [POOL] Premio descontado del pozo: ${dice_game.final_prize}, Pozo antes: ${pool_before}, Pozo después: ${settings.accumulated_pool}")
+                            else:
+                                # Si el pozo no tiene suficientes fondos, usar lo que hay y ajustar
+                                actual_prize = settings.accumulated_pool
+                                settings.accumulated_pool = Decimal('0.00')
+                                settings.save()
+                                print(f"⚠️ [POOL] ADVERTENCIA: Pozo insuficiente. Premio solicitado: ${dice_game.final_prize}, Pozo disponible: ${pool_before}, Premio ajustado: ${actual_prize}")
+                                # Ajustar el premio otorgado
+                                if actual_prize < dice_game.final_prize:
+                                    winner.user.credit_balance -= (dice_game.final_prize - actual_prize)
+                                    winner.user.save()
+                                    dice_game.final_prize = actual_prize
+                                    dice_game.save()
+                            
                             # Crear transacción con logging detallado
                             transaction_obj = Transaction.objects.create(
                                 user=winner.user,
@@ -1359,6 +1382,29 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             # Acreditar premio al ganador
                             winner.user.credit_balance += dice_game.final_prize
                             winner.user.save()
+                            
+                            # RESTAR PREMIO DEL POZO ACUMULADO
+                            from .models import DiceModuleSettings
+                            settings = DiceModuleSettings.get_settings()
+                            settings.refresh_from_db()
+                            
+                            pool_before = settings.accumulated_pool
+                            if settings.accumulated_pool >= dice_game.final_prize:
+                                settings.accumulated_pool -= dice_game.final_prize
+                                settings.save()
+                                print(f"💰 [POOL] Premio descontado del pozo: ${dice_game.final_prize}, Pozo antes: ${pool_before}, Pozo después: ${settings.accumulated_pool}")
+                            else:
+                                # Si el pozo no tiene suficientes fondos, usar lo que hay y ajustar
+                                actual_prize = settings.accumulated_pool
+                                settings.accumulated_pool = Decimal('0.00')
+                                settings.save()
+                                print(f"⚠️ [POOL] ADVERTENCIA: Pozo insuficiente. Premio solicitado: ${dice_game.final_prize}, Pozo disponible: ${pool_before}, Premio ajustado: ${actual_prize}")
+                                # Ajustar el premio otorgado
+                                if actual_prize < dice_game.final_prize:
+                                    winner.user.credit_balance -= (dice_game.final_prize - actual_prize)
+                                    winner.user.save()
+                                    dice_game.final_prize = actual_prize
+                                    dice_game.save()
                             
                             # Crear transacción con logging detallado
                             transaction_obj = Transaction.objects.create(
