@@ -157,6 +157,9 @@
     justify-content: center;
     align-items: center;
     z-index: 15; /* Aumentado para estar por encima de los cuadros de resultados */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .prize-display {
@@ -428,6 +431,8 @@
     .table-center {
         width: 200px;
         height: 200px;
+        top: 60% !important; /* Bajar más el premio en móviles */
+        transform: translate(-50%, -50%);
     }
     
     .prize-display {
@@ -550,7 +555,7 @@
         width: 150px;
         height: 150px;
         z-index: 15; /* Menor que el jugador de arriba */
-        top: 50%;
+        top: 65% !important; /* Bajar aún más el premio en pantallas muy pequeñas */
         left: 50%;
         transform: translate(-50%, -50%);
     }
