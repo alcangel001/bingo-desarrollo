@@ -81,21 +81,51 @@ function handleDiceMessage(data) {
             
             updateRoundResults(data.results, data.eliminated);
             
-            // Re-habilitar botón después de mostrar resultados
+            // Re-habilitar botón después de mostrar resultados (SOLO si el usuario NO está eliminado)
             setTimeout(() => {
                 const rollBtn = document.getElementById('roll-dice-btn');
                 if (rollBtn) {
+                    // Verificar si el usuario actual está eliminado
+                    const currentUserId = typeof USER_ID !== 'undefined' ? USER_ID : null;
+                    let isCurrentUserEliminated = false;
+                    
+                    if (currentUserId && window.currentGameState && window.currentGameState.players) {
+                        const currentPlayer = window.currentGameState.players.find(p => p.user_id === currentUserId);
+                        if (currentPlayer && currentPlayer.is_eliminated) {
+                            isCurrentUserEliminated = true;
+                        }
+                    }
+                    
+                    // También verificar si el usuario eliminado coincide con el usuario actual
+                    if (data.eliminated && currentUserId) {
+                        // El backend puede enviar el username o el user_id como eliminado
+                        if (data.eliminated === currentUserId || 
+                            String(data.eliminated) === String(currentUserId)) {
+                            isCurrentUserEliminated = true;
+                        }
+                    }
+                    
                     // Verificar que el juego aún esté en curso antes de re-habilitar
                     const gameStatusEl = document.getElementById('game-status');
-                    if (gameStatusEl && gameStatusEl.textContent.includes('En juego')) {
-                        rollBtn.disabled = false;
-                        console.log('✅ Botón re-habilitado para siguiente ronda');
-                    } else if (data.is_tie) {
-                        // Si hubo empate, re-habilitar para que vuelvan a lanzar
-                        rollBtn.disabled = false;
+                    if (!isCurrentUserEliminated) {
+                        if (gameStatusEl && gameStatusEl.textContent.includes('En juego')) {
+                            rollBtn.disabled = false;
+                            console.log('✅ Botón re-habilitado para siguiente ronda');
+                        } else if (data.is_tie) {
+                            // Si hubo empate, re-habilitar para que vuelvan a lanzar
+                            rollBtn.disabled = false;
+                            if (gameStatusEl) {
+                                gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
+                                gameStatusEl.style.color = '';
+                            }
+                        }
+                    } else {
+                        // Usuario eliminado - mantener botón deshabilitado
+                        rollBtn.disabled = true;
+                        console.log('❌ Botón deshabilitado: usuario eliminado');
                         if (gameStatusEl) {
-                            gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
-                            gameStatusEl.style.color = '';
+                            gameStatusEl.textContent = 'Eliminado - Esperando fin del juego';
+                            gameStatusEl.style.color = '#ff4444';
                         }
                     }
                 }
@@ -516,6 +546,38 @@ function updateRoundResults(results, eliminated) {
             if (statusEl) {
                 statusEl.style.color = '#ff4444';
                 statusEl.textContent = '✕';
+            }
+            
+            // Actualizar el estado del jugador en window.currentGameState
+            if (window.currentGameState && window.currentGameState.players) {
+                const eliminatedPlayer = window.currentGameState.players.find(p => 
+                    p.user_id === parseInt(eliminated) || 
+                    p.username === eliminated ||
+                    String(p.user_id) === String(eliminated)
+                );
+                if (eliminatedPlayer) {
+                    eliminatedPlayer.is_eliminated = true;
+                    console.log(`✅ Estado actualizado: jugador ${eliminatedPlayer.username} marcado como eliminado`);
+                }
+            }
+            
+            // Si el usuario eliminado es el usuario actual, deshabilitar el botón inmediatamente
+            const currentUserId = typeof USER_ID !== 'undefined' ? USER_ID : null;
+            if (currentUserId && (
+                eliminated === currentUserId || 
+                String(eliminated) === String(currentUserId) ||
+                players.find(p => (p.user_id === parseInt(eliminated) || p.username === eliminated) && p.user_id === currentUserId)
+            )) {
+                const rollBtn = document.getElementById('roll-dice-btn');
+                if (rollBtn) {
+                    rollBtn.disabled = true;
+                    console.log('❌ Botón deshabilitado: usuario actual eliminado');
+                }
+                const gameStatusEl = document.getElementById('game-status');
+                if (gameStatusEl) {
+                    gameStatusEl.textContent = 'Eliminado - Esperando fin del juego';
+                    gameStatusEl.style.color = '#ff4444';
+                }
             }
         } else {
             console.warn(`⚠️ Jugador eliminado ${eliminated} no encontrado`);
