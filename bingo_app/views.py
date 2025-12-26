@@ -6291,7 +6291,8 @@ def dice_queue_status(request):
         
         print(f"⏳ [QUEUE_STATUS] Usuario {request.user.username} en cola, estado: WAITING")
         
-        # IMPORTANTE: Usar la MISMA consulta que process_matchmaking_queue para contar
+        # IMPORTANTE: Hacer el conteo DESPUÉS del matchmaking para reflejar el estado real
+        # Usar la MISMA consulta que process_matchmaking_queue para contar
         # Esto asegura que el conteo sea consistente con lo que el matchmaking puede usar
         from django.db.models import Exists, OuterRef
         
@@ -6301,7 +6302,7 @@ def dice_queue_status(request):
             status__in=['WAITING', 'SPINNING', 'PLAYING']
         ).exclude(status='FINISHED')
         
-        # Contar usando la misma consulta que el matchmaking
+        # Contar usando la misma consulta que el matchmaking (DESPUÉS de ejecutarlo)
         valid_waiting_query = DiceMatchmakingQueue.objects.filter(
             status='WAITING',
             entry_price=queue_entry.entry_price
@@ -6319,7 +6320,7 @@ def dice_queue_status(request):
         all_count = all_waiting_same_price.count()
         excluded_count = all_count - same_price_count
         
-        print(f"📊 [QUEUE_STATUS] Precio ${queue_entry.entry_price}:")
+        print(f"📊 [QUEUE_STATUS] Precio ${queue_entry.entry_price} (DESPUÉS del matchmaking):")
         print(f"   - Total en WAITING: {all_count}")
         print(f"   - Con partida activa (excluidos): {excluded_count}")
         print(f"   - Válidos para matchmaking: {same_price_count}")
