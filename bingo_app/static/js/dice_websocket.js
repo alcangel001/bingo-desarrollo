@@ -3,16 +3,71 @@
 let diceSocket = null;
 
 // Objetos de audio globales para los sonidos de dados
-const rollSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2004/2004-preview.mp3');
-const hitSound = new Audio('https://assets.mixkit.co/active_storage/sfx/1017/1017-preview.mp3');
+// Sonidos realistas de dados usando Web Audio API para generar sonidos de dados rodando y golpeando
+let rollSound = null;
+let hitSound = null;
 
-// Configurar volúmenes
-rollSound.volume = 0.5;
-hitSound.volume = 0.6;
+// Función para crear sonido de dados rodando usando Web Audio API
+function createDiceRollSound() {
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const duration = 1.2; // Duración del sonido de rodar
+        const sampleRate = audioContext.sampleRate;
+        const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // Generar ruido blanco con modulación para simular dados rodando
+        for (let i = 0; i < buffer.length; i++) {
+            const t = i / sampleRate;
+            const noise = (Math.random() * 2 - 1) * 0.3;
+            const modulation = Math.sin(t * 50) * 0.1; // Modulación rápida
+            const envelope = Math.max(0, 1 - t / duration); // Fade out
+            data[i] = (noise + modulation) * envelope;
+        }
+        
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = 0.4;
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        return { source, gainNode, audioContext };
+    } catch (e) {
+        console.log('⚠️ Error creando sonido de dados:', e);
+        return null;
+    }
+}
 
-// Precargar los sonidos
-rollSound.preload = 'auto';
-hitSound.preload = 'auto';
+// Función para crear sonido de impacto de dados
+function createDiceHitSound() {
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const duration = 0.15; // Sonido corto de impacto
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // Frecuencia que simula el golpe de dados
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(80, audioContext.currentTime + duration);
+        oscillator.type = 'square';
+        
+        // Envelope para el impacto
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        return { oscillator, gainNode, audioContext };
+    } catch (e) {
+        console.log('⚠️ Error creando sonido de impacto:', e);
+        return null;
+    }
+}
+
+// Los sonidos se generan dinámicamente usando Web Audio API
 
 function connectDiceWebSocket(roomCode) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -381,25 +436,24 @@ function getRotation(number) {
 /**
  * Reproduce sonido de dados
  * Sincronizado con la animación de los cubos 3D
+ * Usa Web Audio API para generar sonidos realistas de dados
  */
 function playDiceSound() {
     try {
-        // Detener y reiniciar sonidos si hay lanzamientos muy seguidos
-        rollSound.pause();
-        rollSound.currentTime = 0;
-        hitSound.pause();
-        hitSound.currentTime = 0;
-        
-        // Reproducir sonido de giro cuando el cubo empieza a girar
-        rollSound.play().catch(e => {
-            console.log('⚠️ Audio bloqueado o error al reproducir sonido de giro:', e);
-        });
+        // Crear y reproducir sonido de dados rodando
+        const rollSoundData = createDiceRollSound();
+        if (rollSoundData) {
+            rollSoundData.source.start(0);
+            rollSoundData.source.stop(rollSoundData.audioContext.currentTime + 1.2);
+        }
         
         // Sonido de impacto cuando el dado se detiene (1200ms para sincronizar con el final de la animación)
         setTimeout(() => {
-            hitSound.play().catch(e => {
-                console.log('⚠️ Audio bloqueado o error al reproducir sonido de impacto:', e);
-            });
+            const hitSoundData = createDiceHitSound();
+            if (hitSoundData) {
+                hitSoundData.oscillator.start(0);
+                hitSoundData.oscillator.stop(hitSoundData.audioContext.currentTime + 0.15);
+            }
         }, 1200);
     } catch (e) {
         console.log('⚠️ Error al reproducir sonido:', e);
