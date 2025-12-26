@@ -839,6 +839,7 @@
         padding: 6px 10px;
         min-width: 60px;
         max-width: 70px;
+        flex-direction: column;
     }
     
     /* El cuadro de resultados del jugador de arriba debe estar siempre visible */
@@ -848,6 +849,33 @@
     
     .dice-value {
         font-size: 18px;
+    }
+    
+    .dice-3d-container {
+        margin-top: 3px;
+    }
+    
+    .scene {
+        width: 45px;
+        height: 45px;
+        perspective: 200px;
+    }
+    
+    .cube__face {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .face-1 { transform: rotateY(0deg) translateZ(22.5px); }
+    .face-2 { transform: rotateY(90deg) translateZ(22.5px); }
+    .face-3 { transform: rotateY(180deg) translateZ(22.5px); }
+    .face-4 { transform: rotateY(-90deg) translateZ(22.5px); }
+    .face-5 { transform: rotateX(90deg) translateZ(22.5px); }
+    .face-6 { transform: rotateX(-90deg) translateZ(22.5px); }
+    
+    .dot {
+        width: 8px;
+        height: 8px;
     }
 }
 

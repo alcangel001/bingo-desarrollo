@@ -394,41 +394,53 @@ function playDiceSound() {
 function updateDiceRoll(data) {
     console.log('🎲 Actualizando lanzamiento de dados:', data);
     
-    // Reproducir sonido de dados
+    // Reproducir sonido de dados (solo una vez por lanzamiento)
     playDiceSound();
     
-    // Encontrar el asiento del jugador que lanzó
+    // Encontrar el asiento del jugador que lanzó usando el mismo método que updateRoundResults
     let seatNum = null;
     
-    // Primero intentar con INITIAL_PLAYERS
-    const players = typeof INITIAL_PLAYERS !== 'undefined' ? INITIAL_PLAYERS : [];
-    const playerIndex = players.findIndex(p => p.user_id === data.user_id);
+    // Usar window.currentGameState si está disponible, sino INITIAL_PLAYERS
+    const players = (window.currentGameState && window.currentGameState.players) 
+        ? window.currentGameState.players 
+        : (typeof INITIAL_PLAYERS !== 'undefined' ? INITIAL_PLAYERS : []);
     
-    if (playerIndex !== -1) {
-        seatNum = playerIndex + 1;
-    } else {
-        // Si no encontramos al jugador en INITIAL_PLAYERS, buscar por username o usar window.currentGameState
-        if (window.currentGameState && window.currentGameState.players) {
-            const player = window.currentGameState.players.find(p => p.user_id === data.user_id);
-            if (player) {
-                const index = window.currentGameState.players.indexOf(player);
-                seatNum = index + 1;
+    // Crear mapa de user_id -> seatNum (igual que en updateRoundResults)
+    const playerIdToSeatMap = {};
+    players.forEach((player, index) => {
+        if (player && player.user_id) {
+            playerIdToSeatMap[String(player.user_id)] = index + 1;
+        }
+    });
+    
+    // También buscar por data-player-id en los elementos del DOM
+    for (let seat = 1; seat <= 3; seat++) {
+        const seatElement = document.getElementById(`player-${seat}`);
+        if (seatElement) {
+            const playerIdAttr = seatElement.getAttribute('data-player-id');
+            if (playerIdAttr) {
+                playerIdToSeatMap[String(playerIdAttr)] = seat;
             }
         }
-        
-        // Si aún no encontramos, buscar por nombre
-        if (!seatNum) {
-            for (let i = 1; i <= 3; i++) {
-                const nameEl = document.getElementById(`name-${i}`);
-                if (nameEl && nameEl.textContent === data.username) {
-                    seatNum = i;
-                    break;
-                }
+    }
+    
+    // Buscar el asiento del jugador que lanzó
+    seatNum = playerIdToSeatMap[String(data.user_id)];
+    
+    // Si aún no encontramos, buscar por nombre como fallback
+    if (!seatNum) {
+        for (let i = 1; i <= 3; i++) {
+            const nameEl = document.getElementById(`name-${i}`);
+            if (nameEl && nameEl.textContent === data.username) {
+                seatNum = i;
+                break;
             }
         }
     }
     
     if (seatNum) {
+        console.log(`🎲 Animando dados 3D para jugador en asiento ${seatNum} (${data.username})`);
+        
         // Animar los cubos 3D
         const cube1 = document.getElementById(`cube-${seatNum}-1`);
         const cube2 = document.getElementById(`cube-${seatNum}-2`);
@@ -438,6 +450,10 @@ function updateDiceRoll(data) {
             // Mostrar contenedor de dados 3D
             dice3dContainer.style.display = 'flex';
             
+            // Resetear transformaciones previas
+            cube1.style.transform = '';
+            cube2.style.transform = '';
+            
             // Agregar clase de animación de vuelo
             cube1.classList.add('rolling');
             cube2.classList.add('rolling');
@@ -445,6 +461,8 @@ function updateDiceRoll(data) {
             // Calcular rotaciones finales para cada dado
             const rotation1 = getRotation(data.die1);
             const rotation2 = getRotation(data.die2);
+            
+            console.log(`🎲 Rotaciones finales: Dado 1 (${data.die1}) = X:${rotation1.rotateX}° Y:${rotation1.rotateY}°, Dado 2 (${data.die2}) = X:${rotation2.rotateX}° Y:${rotation2.rotateY}°`);
             
             // Después de 1.5 segundos, aplicar rotación final
             setTimeout(() => {
@@ -456,6 +474,8 @@ function updateDiceRoll(data) {
                 cube1.style.transform = `rotateX(${rotation1.rotateX}deg) rotateY(${rotation1.rotateY}deg)`;
                 cube2.style.transform = `rotateX(${rotation2.rotateX}deg) rotateY(${rotation2.rotateY}deg)`;
                 
+                console.log(`✅ Dados 3D animados y rotados para mostrar ${data.die1} y ${data.die2}`);
+                
                 // Actualizar el valor numérico también (por compatibilidad)
                 const diceElement = document.getElementById(`dice-${seatNum}`);
                 if (diceElement) {
@@ -466,6 +486,7 @@ function updateDiceRoll(data) {
                 }
             }, 1500);
         } else {
+            console.warn(`⚠️ No se encontraron cubos 3D para asiento ${seatNum}, usando fallback`);
             // Fallback: si no hay cubos 3D, usar el método anterior
             const diceElement = document.getElementById(`dice-${seatNum}`);
             if (diceElement) {
@@ -479,6 +500,8 @@ function updateDiceRoll(data) {
                 }
             }
         }
+    } else {
+        console.warn(`⚠️ No se pudo encontrar el asiento para el jugador ${data.username} (ID: ${data.user_id})`);
     }
     
     // Re-habilitar botón después de un tiempo (si no fue el usuario actual)
