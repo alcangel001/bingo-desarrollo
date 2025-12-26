@@ -598,3 +598,6 @@ Precio: $80/mes + 3% comisión
 
 ¿Qué estructura de paquetes prefieres? ¿Alguna modificación o pregunta?
 
+
+
+

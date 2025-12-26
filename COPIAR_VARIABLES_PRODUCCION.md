@@ -121,3 +121,6 @@ Después de agregar todas las variables:
 
 ¡Listo! Copia las variables y tendrás tu entorno de desarrollo completo. 🚀
 
+
+
+

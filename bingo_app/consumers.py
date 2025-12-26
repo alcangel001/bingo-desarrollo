@@ -937,14 +937,14 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 await self.close()
                 return
             
-            # Verificar si el juego debería cambiar de SPINNING a PLAYING
-            # Si lleva más de 7 segundos en SPINNING, cambiarlo automáticamente
+            # Verificación pasiva: Si el juego está en SPINNING y han pasado más de 7 segundos,
+            # cambiarlo automáticamente a PLAYING (esto evita que se quede trabado si el servidor se reinicia)
             if dice_game.status == 'SPINNING' and dice_game.started_at:
                 from django.utils import timezone
                 from datetime import timedelta
                 time_elapsed = timezone.now() - dice_game.started_at
                 if time_elapsed.total_seconds() > 7:
-                    # Ya debería estar en PLAYING, cambiarlo
+                    # Ya debería estar en PLAYING, cambiarlo automáticamente
                     def change_status_to_playing():
                         try:
                             game = DiceGame.objects.get(room_code=dice_game.room_code)
@@ -953,7 +953,7 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 game.save(update_fields=['status'])
                                 from .tasks import notify_game_status_change
                                 notify_game_status_change(game)
-                                print(f"✅ Estado cambiado de SPINNING a PLAYING para {game.room_code} (verificación al conectar)")
+                                print(f"✅ [WEBSOCKET] Estado cambiado de SPINNING a PLAYING para {game.room_code} (verificación pasiva al conectar, {time_elapsed.total_seconds():.1f}s transcurridos)")
                         except Exception as e:
                             print(f"❌ Error al cambiar estado al conectar: {e}")
                     
@@ -1010,6 +1010,19 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
             def roll_dice_and_validate(room_code, user_id):
                 try:
                     dice_game = DiceGame.objects.get(room_code=room_code)
+                    
+                    # Verificación pasiva: Si el juego está en SPINNING y han pasado más de 7 segundos,
+                    # cambiarlo automáticamente a PLAYING (primera acción del jugador)
+                    if dice_game.status == 'SPINNING' and dice_game.started_at:
+                        from django.utils import timezone
+                        time_elapsed = timezone.now() - dice_game.started_at
+                        if time_elapsed.total_seconds() > 7:
+                            # Cambiar a PLAYING automáticamente
+                            dice_game.status = 'PLAYING'
+                            dice_game.save(update_fields=['status'])
+                            from .tasks import notify_game_status_change
+                            notify_game_status_change(dice_game)
+                            print(f"✅ [WEBSOCKET] Estado cambiado de SPINNING a PLAYING para {dice_game.room_code} (primera acción del jugador, {time_elapsed.total_seconds():.1f}s transcurridos)")
                     
                     # Verificar que el juego esté en estado PLAYING
                     if dice_game.status == 'SPINNING':
@@ -1224,12 +1237,25 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             # Acreditar premio al ganador
                             winner.user.credit_balance += dice_game.final_prize
                             winner.user.save()
-                            Transaction.objects.create(
+                            
+                            # Crear transacción con logging detallado
+                            transaction_obj = Transaction.objects.create(
                                 user=winner.user,
                                 amount=dice_game.final_prize,
                                 transaction_type='DICE_WIN',
                                 description=f"Ganador de partida de dados {dice_game.room_code}"
                             )
+                            print(f"💰 [TRANSACTION] DICE_WIN creada: ID={transaction_obj.id}, Usuario={winner.user.username}, Monto=${dice_game.final_prize}, Saldo antes={winner.user.credit_balance - dice_game.final_prize}, Saldo después={winner.user.credit_balance}")
+                            
+                            # IMPORTANTE: Liberar blocked_credits de TODOS los participantes
+                            all_players_in_game = DicePlayer.objects.filter(game=dice_game)
+                            for player in all_players_in_game:
+                                if player.user.blocked_credits >= dice_game.entry_price:
+                                    player.user.blocked_credits -= dice_game.entry_price
+                                    player.user.save()
+                                    print(f"🔓 [GAME_END] Créditos desbloqueados para {player.user.username}: ${dice_game.entry_price}")
+                                else:
+                                    print(f"⚠️ [GAME_END] Advertencia: {player.user.username} tiene menos blocked_credits ({player.user.blocked_credits}) de lo esperado (${dice_game.entry_price})")
                             
                             # Asegurar que los resultados incluyan TODOS los jugadores (incluso eliminados)
                             complete_round_results = {}
@@ -1255,7 +1281,7 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         
                         # Encontrar TODOS los jugadores con el total más bajo (manejar empates)
                         lowest_total = float('inf')
-                        losers = []  # Lista de jugadores con el total más bajo
+                        players_with_lowest = []  # Lista de jugadores con el total más bajo
                         
                         # Primero, encontrar el total más bajo
                         for player in active_players:
@@ -1271,31 +1297,46 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             if player_result:
                                 total = player_result[2]
                                 if total == lowest_total:
-                                    losers.append(player)
+                                    players_with_lowest.append(player)
                         
-                        # Reducir vida de TODOS los perdedores (si hay empate, todos pierden)
+                        # Verificar si hay empate (más de un jugador con el total más bajo)
+                        is_tie = len(players_with_lowest) > 1
+                        
                         eliminated_msg = None
                         eliminated_players = []
                         
-                        for loser_player in losers:
+                        if is_tie:
+                            # EMPATE: Ninguno pierde vida, se marca la ronda como 'Empate'
+                            print(f"🤝 [ROUND] Empate detectado: {len(players_with_lowest)} jugadores con total {lowest_total}")
+                            # No se reduce vida, no se elimina a nadie
+                            # La ronda se marca como empate y todos vuelven a lanzar
+                            current_round.eliminated_player = None  # Asegurar que no hay eliminado
+                            # Guardar información del empate en player_results
+                            current_round.player_results['_tie'] = True
+                            current_round.player_results['_tie_total'] = lowest_total
+                            current_round.player_results['_tie_players'] = [str(p.user.id) for p in players_with_lowest]
+                        else:
+                            # NO HAY EMPATE: Solo un jugador con el total más bajo, pierde vida
+                            loser_player = players_with_lowest[0]
                             loser_player.lives -= 1
                             
                             if loser_player.lives <= 0:
                                 loser_player.is_eliminated = True
                                 eliminated_players.append(loser_player.user.username)
+                                print(f"💀 [ROUND] Jugador {loser_player.user.username} eliminado (0 vidas)")
                             
                             loser_player.save()
-                        
-                        # Si solo hay un perdedor, guardarlo en eliminated_player
-                        if len(losers) == 1:
-                            current_round.eliminated_player = losers[0].user
-                            if losers[0].lives <= 0:
-                                eliminated_msg = losers[0].user.username
-                        else:
-                            # Si hay empate, no asignar un eliminated_player específico
-                            # pero sí crear un mensaje con todos los eliminados
-                            if eliminated_players:
-                                eliminated_msg = ", ".join(eliminated_players)
+                            
+                            # Guardar información en la ronda
+                            current_round.eliminated_player = loser_player.user
+                            if loser_player.lives <= 0:
+                                eliminated_msg = loser_player.user.username
+                            
+                            # Limpiar información de empate si existía
+                            if '_tie' in current_round.player_results:
+                                del current_round.player_results['_tie']
+                                del current_round.player_results['_tie_total']
+                                del current_round.player_results['_tie_players']
                         
                         current_round.save()
                         
@@ -1306,22 +1347,35 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         )
                         
                         if remaining_players.count() == 1:
-                            # Hay un ganador
+                            # Hay un ganador - Finalizar juego
                             winner = remaining_players.first()
                             dice_game.winner = winner.user
                             dice_game.status = 'FINISHED'
                             dice_game.finished_at = timezone.now()
                             dice_game.save()
                             
-                            # Acreditar premio
+                            # Acreditar premio al ganador
                             winner.user.credit_balance += dice_game.final_prize
                             winner.user.save()
-                            Transaction.objects.create(
+                            
+                            # Crear transacción con logging detallado
+                            transaction_obj = Transaction.objects.create(
                                 user=winner.user,
                                 amount=dice_game.final_prize,
                                 transaction_type='DICE_WIN',
                                 description=f"Ganador de partida de dados {dice_game.room_code}"
                             )
+                            print(f"💰 [TRANSACTION] DICE_WIN creada: ID={transaction_obj.id}, Usuario={winner.user.username}, Monto=${dice_game.final_prize}, Saldo antes={winner.user.credit_balance - dice_game.final_prize}, Saldo después={winner.user.credit_balance}")
+                            
+                            # IMPORTANTE: Liberar blocked_credits de TODOS los participantes
+                            all_players_in_game = DicePlayer.objects.filter(game=dice_game)
+                            for player in all_players_in_game:
+                                if player.user.blocked_credits >= dice_game.entry_price:
+                                    player.user.blocked_credits -= dice_game.entry_price
+                                    player.user.save()
+                                    print(f"🔓 [GAME_END] Créditos desbloqueados para {player.user.username}: ${dice_game.entry_price}")
+                                else:
+                                    print(f"⚠️ [GAME_END] Advertencia: {player.user.username} tiene menos blocked_credits ({player.user.blocked_credits}) de lo esperado (${dice_game.entry_price})")
                             
                             # Asegurar que los resultados incluyan TODOS los jugadores
                             complete_round_results = {}
@@ -1354,13 +1408,18 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 # Si no tiene resultado (no debería pasar), usar valores por defecto
                                 complete_round_results[player_id_str] = [0, 0, 0]
                         
+                        # Verificar si hubo empate
+                        is_tie_round = current_round.player_results.get('_tie', False)
+                        
                         return {
                             'round_complete': True,
                             'round_number': current_round.round_number,
                             'results': complete_round_results,
                             'eliminated': eliminated_msg,
                             'winner': None,
-                            'game_finished': False
+                            'game_finished': False,
+                            'is_tie': is_tie_round,  # Indicar si hubo empate
+                            'tie_total': current_round.player_results.get('_tie_total') if is_tie_round else None
                         }
                         
                         return None
@@ -1397,7 +1456,7 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         }
                     )
                 else:
-                    # Ronda terminada, hay perdedor pero el juego continúa
+                    # Ronda terminada, hay perdedor pero el juego continúa (o hubo empate)
                     await self.channel_layer.group_send(
                         self.room_group_name,
                         {
@@ -1405,6 +1464,8 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             'round_number': round_result['round_number'],
                             'results': round_result['results'],
                             'eliminated': round_result.get('eliminated'),
+                            'is_tie': round_result.get('is_tie', False),
+                            'tie_total': round_result.get('tie_total'),
                         }
                     )
         except Exception as e:
@@ -1469,6 +1530,8 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 'round_number': event['round_number'],
                 'results': complete_results,
                 'eliminated': event.get('eliminated'),
+                'is_tie': event.get('is_tie', False),
+                'tie_total': event.get('tie_total'),
             }))
         except Exception as e:
             # Si hay error, enviar los resultados originales
@@ -1477,6 +1540,8 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 'round_number': event['round_number'],
                 'results': results,
                 'eliminated': event.get('eliminated'),
+                'is_tie': event.get('is_tie', False),
+                'tie_total': event.get('tie_total'),
             }))
     
     async def game_finished(self, event):
@@ -1549,6 +1614,7 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         'multiplier': dice_game.multiplier,
                         'final_prize': str(dice_game.final_prize),
                         'players': players_data,
+                        'started_at': dice_game.started_at.isoformat() if dice_game.started_at else None,
                     }
                 except DiceGame.DoesNotExist:
                     return {

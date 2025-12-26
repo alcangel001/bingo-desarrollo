@@ -56,18 +56,32 @@ function connectDiceWebSocket(roomCode) {
 function handleDiceMessage(data) {
     switch(data.type) {
         case 'prize_spun':
-            // Premio determinado - aplicar colores
-            applyPrizeColors(data.multiplier);
-            showPrizeSpinAnimation(data.multiplier, data.final_prize);
+            // Premio determinado - mostrar animación de ruleta
+            // Si viene started_at, usarlo para sincronización
+            const startedAt = data.started_at || null;
+            showPrizeSpinAnimation(data.multiplier, data.final_prize, startedAt);
             break;
             
         case 'round_result':
             // Resultado de ronda - TODOS los jugadores han lanzado
             console.log('📊 Resultado de ronda completo recibido:', data);
+            
+            // Verificar si hubo empate
+            if (data.is_tie) {
+                console.log(`🤝 Empate detectado! Total: ${data.tie_total}`);
+                const gameStatusEl = document.getElementById('game-status');
+                if (gameStatusEl) {
+                    gameStatusEl.textContent = `🤝 Empate con total ${data.tie_total}! Todos vuelven a lanzar.`;
+                    gameStatusEl.style.color = '#ffd700';
+                }
+                
+                // Mostrar mensaje de empate
+                alert(`🤝 ¡Empate! Todos los jugadores sacaron ${data.tie_total}. Nadie pierde vida. Vuelvan a lanzar.`);
+            }
+            
             updateRoundResults(data.results, data.eliminated);
-            // NO deshabilitar el botón aquí - ya está deshabilitado desde rollDice()
-            // Solo asegurar que esté deshabilitado y re-habilitarlo después de mostrar resultados (2 segundos)
-            // para la siguiente ronda
+            
+            // Re-habilitar botón después de mostrar resultados
             setTimeout(() => {
                 const rollBtn = document.getElementById('roll-dice-btn');
                 if (rollBtn) {
@@ -76,9 +90,16 @@ function handleDiceMessage(data) {
                     if (gameStatusEl && gameStatusEl.textContent.includes('En juego')) {
                         rollBtn.disabled = false;
                         console.log('✅ Botón re-habilitado para siguiente ronda');
+                    } else if (data.is_tie) {
+                        // Si hubo empate, re-habilitar para que vuelvan a lanzar
+                        rollBtn.disabled = false;
+                        if (gameStatusEl) {
+                            gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
+                            gameStatusEl.style.color = '';
+                        }
                     }
                 }
-            }, 2000);
+            }, data.is_tie ? 3000 : 2000); // Más tiempo si hubo empate
             break;
             
         case 'game_finished':
@@ -125,59 +146,174 @@ function handleDiceMessage(data) {
     }
 }
 
-function showPrizeSpinAnimation(multiplier, finalPrize) {
+// Variables globales para la animación de ruleta
+let slotAnimationInProgress = false;
+let slotStartTime = null;
+let slotTargetMultiplier = null;
+
+function showPrizeSpinAnimation(multiplier, finalPrize, startedAt = null) {
     console.log('🎰 Iniciando animación del premio:', multiplier, finalPrize);
-    const spinAnimation = document.getElementById('spin-animation');
-    const prizeDisplay = document.getElementById('prize-display');
+    
+    // Si ya hay una animación en progreso, no iniciar otra
+    if (slotAnimationInProgress) {
+        console.log('⚠️ Animación de ruleta ya en progreso, saltando...');
+        return;
+    }
+    
+    slotAnimationInProgress = true;
+    slotTargetMultiplier = multiplier;
+    
+    const slotModal = document.getElementById('multiplier-slot-modal');
+    const slotReel = document.getElementById('slot-reel');
+    const slotResult = document.getElementById('slot-result');
+    const slotResultMultiplier = document.getElementById('slot-result-multiplier');
+    const slotResultPrize = document.getElementById('slot-result-prize');
     const rollBtn = document.getElementById('roll-dice-btn');
+    
+    if (!slotModal || !slotReel) {
+        console.error('❌ Elementos del modal de ruleta no encontrados');
+        slotAnimationInProgress = false;
+        return;
+    }
     
     // Asegurar que el botón esté deshabilitado durante la animación
     if (rollBtn) rollBtn.disabled = true;
     
-    // Mostrar animación de spin
-    if (spinAnimation) spinAnimation.style.display = 'flex';
-    if (prizeDisplay) prizeDisplay.style.display = 'none';
+    // Mostrar modal
+    slotModal.style.display = 'flex';
+    slotResult.style.display = 'none';
     
-    // Simular spin (1-2 segundos)
-    let spinCount = 0;
-    const spinInterval = setInterval(() => {
-        spinCount++;
+    // Calcular tiempo transcurrido si se proporciona startedAt
+    let elapsedSeconds = 0;
+    if (startedAt) {
+        const startedTime = new Date(startedAt).getTime();
+        elapsedSeconds = (Date.now() - startedTime) / 1000;
+        console.log(`⏱️ Tiempo transcurrido desde started_at: ${elapsedSeconds.toFixed(2)}s`);
+    }
+    
+    // Duración total de la animación: 7 segundos
+    const totalDuration = 7000; // 7 segundos
+    const remainingTime = Math.max(0, totalDuration - (elapsedSeconds * 1000));
+    
+    // Si ya pasaron más de 7 segundos, mostrar resultado inmediatamente
+    if (remainingTime <= 0) {
+        showSlotResult(multiplier, finalPrize);
+        slotAnimationInProgress = false;
+        return;
+    }
+    
+    // Mapeo de multiplicadores a posiciones en el carrete
+    const multiplierOrder = ['2x', '3x', '5x', '10x', '25x', '100x', '500x', '1000x'];
+    const targetIndex = multiplierOrder.indexOf(multiplier);
+    const itemHeight = 200; // Altura de cada item
+    
+    // Calcular posición inicial basada en tiempo transcurrido
+    let startPosition = 0;
+    if (elapsedSeconds > 0 && elapsedSeconds < 7) {
+        // Si ya pasaron algunos segundos, empezar desde una posición intermedia
+        const progress = elapsedSeconds / 7;
+        const initialSpins = progress * 20; // 20 vueltas completas en 7 segundos
+        startPosition = -(initialSpins * multiplierOrder.length * itemHeight);
+    }
+    
+    // Posición final: el multiplicador objetivo debe estar en el centro
+    const finalPosition = -(targetIndex * itemHeight);
+    
+    // Aplicar posición inicial
+    slotReel.style.transform = `translateY(${startPosition}px)`;
+    
+    // Reproducir sonido de tick
+    let tickSoundInterval = null;
+    const playTickSound = () => {
+        // Crear sonido de tick simple usando Web Audio API
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (e) {
+            console.log('⚠️ No se pudo reproducir sonido de tick:', e);
+        }
+    };
+    
+    // Iniciar sonido de tick cada vez que un número pase
+    let lastItemIndex = Math.floor(Math.abs(startPosition) / itemHeight) % multiplierOrder.length;
+    tickSoundInterval = setInterval(() => {
+        const currentPosition = parseFloat(slotReel.style.transform.match(/-?\d+\.?\d*/)?.[0] || 0);
+        const currentItemIndex = Math.floor(Math.abs(currentPosition) / itemHeight) % multiplierOrder.length;
         
-        if (spinCount > 40) { // ~2 segundos a 50ms
-            clearInterval(spinInterval);
-            
-            // Aplicar colores del multiplicador real
-            if (typeof applyPrizeColors === 'function') {
-                applyPrizeColors(multiplier);
-            }
-            
-            // Mostrar premio final
-            if (spinAnimation) spinAnimation.style.display = 'none';
-            if (prizeDisplay) prizeDisplay.style.display = 'block';
-            
-            const prizeAmount = document.getElementById('prize-amount');
-            const prizeMultiplier = document.getElementById('prize-multiplier');
-            if (prizeAmount) prizeAmount.textContent = `$${parseFloat(finalPrize).toLocaleString()}`;
-            if (prizeMultiplier) prizeMultiplier.textContent = multiplier;
-            
-            // Cambiar estado del juego (pero NO habilitar botón aquí, esperar notificación WebSocket)
-            const gameStatusEl = document.getElementById('game-status');
-            if (gameStatusEl) {
-                gameStatusEl.textContent = '¡Premio determinado! Esperando inicio del juego...';
-            }
-            
-            console.log('🎰 Animación completada, esperando notificación de cambio de estado...');
-            
-            // Fallback: si no llega la notificación en 10 segundos, habilitar el botón de todas formas
-            setTimeout(() => {
-                if (rollBtn && rollBtn.disabled) {
-                    console.log('⏱️ Timeout: habilitando botón por fallback');
-                    rollBtn.disabled = false;
-                    if (gameStatusEl) gameStatusEl.textContent = 'En juego - ¡Lanza los dados!';
-                }
-            }, 10000);
+        if (currentItemIndex !== lastItemIndex) {
+            playTickSound();
+            lastItemIndex = currentItemIndex;
         }
     }, 50);
+    
+    // Animar hacia la posición final
+    setTimeout(() => {
+        slotReel.style.transition = `transform ${remainingTime}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
+        slotReel.style.transform = `translateY(${finalPosition}px)`;
+        
+        // Detener sonido de tick cuando termine la animación
+        setTimeout(() => {
+            if (tickSoundInterval) {
+                clearInterval(tickSoundInterval);
+            }
+            showSlotResult(multiplier, finalPrize);
+            slotAnimationInProgress = false;
+        }, remainingTime);
+    }, 50);
+}
+
+function showSlotResult(multiplier, finalPrize) {
+    const slotModal = document.getElementById('multiplier-slot-modal');
+    const slotResult = document.getElementById('slot-result');
+    const slotResultMultiplier = document.getElementById('slot-result-multiplier');
+    const slotResultPrize = document.getElementById('slot-result-prize');
+    const prizeDisplay = document.getElementById('prize-display');
+    const prizeAmount = document.getElementById('prize-amount');
+    const prizeMultiplier = document.getElementById('prize-multiplier');
+    
+    // Mostrar resultado en el modal
+    if (slotResult && slotResultMultiplier && slotResultPrize) {
+        slotResultMultiplier.textContent = multiplier;
+        slotResultPrize.textContent = `Premio: $${parseFloat(finalPrize).toLocaleString()}`;
+        slotResult.style.display = 'block';
+    }
+    
+    // Aplicar colores del multiplicador
+    if (typeof applyPrizeColors === 'function') {
+        applyPrizeColors(multiplier);
+    }
+    
+    // Actualizar premio en la mesa
+    if (prizeAmount) prizeAmount.textContent = `$${parseFloat(finalPrize).toLocaleString()}`;
+    if (prizeMultiplier) prizeMultiplier.textContent = multiplier;
+    
+    // Ocultar modal después de 2 segundos
+    setTimeout(() => {
+        if (slotModal) {
+            slotModal.style.display = 'none';
+        }
+        if (prizeDisplay) {
+            prizeDisplay.style.display = 'block';
+        }
+        
+        const gameStatusEl = document.getElementById('game-status');
+        if (gameStatusEl) {
+            gameStatusEl.textContent = '¡Premio determinado! Esperando inicio del juego...';
+        }
+    }, 2000);
 }
 
 function updateDiceRoll(data) {
@@ -438,9 +574,11 @@ function updateGameState(data) {
         if (rollBtn) rollBtn.disabled = true;
         if (gameStatusEl) gameStatusEl.textContent = 'Determinando premio...';
         
-        // Si ya hay multiplicador, mostrar animación de spin
+        // Si ya hay multiplicador, mostrar animación de ruleta con sincronización
         if (data.multiplier && data.final_prize) {
-            showPrizeSpinAnimation(data.multiplier, data.final_prize);
+            // Obtener started_at del juego si está disponible
+            const startedAt = data.started_at || null;
+            showPrizeSpinAnimation(data.multiplier, data.final_prize, startedAt);
         }
     }
 }

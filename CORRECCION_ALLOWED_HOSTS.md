@@ -43,3 +43,6 @@ Después de cambiar, verifica que:
 - ✅ No hay errores en los logs
 - ✅ El sitio es accesible
 
+
+
+

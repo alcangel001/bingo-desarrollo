@@ -156,3 +156,6 @@ Para confirmar que todo está correcto:
 
 **Última actualización:** Diciembre 2025
 
+
+
+

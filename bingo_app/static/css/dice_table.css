@@ -541,6 +541,98 @@
     }
 }
 
+/* Modal de Ruleta Animada (Slot Machine) */
+.multiplier-slot-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.slot-modal-content {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 3px solid var(--table-accent);
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 0 50px var(--table-glow);
+    text-align: center;
+}
+
+.slot-modal-header h2 {
+    color: var(--table-text);
+    font-size: 28px;
+    margin-bottom: 30px;
+    text-shadow: 0 0 20px var(--table-glow);
+}
+
+.slot-machine-container {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+    border: 4px solid var(--table-accent);
+    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.8);
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+}
+
+.slot-reel {
+    display: flex;
+    flex-direction: column;
+    transition: transform 0s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform;
+}
+
+.slot-item {
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 72px;
+    font-weight: bold;
+    color: var(--table-accent);
+    text-shadow: 0 0 30px var(--table-glow);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.slot-result {
+    margin-top: 30px;
+    animation: resultPop 0.5s ease-out;
+}
+
+@keyframes resultPop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.slot-result-multiplier {
+    font-size: 64px;
+    font-weight: bold;
+    color: var(--table-accent);
+    text-shadow: 0 0 40px var(--table-glow);
+    margin-bottom: 15px;
+}
+
+.slot-result-prize {
+    font-size: 32px;
+    color: var(--table-text);
+    font-weight: 600;
+}
+
 @media (max-width: 480px) {
     .game-table-container {
         height: 50vh;

@@ -146,3 +146,6 @@ Una vez verificado que todo funciona:
 3. Probar el middleware (cada franquicia solo ve sus datos)
 4. Implementar el panel para franquiciado
 
+
+
+

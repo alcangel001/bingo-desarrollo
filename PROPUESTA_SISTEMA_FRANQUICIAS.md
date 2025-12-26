@@ -579,3 +579,6 @@ class FranchiseSubscription(models.Model):
 
 ¿Qué opciones prefieres? ¿Alguna modificación o pregunta antes de empezar a implementar?
 
+
+
+

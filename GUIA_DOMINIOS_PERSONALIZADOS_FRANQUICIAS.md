@@ -172,3 +172,5 @@ Dominio guardado: "mi-franquicia.com" (protocolo se quita automáticamente)
 **Fecha de implementación:** 17 de diciembre de 2025
 **Versión:** 1.0
 
+
+

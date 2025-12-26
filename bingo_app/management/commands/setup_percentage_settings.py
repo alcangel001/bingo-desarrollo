@@ -32,3 +32,6 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.SUCCESS('✅ PercentageSettings ya existe y está configurado'))
 
+
+
+

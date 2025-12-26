@@ -89,6 +89,40 @@
     <div class="table-surface" id="table-surface"></div>
 </div>
 
+<!-- Modal de Ruleta Animada (Slot Machine) -->
+<div id="multiplier-slot-modal" class="multiplier-slot-modal" style="display: none;">
+    <div class="slot-modal-content">
+        <div class="slot-modal-header">
+            <h2>🎰 Determinando Multiplicador</h2>
+        </div>
+        <div class="slot-machine-container">
+            <div class="slot-reel" id="slot-reel">
+                <div class="slot-item">2x</div>
+                <div class="slot-item">3x</div>
+                <div class="slot-item">5x</div>
+                <div class="slot-item">10x</div>
+                <div class="slot-item">25x</div>
+                <div class="slot-item">100x</div>
+                <div class="slot-item">500x</div>
+                <div class="slot-item">1000x</div>
+                <!-- Duplicar items para efecto de loop infinito -->
+                <div class="slot-item">2x</div>
+                <div class="slot-item">3x</div>
+                <div class="slot-item">5x</div>
+                <div class="slot-item">10x</div>
+                <div class="slot-item">25x</div>
+                <div class="slot-item">100x</div>
+                <div class="slot-item">500x</div>
+                <div class="slot-item">1000x</div>
+            </div>
+        </div>
+        <div class="slot-result" id="slot-result" style="display: none;">
+            <div class="slot-result-multiplier" id="slot-result-multiplier"></div>
+            <div class="slot-result-prize" id="slot-result-prize"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Panel de Control Inferior -->
 <div class="game-controls">
     <div class="round-info">
@@ -167,10 +201,11 @@
             const finalPrize = '{{ dice_game.final_prize|default:"0" }}';
             
             if (multiplier && multiplier !== '1x' && multiplier !== '') {
-                // Ya se determinó el premio, iniciar animación después de un pequeño delay
+                // Ya se determinó el premio, iniciar animación con sincronización temporal
+                const startedAt = '{{ dice_game.started_at|date:"c" }}' || null;
                 setTimeout(() => {
                     if (typeof showPrizeSpinAnimation === 'function') {
-                        showPrizeSpinAnimation(multiplier, finalPrize);
+                        showPrizeSpinAnimation(multiplier, finalPrize, startedAt);
                     }
                 }, 500);
             }

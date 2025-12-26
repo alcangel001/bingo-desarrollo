@@ -10,6 +10,7 @@ from decimal import Decimal
 from .models import (
     DiceMatchmakingQueue, DiceGame, DicePlayer, DiceModuleSettings, Transaction
 )
+from django.contrib.auth.models import User
 
 
 def process_matchmaking_queue():
@@ -145,20 +146,49 @@ def process_matchmaking_queue():
                     # Usar solo los jugadores válidos
                     players_list = fresh_queue_entries
                     
-                    # Bloquear créditos de los 3 jugadores
+                    # IMPORTANTE: Bloquear usuarios con select_for_update antes de descontar saldo
+                    # Esto previene condiciones de carrera donde múltiples procesos intentan descontar
+                    users_to_block = []
                     for queue_entry in players_list:
-                        user = queue_entry.user
-                        user.credit_balance -= queue_entry.entry_price
-                        user.blocked_credits += queue_entry.entry_price
-                        user.save()
-                        
-                        # Crear transacción
-                        Transaction.objects.create(
-                            user=user,
-                            amount=-queue_entry.entry_price,
-                            transaction_type='ENTRY_FEE',
-                            description=f"Entrada a partida de dados (${queue_entry.entry_price})"
-                        )
+                        # Bloquear el usuario en la base de datos
+                        user = User.objects.select_for_update().get(id=queue_entry.user.id)
+                        users_to_block.append((user, queue_entry))
+                    
+                    # Bloquear créditos de los 3 jugadores (ahora con usuarios bloqueados)
+                    blocked_users = []  # Para revertir en caso de error
+                    for user, queue_entry in users_to_block:
+                        try:
+                            # Refrescar saldo desde DB para asegurar valor actualizado
+                            user.refresh_from_db()
+                            
+                            # Verificar saldo nuevamente después del bloqueo
+                            if user.credit_balance < queue_entry.entry_price:
+                                raise ValueError(f"Usuario {user.username} no tiene saldo suficiente después del bloqueo")
+                            
+                            # Descontar y bloquear créditos
+                            user.credit_balance -= queue_entry.entry_price
+                            user.blocked_credits += queue_entry.entry_price
+                            user.save()
+                            
+                            blocked_users.append((user, queue_entry))
+                            
+                            # Crear transacción con logging detallado
+                            transaction_obj = Transaction.objects.create(
+                                user=user,
+                                amount=-queue_entry.entry_price,
+                                transaction_type='ENTRY_FEE',
+                                description=f"Entrada a partida de dados (${queue_entry.entry_price})"
+                            )
+                            print(f"💰 [TRANSACTION] ENTRY_FEE creada: ID={transaction_obj.id}, Usuario={user.username}, Monto=${queue_entry.entry_price}, Saldo antes={user.credit_balance + queue_entry.entry_price}, Saldo después={user.credit_balance}, Bloqueado={user.blocked_credits}")
+                        except Exception as e:
+                            print(f"❌ [MATCHMAKING] Error bloqueando créditos para {user.username}: {e}")
+                            # Revertir créditos bloqueados hasta ahora
+                            for revert_user, revert_entry in blocked_users:
+                                revert_user.blocked_credits -= revert_entry.entry_price
+                                revert_user.credit_balance += revert_entry.entry_price
+                                revert_user.save()
+                                print(f"🔄 [MATCHMAKING] Créditos revertidos para {revert_user.username}")
+                            raise
                     
                     # Calcular premio base
                     base_prize = price * Decimal('3')  # 3 jugadores
@@ -229,62 +259,54 @@ def process_matchmaking_queue():
                         print(f"⚠️ [MATCHMAKING] Error al notificar: {notify_error}")
                         # Continuar aunque falle la notificación
                     
-                    # Programar cambio a PLAYING después de 7 segundos (tiempo para animación del spin)
-                    import threading
-                    import django
-                    django.setup()  # Asegurar que Django esté configurado en el thread
-                    
-                    # Guardar el room_code para usarlo en el thread
-                    room_code = dice_game.room_code
-                    
-                    def change_to_playing():
-                        import time
-                        time.sleep(7)  # Esperar 7 segundos para que termine la animación
-                        try:
-                            # Importar dentro del thread para evitar problemas
-                            from django.db import transaction
-                            from .models import DiceGame as DG
-                            
-                            print(f"🔄 Intentando cambiar estado de {room_code} a PLAYING...")
-                            
-                            with transaction.atomic():
-                                game = DG.objects.select_for_update().get(room_code=room_code)
-                                print(f"📊 Estado actual: {game.status}")
-                                
-                                if game.status == 'SPINNING':
-                                    game.status = 'PLAYING'
-                                    game.save(update_fields=['status'])
-                                    print(f"✅ Cambiado estado de {game.room_code} a PLAYING")
-                                    
-                                    # Notificar cambio de estado vía WebSocket
-                                    try:
-                                        notify_game_status_change(game)
-                                        print(f"📢 Notificación de cambio de estado enviada")
-                                    except Exception as notify_error:
-                                        print(f"⚠️ Error al notificar cambio de estado: {notify_error}")
-                                        import traceback
-                                        traceback.print_exc()
-                                else:
-                                    print(f"⚠️ El estado ya no es SPINNING, es {game.status}")
-                        except DG.DoesNotExist:
-                            print(f"⚠️ Partida {room_code} no encontrada al cambiar estado")
-                        except Exception as e:
-                            print(f"❌ Error al cambiar estado: {e}")
-                            import traceback
-                            traceback.print_exc()
-                    
-                    # Ejecutar en hilo separado para no bloquear
-                    thread = threading.Thread(target=change_to_playing, daemon=True)
-                    thread.start()
-                    print(f"🧵 Thread iniciado para cambiar estado de {room_code} después de 7 segundos")
+                    # NOTA: El cambio de SPINNING a PLAYING se maneja de forma pasiva en el WebSocket
+                    # cuando un jugador se conecta después de 7 segundos o cuando intenta la primera acción
+                    # Esto evita problemas si el servidor se reinicia
+                    print(f"⏱️ [MATCHMAKING] Partida {dice_game.room_code} en estado SPINNING. El WebSocket cambiará a PLAYING automáticamente después de 7 segundos")
                     
                     games_created.append(dice_game)
                     
             except Exception as e:
-                # Si hay error, no crear partida pero continuar
+                # Si hay error, REVERTIR todos los blocked_credits a credit_balance
                 print(f"❌ [MATCHMAKING] Error creando partida: {e}")
                 import traceback
                 traceback.print_exc()
+                
+                # Revertir créditos bloqueados si se habían bloqueado antes del error
+                try:
+                    # Buscar usuarios que puedan tener créditos bloqueados de este intento
+                    # (Esto es una medida de seguridad adicional)
+                    for queue_entry in players_list if 'players_list' in locals() else []:
+                        try:
+                            user = User.objects.get(id=queue_entry.user.id)
+                            if user.blocked_credits > 0:
+                                # Verificar si hay una transacción ENTRY_FEE reciente sin partida asociada
+                                recent_transaction = Transaction.objects.filter(
+                                    user=user,
+                                    transaction_type='ENTRY_FEE',
+                                    created_at__gte=timezone.now() - timedelta(seconds=10)
+                                ).order_by('-created_at').first()
+                                
+                                if recent_transaction:
+                                    # Revertir créditos bloqueados
+                                    refund_amount = min(user.blocked_credits, queue_entry.entry_price)
+                                    user.blocked_credits -= refund_amount
+                                    user.credit_balance += refund_amount
+                                    user.save()
+                                    
+                                    # Crear transacción de reversión
+                                    Transaction.objects.create(
+                                        user=user,
+                                        amount=refund_amount,
+                                        transaction_type='REFUND',
+                                        description=f"Reversión de entrada a partida de dados (error en creación)"
+                                    )
+                                    print(f"🔄 [MATCHMAKING] Créditos revertidos para {user.username}: ${refund_amount}")
+                        except Exception as revert_error:
+                            print(f"⚠️ [MATCHMAKING] Error al revertir créditos para {queue_entry.user.username}: {revert_error}")
+                except Exception as revert_all_error:
+                    print(f"⚠️ [MATCHMAKING] Error general al revertir créditos: {revert_all_error}")
+                
                 # NO hacer break aquí - continuar intentando con el siguiente grupo
                 continue  # Continuar con la siguiente iteración
     
@@ -343,4 +365,83 @@ def notify_game_status_change(dice_game):
         )
     except Exception as e:
         print(f"Error notificando cambio de estado: {e}")
+
+
+def emergency_cleanup_dice_games():
+    """
+    Sistema de limpieza de emergencia (El "Botón de Pánico").
+    Busca partidas fantasma y limpia la cola de matchmaking.
+    """
+    print(f"🧹 [CLEANUP] ========== INICIANDO LIMPIEZA DE EMERGENCIA ==========")
+    
+    cleanup_count = 0
+    refund_total = Decimal('0.00')
+    
+    # 1. Buscar partidas fantasma (más de 20 minutos en WAITING, SPINNING o PLAYING)
+    cutoff_time = timezone.now() - timedelta(minutes=20)
+    ghost_games = DiceGame.objects.filter(
+        status__in=['WAITING', 'SPINNING', 'PLAYING'],
+        created_at__lt=cutoff_time
+    )
+    
+    print(f"🔍 [CLEANUP] Partidas fantasma encontradas: {ghost_games.count()}")
+    
+    for game in ghost_games:
+        print(f"   🗑️ Limpiando partida fantasma: {game.room_code} (Estado: {game.status}, Creada: {game.created_at})")
+        
+        # Obtener todos los jugadores de la partida
+        players = DicePlayer.objects.filter(game=game)
+        
+        for player in players:
+            # Devolver blocked_credits a credit_balance
+            if player.user.blocked_credits >= game.entry_price:
+                refund_amount = game.entry_price
+                player.user.blocked_credits -= refund_amount
+                player.user.credit_balance += refund_amount
+                player.user.save()
+                
+                # Crear transacción de reembolso
+                Transaction.objects.create(
+                    user=player.user,
+                    amount=refund_amount,
+                    transaction_type='REFUND',
+                    description=f"Reembolso de partida fantasma {game.room_code} (limpieza automática)"
+                )
+                
+                refund_total += refund_amount
+                print(f"      💰 Reembolsado ${refund_amount} a {player.user.username}")
+                print(f"💰 [TRANSACTION] REFUND creada: Usuario={player.user.username}, Monto=${refund_amount}, Partida={game.room_code}")
+        
+        # Marcar partida como FINISHED o CANCELLED
+        game.status = 'FINISHED'
+        game.finished_at = timezone.now()
+        game.save()
+        
+        cleanup_count += 1
+    
+    # 2. Limpiar cola de matchmaking (usuarios WAITING más de 5 minutos)
+    queue_cutoff_time = timezone.now() - timedelta(minutes=5)
+    stale_queue_entries = DiceMatchmakingQueue.objects.filter(
+        status='WAITING',
+        joined_at__lt=queue_cutoff_time
+    )
+    
+    stale_count = stale_queue_entries.count()
+    print(f"🔍 [CLEANUP] Entradas de cola obsoletas encontradas: {stale_count}")
+    
+    for queue_entry in stale_queue_entries:
+        print(f"   🗑️ Limpiando entrada de cola: {queue_entry.user.username} (Unido: {queue_entry.joined_at})")
+        queue_entry.status = 'TIMEOUT'
+        queue_entry.save()
+    
+    print(f"✅ [CLEANUP] ========== LIMPIEZA COMPLETADA ==========")
+    print(f"   Partidas limpiadas: {cleanup_count}")
+    print(f"   Entradas de cola limpiadas: {stale_count}")
+    print(f"   Total reembolsado: ${refund_total}")
+    
+    return {
+        'games_cleaned': cleanup_count,
+        'queue_entries_cleaned': stale_count,
+        'total_refunded': float(refund_total)
+    }
 

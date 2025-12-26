@@ -245,3 +245,6 @@ Si encuentras algún problema:
 3. Verifica que todos los pasos anteriores se hayan completado
 4. Documenta el error específico que estás viendo
 
+
+
+

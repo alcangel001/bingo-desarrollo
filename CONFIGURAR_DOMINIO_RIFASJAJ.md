@@ -112,3 +112,5 @@ Una vez configurado, puedes usar `rifasjaj.com` para:
 **Fecha de configuración:** 17 de diciembre de 2025
 **Dominio:** rifasjaj.com
 
+
+

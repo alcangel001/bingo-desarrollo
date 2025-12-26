@@ -124,3 +124,6 @@ Si quieres una solución inmediata:
 
 Este enlace directo al registro debería funcionar aunque la landing no funcione.
 
+
+
+

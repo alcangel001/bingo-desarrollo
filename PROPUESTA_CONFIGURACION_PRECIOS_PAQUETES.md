@@ -537,3 +537,6 @@ Esto crea los 4 paquetes preconfigurados con:
 
 ¿Te parece bien esta estructura? ¿Quieres que agregue algo más al sistema de configuración de precios?
 
+
+
+
