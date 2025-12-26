@@ -47,56 +47,68 @@ def process_matchmaking_queue():
             
             # Buscar jugadores que busquen este precio específico
             # NO filtrar por tiempo - solo por estado WAITING
-            # IMPORTANTE: Usar select_for_update() para bloquear las filas y evitar condiciones de carrera
+            # Primero contar sin bloquear para mostrar información
             waiting_players_query = DiceMatchmakingQueue.objects.filter(
                 status='WAITING',
                 entry_price=price
-            ).order_by('joined_at').select_for_update(skip_locked=True)
+            ).order_by('joined_at')
             
-            # Convertir a lista para contar correctamente (esto bloquea las filas)
-            waiting_players_list = list(waiting_players_query[:3])
-            player_count = len(waiting_players_list)
-            
+            total_waiting = waiting_players_query.count()
             if iteration == 1:
-                print(f"🔄 [MATCHMAKING] Precio ${price}: {waiting_players_query.count()} jugadores totales esperando")
-                if player_count > 0:
-                    print(f"   Primeros 3: {[p.user.username for p in waiting_players_list]}")
+                print(f"🔄 [MATCHMAKING] Precio ${price}: {total_waiting} jugadores totales esperando")
             
-            if player_count < 3:
+            if total_waiting < 3:
                 if iteration == 1:
-                    print(f"⏳ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores ({player_count}/3)")
+                    print(f"⏳ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores ({total_waiting}/3)")
                 break  # No hay suficientes jugadores para este precio, pasar al siguiente precio
             
-            # Usar la lista directamente
-            waiting_players = waiting_players_list
-            
-            # Verificar que todos tienen suficiente saldo
-            players_list = []
-            for queue_entry in waiting_players:
-                # Refrescar el usuario desde la base de datos para obtener el saldo actualizado
-                queue_entry.user.refresh_from_db()
-                if queue_entry.user.credit_balance >= queue_entry.entry_price:
-                    players_list.append(queue_entry)
-                else:
-                    # Jugador sin saldo - remover de cola
-                    print(f"⚠️ [MATCHMAKING] Jugador {queue_entry.user.username} sin saldo suficiente")
-                    queue_entry.status = 'TIMEOUT'
-                    queue_entry.save()
-            
-            if len(players_list) < 3:
-                print(f"⚠️ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores válidos después de validar saldo ({len(players_list)}/3)")
-                print(f"   Jugadores con saldo suficiente: {[p.user.username for p in players_list]}")
-                break  # No hay suficientes jugadores válidos, pasar al siguiente precio
-            
-            print(f"✅ [MATCHMAKING] Precio ${price} (iteración {iteration}): ¡3 jugadores encontrados! Creando partida...")
-            print(f"   Jugadores: {[p.user.username for p in players_list]}")
-            print(f"   IDs de cola: {[p.id for p in players_list]}")
-            print(f"   Saldos: {[(p.user.username, float(p.user.credit_balance)) for p in players_list]}")
-            
             # Crear partida con los 3 jugadores
+            # IMPORTANTE: Usar select_for_update() DENTRO de la transacción para bloquear las filas
             try:
                 print(f"   🔄 Iniciando transacción para crear partida...")
                 with transaction.atomic():
+                    # Ahora sí usar select_for_update dentro de la transacción
+                    waiting_players_query_locked = DiceMatchmakingQueue.objects.filter(
+                        status='WAITING',
+                        entry_price=price
+                    ).order_by('joined_at').select_for_update(skip_locked=True)
+                    
+                    # Convertir a lista para contar correctamente (esto bloquea las filas)
+                    waiting_players_list = list(waiting_players_query_locked[:3])
+                    player_count = len(waiting_players_list)
+                    
+                    if player_count < 3:
+                        print(f"⏳ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores disponibles después de bloqueo ({player_count}/3)")
+                        break  # No hay suficientes jugadores disponibles, pasar al siguiente precio
+                    
+                    if iteration == 1 and player_count > 0:
+                        print(f"   Primeros 3: {[p.user.username for p in waiting_players_list]}")
+                    
+                    # Usar la lista directamente
+                    waiting_players = waiting_players_list
+                    
+                    # Verificar que todos tienen suficiente saldo
+                    players_list = []
+                    for queue_entry in waiting_players:
+                        # Refrescar el usuario desde la base de datos para obtener el saldo actualizado
+                        queue_entry.user.refresh_from_db()
+                        if queue_entry.user.credit_balance >= queue_entry.entry_price:
+                            players_list.append(queue_entry)
+                        else:
+                            # Jugador sin saldo - remover de cola
+                            print(f"⚠️ [MATCHMAKING] Jugador {queue_entry.user.username} sin saldo suficiente")
+                            queue_entry.status = 'TIMEOUT'
+                            queue_entry.save()
+                    
+                    if len(players_list) < 3:
+                        print(f"⚠️ [MATCHMAKING] Precio ${price}: No hay suficientes jugadores válidos después de validar saldo ({len(players_list)}/3)")
+                        print(f"   Jugadores con saldo suficiente: {[p.user.username for p in players_list]}")
+                        break  # No hay suficientes jugadores válidos, pasar al siguiente precio
+                    
+                    print(f"✅ [MATCHMAKING] Precio ${price} (iteración {iteration}): ¡3 jugadores encontrados! Creando partida...")
+                    print(f"   Jugadores: {[p.user.username for p in players_list]}")
+                    print(f"   IDs de cola: {[p.id for p in players_list]}")
+                    print(f"   Saldos: {[(p.user.username, float(p.user.credit_balance)) for p in players_list]}")
                     # Verificar nuevamente que los jugadores sigan en WAITING (doble verificación)
                     # Esto previene condiciones de carrera donde otro proceso ya los procesó
                     fresh_queue_entries = []
