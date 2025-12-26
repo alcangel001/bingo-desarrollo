@@ -1295,6 +1295,34 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
             # Verificar si la ronda está completa y procesarla
             round_result = await database_sync_to_async(check_and_process_round)(result['current_round_id'])
             
+            # Si la ronda fue procesada (incluso si no hubo eliminación), crear automáticamente una nueva ronda
+            # para evitar que los jugadores intenten lanzar en la misma ronda
+            if round_result and not round_result.get('game_finished'):
+                def create_next_round(room_code):
+                    from .models import DiceRound, DiceGame
+                    try:
+                        dice_game = DiceGame.objects.get(room_code=room_code)
+                        # Verificar si ya existe una nueva ronda
+                        last_round = dice_game.rounds.order_by('-round_number').first()
+                        if last_round:
+                            # Verificar si la última ronda ya tiene un eliminated_player o si ya fue procesada
+                            # Si no tiene eliminated_player pero tiene todos los resultados, crear una nueva
+                            active_players = dice_game.dice_players.filter(is_eliminated=False)
+                            if last_round.eliminated_player is None and len(last_round.player_results) >= active_players.count():
+                                # La ronda fue procesada pero no tiene eliminated_player, crear una nueva
+                                new_round_number = last_round.round_number + 1
+                                DiceRound.objects.create(
+                                    game=dice_game,
+                                    round_number=new_round_number,
+                                    player_results={}
+                                )
+                                print(f"✅ Creada nueva ronda {new_round_number} automáticamente después de procesar ronda {last_round.round_number}")
+                    except Exception as e:
+                        print(f"⚠️ Error creando nueva ronda automáticamente: {e}")
+                
+                # Crear nueva ronda en background (no bloquear)
+                await database_sync_to_async(create_next_round)(self.room_code)
+            
             if round_result:
                 # Ronda completa, notificar resultados
                 if round_result.get('game_finished'):
