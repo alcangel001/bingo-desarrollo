@@ -6277,28 +6277,31 @@ def dice_queue_status(request):
         
         print(f"⏳ [QUEUE_STATUS] Usuario {request.user.username} en cola, estado: WAITING")
         
-        # Informar cuántos usuarios hay esperando con el mismo precio
-        # IMPORTANTE: Excluir usuarios que ya tienen partida activa para que el conteo sea preciso
+        # IMPORTANTE: Usar la MISMA consulta que process_matchmaking_queue para contar
+        # Esto asegura que el conteo sea consistente con lo que el matchmaking puede usar
         from django.db.models import Exists, OuterRef
+        
+        # Usar exactamente la misma lógica que process_matchmaking_queue
         active_games = DiceGame.objects.filter(
             dice_players__user=OuterRef('user'),
             status__in=['WAITING', 'SPINNING', 'PLAYING']
         ).exclude(status='FINISHED')
         
-        # Contar todos los que están en WAITING con el mismo precio
+        # Contar usando la misma consulta que el matchmaking
+        valid_waiting_query = DiceMatchmakingQueue.objects.filter(
+            status='WAITING',
+            entry_price=queue_entry.entry_price
+        ).exclude(
+            Exists(active_games)
+        )
+        
+        same_price_count = valid_waiting_query.count()
+        
+        # Logging detallado para debugging
         all_waiting_same_price = DiceMatchmakingQueue.objects.filter(
             status='WAITING',
             entry_price=queue_entry.entry_price
         )
-        
-        # Contar los válidos (sin partida activa)
-        valid_waiting = all_waiting_same_price.exclude(
-            Exists(active_games)
-        )
-        
-        same_price_count = valid_waiting.count()
-        
-        # Logging detallado para debugging
         all_count = all_waiting_same_price.count()
         excluded_count = all_count - same_price_count
         
@@ -6307,12 +6310,15 @@ def dice_queue_status(request):
         print(f"   - Con partida activa (excluidos): {excluded_count}")
         print(f"   - Válidos para matchmaking: {same_price_count}")
         
+        # Mostrar detalles de los jugadores válidos
+        valid_list = list(valid_waiting_query[:5])
+        for entry in valid_list:
+            print(f"   ✓ {entry.user.username} (ID: {entry.id})")
+        
         # Mostrar detalles de los jugadores excluidos
         if excluded_count > 0:
-            excluded_entries = all_waiting_same_price.filter(
-                Exists(active_games)
-            )
-            for entry in excluded_entries:
+            excluded_entries = all_waiting_same_price.filter(Exists(active_games))
+            for entry in excluded_entries[:5]:
                 active_game = DiceGame.objects.filter(
                     dice_players__user=entry.user,
                     status__in=['WAITING', 'SPINNING', 'PLAYING']
