@@ -1058,12 +1058,27 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                     )
                     
                     if is_round_processed:
-                        # La ronda ya fue procesada, crear una nueva
-                        # Usar transacción atómica para evitar condiciones de carrera
+                        # La ronda ya fue procesada, verificar si debemos crear una nueva
+                        # IMPORTANTE: Solo crear nueva ronda si el juego aún está activo y hay más de 1 jugador
                         from django.db import transaction
                         with transaction.atomic():
                             # Refrescar desde DB para obtener el estado más reciente
                             dice_game.refresh_from_db()
+                            
+                            # Verificar si el juego ya terminó
+                            if dice_game.status == 'FINISHED':
+                                return {'error': 'El juego ya terminó'}
+                            
+                            # Verificar cuántos jugadores activos quedan
+                            active_players_remaining = DicePlayer.objects.filter(
+                                game=dice_game,
+                                is_eliminated=False
+                            ).count()
+                            
+                            # Si solo queda 1 jugador o menos, el juego debería haber terminado
+                            if active_players_remaining <= 1:
+                                return {'error': 'El juego ya terminó. Solo queda 1 jugador.'}
+                            
                             last_round = dice_game.rounds.order_by('-round_number').first()
                             
                             # Verificar nuevamente si ya existe una nueva ronda (puede que otro jugador la haya creado)
@@ -1080,7 +1095,20 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 )
                                 
                                 if is_last_round_processed:
-                                    # La última ronda fue procesada, crear una nueva
+                                    # La última ronda fue procesada, crear una nueva SOLO si el juego continúa
+                                    # Verificar nuevamente que el juego no haya terminado
+                                    dice_game.refresh_from_db()
+                                    if dice_game.status == 'FINISHED':
+                                        return {'error': 'El juego ya terminó'}
+                                    
+                                    active_players_final_check = DicePlayer.objects.filter(
+                                        game=dice_game,
+                                        is_eliminated=False
+                                    ).count()
+                                    
+                                    if active_players_final_check <= 1:
+                                        return {'error': 'El juego ya terminó. Solo queda 1 jugador.'}
+                                    
                                     round_number = last_round.round_number + 1
                                     # Verificar si ya existe una ronda con este número (evitar duplicados)
                                     if not dice_game.rounds.filter(round_number=round_number).exists():
