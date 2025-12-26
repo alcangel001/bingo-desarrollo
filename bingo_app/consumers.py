@@ -1059,14 +1059,53 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                     
                     if is_round_processed:
                         # La ronda ya fue procesada, crear una nueva
-                        last_round = dice_game.rounds.order_by('-round_number').first()
-                        round_number = (last_round.round_number + 1) if last_round else 1
-                        current_round = DiceRound.objects.create(
-                            game=dice_game,
-                            round_number=round_number,
-                            player_results={}
-                        )
-                        print(f"✅ Creada nueva ronda {round_number} porque la ronda anterior ya fue procesada")
+                        # Usar transacción atómica para evitar condiciones de carrera
+                        from django.db import transaction
+                        with transaction.atomic():
+                            # Refrescar desde DB para obtener el estado más reciente
+                            dice_game.refresh_from_db()
+                            last_round = dice_game.rounds.order_by('-round_number').first()
+                            
+                            # Verificar nuevamente si ya existe una nueva ronda (puede que otro jugador la haya creado)
+                            if last_round:
+                                # Verificar si la última ronda ya fue procesada
+                                active_players_count_check = DicePlayer.objects.filter(
+                                    game=dice_game,
+                                    is_eliminated=False
+                                ).count()
+                                last_round_results_count = len(last_round.player_results) if last_round.player_results else 0
+                                is_last_round_processed = (
+                                    last_round.eliminated_player is not None or
+                                    (last_round_results_count >= active_players_count_check and active_players_count_check > 0)
+                                )
+                                
+                                if is_last_round_processed:
+                                    # La última ronda fue procesada, crear una nueva
+                                    round_number = last_round.round_number + 1
+                                    # Verificar si ya existe una ronda con este número (evitar duplicados)
+                                    if not dice_game.rounds.filter(round_number=round_number).exists():
+                                        current_round = DiceRound.objects.create(
+                                            game=dice_game,
+                                            round_number=round_number,
+                                            player_results={}
+                                        )
+                                        print(f"✅ Creada nueva ronda {round_number} porque la ronda anterior ya fue procesada")
+                                    else:
+                                        # Ya existe una ronda con este número, usarla
+                                        current_round = dice_game.rounds.get(round_number=round_number)
+                                        print(f"ℹ️ Usando ronda existente {round_number}")
+                                else:
+                                    # La última ronda no fue procesada, usarla
+                                    current_round = last_round
+                            else:
+                                # No hay rondas, crear la primera
+                                round_number = 1
+                                current_round = DiceRound.objects.create(
+                                    game=dice_game,
+                                    round_number=round_number,
+                                    player_results={}
+                                )
+                                print(f"✅ Creada primera ronda {round_number}")
                     
                     # Verificar si el jugador ya lanzó en esta ronda
                     if str(user_id) in current_round.player_results:
@@ -1307,34 +1346,6 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
             
             # Verificar si la ronda está completa y procesarla
             round_result = await database_sync_to_async(check_and_process_round)(result['current_round_id'])
-            
-            # Si la ronda fue procesada (incluso si no hubo eliminación), crear automáticamente una nueva ronda
-            # para evitar que los jugadores intenten lanzar en la misma ronda
-            if round_result and not round_result.get('game_finished'):
-                def create_next_round(room_code):
-                    from .models import DiceRound, DiceGame
-                    try:
-                        dice_game = DiceGame.objects.get(room_code=room_code)
-                        # Verificar si ya existe una nueva ronda
-                        last_round = dice_game.rounds.order_by('-round_number').first()
-                        if last_round:
-                            # Verificar si la última ronda ya tiene un eliminated_player o si ya fue procesada
-                            # Si no tiene eliminated_player pero tiene todos los resultados, crear una nueva
-                            active_players = dice_game.dice_players.filter(is_eliminated=False)
-                            if last_round.eliminated_player is None and len(last_round.player_results) >= active_players.count():
-                                # La ronda fue procesada pero no tiene eliminated_player, crear una nueva
-                                new_round_number = last_round.round_number + 1
-                                DiceRound.objects.create(
-                                    game=dice_game,
-                                    round_number=new_round_number,
-                                    player_results={}
-                                )
-                                print(f"✅ Creada nueva ronda {new_round_number} automáticamente después de procesar ronda {last_round.round_number}")
-                    except Exception as e:
-                        print(f"⚠️ Error creando nueva ronda automáticamente: {e}")
-                
-                # Crear nueva ronda en background (no bloquear)
-                await database_sync_to_async(create_next_round)(self.room_code)
             
             if round_result:
                 # Ronda completa, notificar resultados
