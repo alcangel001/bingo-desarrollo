@@ -1043,6 +1043,19 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         )
                     
                     # Verificar si el jugador ya lanzó en esta ronda
+                    # IMPORTANTE: Solo verificar si la ronda NO tiene un jugador eliminado
+                    # Si la ronda tiene un jugador eliminado, significa que ya se procesó y se debe crear una nueva
+                    if current_round.eliminated_player is not None:
+                        # La ronda ya fue procesada (tiene un jugador eliminado), crear una nueva
+                        last_round = dice_game.rounds.order_by('-round_number').first()
+                        round_number = (last_round.round_number + 1) if last_round else 1
+                        current_round = DiceRound.objects.create(
+                            game=dice_game,
+                            round_number=round_number,
+                            player_results={}
+                        )
+                    
+                    # Verificar si el jugador ya lanzó en esta ronda
                     if str(user_id) in current_round.player_results:
                         return {'error': 'Ya lanzaste los dados en esta ronda. Espera a que todos terminen.'}
                     
