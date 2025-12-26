@@ -1025,7 +1025,9 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             print(f"✅ [WEBSOCKET] Estado cambiado de SPINNING a PLAYING para {dice_game.room_code} (primera acción del jugador, {time_elapsed.total_seconds():.1f}s transcurridos)")
                     
                     # Verificar que el juego esté en estado PLAYING
-                    if dice_game.status == 'SPINNING':
+                    if dice_game.status == 'FINISHED':
+                        return {'error': 'El juego ya terminó.'}
+                    elif dice_game.status == 'SPINNING':
                         return {'error': 'El juego aún no ha comenzado. Espera a que termine la animación del premio.'}
                     elif dice_game.status != 'PLAYING':
                         return {'error': f'El juego no está disponible para lanzar dados. Estado actual: {dice_game.status}'}
@@ -1421,8 +1423,6 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             'is_tie': is_tie_round,  # Indicar si hubo empate
                             'tie_total': current_round.player_results.get('_tie_total') if is_tie_round else None
                         }
-                        
-                        return None
                         
                 except Exception as e:
                     print(f"Error verificando/procesando ronda: {e}")
