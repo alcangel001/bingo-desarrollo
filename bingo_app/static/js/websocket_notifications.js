@@ -160,7 +160,9 @@ class WebSocketNotificationHandler {
             case 'match_found':
                 console.log('🎲 Partida encontrada, redirigiendo automáticamente...');
                 // Forzar entrada a la mesa: redirigir inmediatamente sin esperar clic
-                if (data.url) {
+                const gameUrl = data.url || data.game_url;
+                if (gameUrl) {
+                    console.log("Redirigiendo a:", gameUrl);
                     // Cerrar WebSocket del lobby antes de redirigir
                     if (this.socket) {
                         try {
@@ -170,9 +172,10 @@ class WebSocketNotificationHandler {
                             console.log('Error al cerrar WebSocket:', e);
                         }
                     }
-                    window.location.href = data.url;
+                    // Usar window.location.replace para evitar que el usuario se quede atrapado en el lobby
+                    window.location.replace(gameUrl);
                 } else {
-                    console.error('⚠️ match_found recibido pero no hay URL');
+                    console.error('⚠️ match_found recibido pero no hay URL (data.url o data.game_url)');
                 }
                 break;
             case 'admin_notification':

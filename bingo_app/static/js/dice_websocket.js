@@ -1,9 +1,13 @@
-// WebSocket para partidas de dados en tiempo real
+// WebSocket para partidas de datos en tiempo real
 
-// Constante global para vidas máximas
-const MAX_LIVES = 3;
+// Constante global para vidas iniciales
+const INITIAL_LIVES = 3;
 
 let diceSocket = null;
+
+// Cola de mensajes para procesar secuencialmente
+let messageQueue = [];
+let isProcessingMessage = false;
 
 // Objetos de audio globales para los sonidos de dados
 // Sonidos realistas de dados usando Web Audio API para generar sonidos de dados rodando y golpeando
@@ -142,14 +146,22 @@ function connectDiceWebSocket(roomCode) {
             console.log("DEBUG_DATA:", JSON.stringify(data, null, 2));
             console.log('📨 Mensaje recibido:', data.type);
             
-            // Manejar errores del servidor
+            // Manejar errores del servidor inmediatamente (no en cola)
             if (data.type === 'error') {
                 console.error('❌ Error del servidor:', data.message);
                 alert(data.message || 'Error de conexión');
                 return;
             }
             
-            handleDiceMessage(data);
+            // Añadir mensaje a la cola (especialmente dice_rolled y round_result)
+            if (data.type === 'dice_rolled' || data.type === 'round_result') {
+                messageQueue.push(data);
+                console.log(`📦 Mensaje añadido a la cola (tipo: ${data.type}). Cola: ${messageQueue.length} mensajes`);
+                processNextMessage();
+            } else {
+                // Otros mensajes se procesan inmediatamente
+                handleDiceMessage(data);
+            }
         } catch (error) {
             console.error('❌ Error al parsear mensaje:', error);
         }
@@ -174,6 +186,40 @@ function connectDiceWebSocket(roomCode) {
             }, 3000);
         }
     };
+}
+
+// Función para procesar el siguiente mensaje de la cola
+function processNextMessage() {
+    // Si ya se está procesando un mensaje o la cola está vacía, no hacer nada
+    if (isProcessingMessage || messageQueue.length === 0) {
+        return;
+    }
+    
+    isProcessingMessage = true;
+    const data = messageQueue.shift();
+    console.log(`🔄 Procesando mensaje de la cola (tipo: ${data.type}). Mensajes restantes: ${messageQueue.length}`);
+    
+    // Procesar el mensaje
+    handleDiceMessage(data);
+    
+    // Si es dice_rolled o round_result, esperar a que termine la animación antes de procesar el siguiente
+    if (data.type === 'dice_rolled') {
+        // La animación de dados dura 1.5 segundos
+        setTimeout(() => {
+            isProcessingMessage = false;
+            processNextMessage(); // Procesar siguiente mensaje
+        }, 1500);
+    } else if (data.type === 'round_result') {
+        // Esperar a que termine la animación de barras de vida (0.8s) + tiempo adicional
+        setTimeout(() => {
+            isProcessingMessage = false;
+            processNextMessage(); // Procesar siguiente mensaje
+        }, 2000); // 2 segundos para que se vea el resultado completo
+    } else {
+        // Otros mensajes se procesan inmediatamente
+        isProcessingMessage = false;
+        processNextMessage();
+    }
 }
 
 function handleDiceMessage(data) {
@@ -744,8 +790,8 @@ function updateRoundResults(results, eliminated) {
                 console.warn(`⚠️ resultData no es un array válido para jugador ${playerId}:`, resultData);
             }
             
-            // Usar MAX_LIVES global en lugar de asumir siempre 3
-            const percentage = Math.max(0, Math.min(100, (currentLives / MAX_LIVES) * 100));
+            // Usar INITIAL_LIVES global para calcular el porcentaje correctamente
+            const percentage = Math.max(0, Math.min(100, (currentLives / INITIAL_LIVES) * 100));
 
             const healthBar = document.getElementById(`health-bar-${seatNum}`);
             const playerSeat = document.getElementById(`player-${seatNum}`);
@@ -753,7 +799,10 @@ function updateRoundResults(results, eliminated) {
             if (healthBar) {
                 // Guardar el ancho anterior para detectar si las vidas disminuyeron
                 const previousWidth = parseFloat(healthBar.style.width) || 100;
-                const previousLives = Math.round((previousWidth / 100) * MAX_LIVES);
+                const previousLives = Math.round((previousWidth / 100) * INITIAL_LIVES);
+                
+                // Asegurar que la barra se actualice correctamente: (vidas_recibidas / INITIAL_LIVES) * 100
+                healthBar.style.width = (currentLives / INITIAL_LIVES) * 100 + '%';
                 
                 // Si vidas_recibidas es 0, marcar como eliminado inmediatamente
                 if (currentLives === 0 && playerSeat) {
@@ -1043,10 +1092,10 @@ function updateGameState(data) {
                 bar.style.width = "100%";
                 bar.style.background = "#2ecc71"; // Verde por defecto (3 vidas)
                 
-                // Si el jugador tiene vidas definidas, usar ese valor, sino asumir MAX_LIVES
-                const lives = (player.lives !== undefined) ? player.lives : MAX_LIVES;
-                if (lives !== MAX_LIVES) {
-                    const percent = (lives / MAX_LIVES) * 100;
+                // Si el jugador tiene vidas definidas, usar ese valor, sino asumir INITIAL_LIVES
+                const lives = (player.lives !== undefined) ? player.lives : INITIAL_LIVES;
+                if (lives !== INITIAL_LIVES) {
+                    const percent = (lives / INITIAL_LIVES) * 100;
                     bar.style.width = percent + "%";
                     
                     // Cambiar color según las vidas restantes

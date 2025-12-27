@@ -1514,6 +1514,9 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             'tie_total': round_result.get('tie_total'),
                         }
                     )
+                    # Ralentizar el loop del servidor: dar tiempo a que los navegadores completen las animaciones
+                    import asyncio
+                    await asyncio.sleep(2)  # Esperar 2 segundos antes de procesar la siguiente ronda
         except Exception as e:
             import traceback
             print(f"Error en handle_roll_dice: {e}")
