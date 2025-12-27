@@ -387,11 +387,14 @@ def notify_players_match_found(dice_game, players_list):
         channel_layer = get_channel_layer()
         
         for queue_entry in players_list:
+            # Construir URL de la partida
+            game_url = f"/dice/game/{dice_game.room_code}/"
             async_to_sync(channel_layer.group_send)(
                 f"dice_queue_{queue_entry.user.id}",
                 {
                     'type': 'match_found',
                     'room_code': dice_game.room_code,
+                    'url': game_url,  # URL para redirección automática
                     'multiplier': dice_game.multiplier,
                     'final_prize': str(dice_game.final_prize),
                 }

@@ -157,6 +157,24 @@ class WebSocketNotificationHandler {
         console.log('🔊 Usuario es admin:', isAdmin);
         
         switch (data.type) {
+            case 'match_found':
+                console.log('🎲 Partida encontrada, redirigiendo automáticamente...');
+                // Forzar entrada a la mesa: redirigir inmediatamente sin esperar clic
+                if (data.url) {
+                    // Cerrar WebSocket del lobby antes de redirigir
+                    if (this.socket) {
+                        try {
+                            this.socket.close();
+                            console.log('🔌 WebSocket del lobby cerrado antes de redirigir');
+                        } catch (e) {
+                            console.log('Error al cerrar WebSocket:', e);
+                        }
+                    }
+                    window.location.href = data.url;
+                } else {
+                    console.error('⚠️ match_found recibido pero no hay URL');
+                }
+                break;
             case 'admin_notification':
                 console.log('🔊 Procesando notificación de admin');
                 this.handleAdminNotification(data);

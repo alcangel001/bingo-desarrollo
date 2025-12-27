@@ -1,5 +1,8 @@
 // WebSocket para partidas de dados en tiempo real
 
+// Constante global para vidas máximas
+const MAX_LIVES = 3;
+
 let diceSocket = null;
 
 // Objetos de audio globales para los sonidos de dados
@@ -731,9 +734,8 @@ function updateRoundResults(results, eliminated) {
                 console.warn(`⚠️ resultData no es un array válido para jugador ${playerId}:`, resultData);
             }
             
-            const maxLives = 3;
-            // Asegurar que el porcentaje esté entre 0 y 100
-            const percentage = Math.max(0, Math.min(100, (currentLives / maxLives) * 100));
+            // Usar MAX_LIVES global en lugar de asumir siempre 3
+            const percentage = Math.max(0, Math.min(100, (currentLives / MAX_LIVES) * 100));
 
             const healthBar = document.getElementById(`health-bar-${seatNum}`);
             const playerSeat = document.getElementById(`player-${seatNum}`);
@@ -741,7 +743,13 @@ function updateRoundResults(results, eliminated) {
             if (healthBar) {
                 // Guardar el ancho anterior para detectar si las vidas disminuyeron
                 const previousWidth = parseFloat(healthBar.style.width) || 100;
-                const previousLives = Math.round((previousWidth / 100) * maxLives);
+                const previousLives = Math.round((previousWidth / 100) * MAX_LIVES);
+                
+                // Si vidas_recibidas es 0, marcar como eliminado inmediatamente
+                if (currentLives === 0 && playerSeat) {
+                    playerSeat.classList.add('player-eliminated');
+                    console.log(`💀 Jugador ${playerId} eliminado (0 vidas) - marcado inmediatamente`);
+                }
                 
                 // Verificación de animación: Si currentLives llega a 0, la barra se anima hasta el 0%
                 // Asegúrate de que currentLives = resultData[2] se aplique correctamente a healthBar.style.width
@@ -1025,10 +1033,10 @@ function updateGameState(data) {
                 bar.style.width = "100%";
                 bar.style.background = "#2ecc71"; // Verde por defecto (3 vidas)
                 
-                // Si el jugador tiene vidas definidas, usar ese valor, sino asumir 3
-                const lives = (player.lives !== undefined) ? player.lives : 3;
-                if (lives !== 3) {
-                    const percent = (lives / 3) * 100;
+                // Si el jugador tiene vidas definidas, usar ese valor, sino asumir MAX_LIVES
+                const lives = (player.lives !== undefined) ? player.lives : MAX_LIVES;
+                if (lives !== MAX_LIVES) {
+                    const percent = (lives / MAX_LIVES) * 100;
                     bar.style.width = percent + "%";
                     
                     // Cambiar color según las vidas restantes
