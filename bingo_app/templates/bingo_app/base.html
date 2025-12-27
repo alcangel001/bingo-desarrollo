@@ -8,6 +8,9 @@
     <meta name="description" content="Juega bingo y participa en rifas desde tu móvil">
     <title>{% block title %}{% if current_franchise %}{{ current_franchise.name }}{% else %}Bingo y Rifa JyM{% endif %}{% endblock %}</title>
     
+    <!-- Favicon vacío para evitar errores 404 -->
+    <link rel="icon" href="data:,">
+    
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="{% static 'images/icon-192x192.png' %}">

@@ -989,9 +989,10 @@
 .health-bar-fill {
     height: 100%;
     width: 100%;
-    transition: width 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Efecto elástico */
+    transition: width 0.8s ease-in-out, background-color 0.5s ease;
     border-radius: 2px;
     background: linear-gradient(90deg, #2ecc71, #27ae60);
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
 }
 
 /* 2. Efecto Eliminado */
