@@ -860,6 +860,20 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'sound_type': 'credit_purchase'
         }))
     
+    async def match_found(self, event):
+        """
+        Handler para notificación de partida encontrada (matchmaking).
+        Envía el mensaje a todos los navegadores del usuario para redirección global.
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'match_found',
+            'room_code': event.get('room_code'),
+            'url': event.get('url'),
+            'game_url': event.get('url'),  # Alias para compatibilidad
+            'multiplier': event.get('multiplier'),
+            'final_prize': event.get('final_prize'),
+        }))
+    
     async def withdrawal_approved_notification(self, event):
         await self.send(text_data=json.dumps({
             'type': 'withdrawal_approved_notification',
@@ -1711,12 +1725,23 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             'is_eliminated': False,
                         })
                     
+                    # Obtener número de ronda actual (catch-up para usuarios que entran tarde)
+                    from .models import DiceRound
+                    current_round = dice_game.rounds.filter(eliminated_player__isnull=True).order_by('-round_number').first()
+                    if not current_round:
+                        # Si no hay ronda activa, obtener la última ronda
+                        last_round = dice_game.rounds.order_by('-round_number').first()
+                        round_number = last_round.round_number if last_round else 1
+                    else:
+                        round_number = current_round.round_number
+                    
                     return {
                         'type': 'game_state',
                         'status': dice_game.status,
                         'multiplier': dice_game.multiplier,
                         'final_prize': str(dice_game.final_prize),
                         'players': players_data,
+                        'round_number': round_number,  # Añadir número de ronda para catch-up
                         'started_at': dice_game.started_at.isoformat() if dice_game.started_at else None,
                     }
                 except DiceGame.DoesNotExist:

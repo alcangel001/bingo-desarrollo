@@ -807,10 +807,29 @@ function updateRoundResults(results, eliminated) {
     console.log('🔄 Mapa de jugadores a asientos:', playerIdToSeatMap);
 
     // 1. Actualizar barras de vida visualmente
+    // Buscar elementos directamente por user-id en el DOM para actualización global
     Object.entries(results).forEach(([playerId, resultData]) => {
         // El servidor envía: resultData = [dado1, dado2, vidas_restantes]
         // El índice [2] contiene las vidas reales, NO la suma de los dados
-        const seatNum = playerIdToSeatMap[String(playerId)];
+        
+        // Buscar asiento usando el mapa
+        let seatNum = playerIdToSeatMap[String(playerId)];
+        
+        // Si no está en el mapa, buscar directamente en el DOM por data-player-id
+        if (!seatNum) {
+            for (let seat = 1; seat <= 3; seat++) {
+                const playerSeat = document.getElementById(`player-${seat}`);
+                if (playerSeat) {
+                    const playerIdAttr = playerSeat.getAttribute('data-player-id');
+                    if (playerIdAttr === String(playerId)) {
+                        seatNum = seat;
+                        playerIdToSeatMap[String(playerId)] = seatNum; // Actualizar mapa
+                        break;
+                    }
+                }
+            }
+        }
+        
         if (seatNum) {
             // CRÍTICO: Usar el índice [2] que contiene las vidas restantes
             let currentLives = 3; // Valor por defecto
