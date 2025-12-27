@@ -1568,8 +1568,9 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                 if player_id_str in results:
                     complete_results[player_id_str] = results[player_id_str]
                 else:
-                    # Si el jugador no tiene resultado, poner un valor por defecto
-                    complete_results[player_id_str] = {'total': 0, 'die1': 0, 'die2': 0}
+                    # Si el jugador no tiene resultado, poner un valor por defecto como array [dado1, dado2, vidas]
+                    # Esto es vital para que el JavaScript no reciba formatos mezclados (objetos y arrays)
+                    complete_results[player_id_str] = [0, 0, 3]
             
             await self.send(text_data=json.dumps({
                 'type': 'round_result',

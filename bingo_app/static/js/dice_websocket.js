@@ -126,6 +126,7 @@ function connectDiceWebSocket(roomCode) {
     diceSocket.onmessage = function(e) {
         try {
             const data = JSON.parse(e.data);
+            console.log("DEBUG_DATA:", JSON.stringify(data, null, 2));
             console.log('📨 Mensaje recibido:', data.type);
             
             // Manejar errores del servidor
@@ -174,6 +175,13 @@ function handleDiceMessage(data) {
         case 'round_result':
             // Resultado de ronda - TODOS los jugadores han lanzado
             console.log('📊 Resultado de ronda completo recibido:', data);
+            
+            // Actualizar número de ronda
+            const roundNumberEl = document.getElementById('round-number');
+            if (roundNumberEl && data.round_number !== undefined) {
+                roundNumberEl.textContent = data.round_number;
+                console.log(`🔄 Ronda actualizada a: ${data.round_number}`);
+            }
             
             // Verificar si hubo empate
             if (data.is_tie) {
@@ -269,7 +277,7 @@ function handleDiceMessage(data) {
             
         case 'player_joined':
             // Jugador se unió
-            updatePlayerInfo(data.player_id, data.username, data.avatar_url, data.seat_position);
+            updatePlayerInfo(data.player_id, data.username, data.avatar_url, data.seat_position, data.stake || 0);
             break;
             
         case 'game_state':
@@ -728,8 +736,15 @@ function updateRoundResults(results, eliminated) {
             const percentage = Math.max(0, Math.min(100, (currentLives / maxLives) * 100));
 
             const healthBar = document.getElementById(`health-bar-${seatNum}`);
+            const playerSeat = document.getElementById(`player-${seatNum}`);
+            
             if (healthBar) {
+                // Guardar el ancho anterior para detectar si las vidas disminuyeron
+                const previousWidth = parseFloat(healthBar.style.width) || 100;
+                const previousLives = Math.round((previousWidth / 100) * maxLives);
+                
                 // Verificación de animación: Si currentLives llega a 0, la barra se anima hasta el 0%
+                // Asegúrate de que currentLives = resultData[2] se aplique correctamente a healthBar.style.width
                 healthBar.style.width = percentage + "%";
                 
                 // Colores dinámicos (sin gradientes para mejor rendimiento)
@@ -739,6 +754,23 @@ function updateRoundResults(results, eliminated) {
                     healthBar.style.background = "#ffa502";
                 } else {
                     healthBar.style.background = "#2ecc71";
+                }
+                
+                // Efecto de Daño: Si las vidas disminuyeron, añadir parpadeo rojo y shake
+                if (currentLives < previousLives && playerSeat) {
+                    // Parpadeo rojo al contenedor .player-seat
+                    playerSeat.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
+                    setTimeout(() => {
+                        playerSeat.style.backgroundColor = '';
+                    }, 300);
+                    
+                    // Sacudida (Shake): Añadir clase de animación shake
+                    playerSeat.classList.add('shake-screen');
+                    setTimeout(() => {
+                        playerSeat.classList.remove('shake-screen');
+                    }, 400);
+                    
+                    console.log(`💥 Efecto de daño aplicado: ${previousLives} → ${currentLives} vidas (asiento ${seatNum})`);
                 }
                 
                 console.log(`💚 Actualizando barra de vida para jugador ${playerId} (asiento ${seatNum}): ${currentLives} vidas (${percentage.toFixed(1)}%)`);
@@ -937,9 +969,10 @@ function updateRoundResults(results, eliminated) {
     }
 }
 
-function updatePlayerInfo(playerId, username, avatarUrl, seatPosition) {
+function updatePlayerInfo(playerId, username, avatarUrl, seatPosition, stake = 0) {
     const nameElement = document.getElementById(`name-${seatPosition}`);
     const avatarElement = document.getElementById(`avatar-${seatPosition}`);
+    const stackElement = document.getElementById(`stack-${seatPosition}`);
     
     if (nameElement) nameElement.textContent = username;
     if (avatarElement) {
@@ -949,11 +982,24 @@ function updatePlayerInfo(playerId, username, avatarUrl, seatPosition) {
             this.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Ccircle cx="32" cy="32" r="30" fill="%239b59b6"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="white" font-size="24" font-weight="bold"%3E?%3C/text%3E%3C/svg%3E';
         };
     }
+    
+    // Actualizar dinero/stack del jugador
+    if (stackElement && stake > 0) {
+        stackElement.textContent = `$${parseFloat(stake).toFixed(2)}`;
+        console.log(`💰 Actualizando stack para asiento ${seatPosition}: $${stake}`);
+    }
 }
 
 function updateGameState(data) {
     // Guardar el estado del juego para usarlo en updateRoundResults
     window.currentGameState = data;
+    
+    // Actualizar número de ronda
+    const roundNumberEl = document.getElementById('round-number');
+    if (roundNumberEl && data.round_number !== undefined) {
+        roundNumberEl.textContent = data.round_number;
+        console.log(`🔄 Ronda actualizada a: ${data.round_number}`);
+    }
     
     if (data.players) {
         data.players.forEach((player, index) => {
@@ -962,7 +1008,8 @@ function updateGameState(data) {
                 player.user_id,
                 player.username,
                 player.avatar_url,
-                seatNum
+                seatNum,
+                data.entry_price || data.stake || 0  // Pasar el dinero de la apuesta
             );
             
             // Guardar el user_id en el elemento del asiento para referencia
