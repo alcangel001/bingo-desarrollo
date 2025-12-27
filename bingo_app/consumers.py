@@ -1212,8 +1212,13 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         is_eliminated=False
                     )
                     
-                    # Verificar si todos han lanzado
-                    if len(current_round.player_results) < active_players.count():
+                    # Control de flujo: Verificar si todos han lanzado antes de procesar
+                    # No permitir que la lógica de process_round se ejecute hasta que todos hayan lanzado
+                    active_players_count = active_players.count()
+                    results_count = len([k for k in current_round.player_results.keys() if not k.startswith('_')])
+                    
+                    if results_count < active_players_count:
+                        print(f"⏳ [WAITING_FOR_ROLLS] Esperando lanzamientos: {results_count}/{active_players_count} jugadores han lanzado")
                         return None
                     
                     # Todos han lanzado, procesar ronda
