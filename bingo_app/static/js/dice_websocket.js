@@ -946,6 +946,25 @@ function updateGameState(data) {
             if (playerSeat) {
                 playerSeat.setAttribute('data-player-id', player.user_id);
             }
+            
+            // Inicializar barra de vida si existe
+            const bar = document.getElementById(`health-bar-${seatNum}`);
+            if (bar && player.lives !== undefined) {
+                const lives = player.lives || 3;
+                const percent = (lives / 3) * 100;
+                bar.style.width = percent + "%";
+                
+                // Cambiar color según las vidas restantes
+                if (lives <= 1) {
+                    bar.style.background = "linear-gradient(90deg, #e74c3c, #c0392b)"; // Rojo
+                } else if (lives === 2) {
+                    bar.style.background = "linear-gradient(90deg, #f39c12, #e67e22)"; // Naranja
+                } else {
+                    bar.style.background = "linear-gradient(90deg, #2ecc71, #27ae60)"; // Verde
+                }
+                
+                console.log(`💚 Inicializando barra de vida para jugador ${player.username} (asiento ${seatNum}): ${lives} vidas`);
+            }
         });
     }
     
