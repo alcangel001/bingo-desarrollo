@@ -173,17 +173,43 @@ function connectDiceWebSocket(roomCode) {
     };
     
     diceSocket.onclose = function(e) {
-        console.log('🔌 Desconectado de partida de dados. Código:', e.code, 'Razón:', e.reason);
+        console.log('🔌 Desconectado de partida de datos. Código:', e.code, 'Razón:', e.reason);
         
-        // No reconectar si fue un cierre intencional (código 1000) o error de autenticación
+        // Estabilización de WebSocket: Reconexión automática si el socket se cierra inesperadamente
+        // No reconectar si fue un cierre intencional (código 1000) o error de autenticación (1008)
         if (e.code !== 1000 && e.code !== 1008) {
-            // Intentar reconectar después de 3 segundos solo si no fue un cierre intencional
-            setTimeout(() => {
-                if (roomCode && (!diceSocket || diceSocket.readyState === WebSocket.CLOSED)) {
-                    console.log('🔄 Intentando reconectar...');
-                    connectDiceWebSocket(roomCode);
+            // Intentar reconectar automáticamente al mismo juego sin necesidad de refrescar la página
+            let reconnectAttempts = 0;
+            const maxReconnectAttempts = 5;
+            const reconnectInterval = 3000; // 3 segundos
+            
+            const attemptReconnect = () => {
+                if (reconnectAttempts < maxReconnectAttempts && roomCode) {
+                    reconnectAttempts++;
+                    console.log(`🔄 Intentando reconectar... (${reconnectAttempts}/${maxReconnectAttempts})`);
+                    
+                    setTimeout(() => {
+                        if (roomCode && (!diceSocket || diceSocket.readyState === WebSocket.CLOSED)) {
+                            try {
+                                connectDiceWebSocket(roomCode);
+                            } catch (error) {
+                                console.error('❌ Error al intentar reconectar:', error);
+                                if (reconnectAttempts < maxReconnectAttempts) {
+                                    attemptReconnect();
+                                } else {
+                                    console.error('❌ Máximo de intentos de reconexión alcanzado');
+                                    alert('Se perdió la conexión con el servidor. Por favor, recarga la página.');
+                                }
+                            }
+                        }
+                    }, reconnectInterval);
+                } else {
+                    console.error('❌ Máximo de intentos de reconexión alcanzado');
+                    alert('Se perdió la conexión con el servidor. Por favor, recarga la página.');
                 }
-            }, 3000);
+            };
+            
+            attemptReconnect();
         }
     };
 }

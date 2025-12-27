@@ -1223,6 +1223,12 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         # Refrescar desde DB para obtener estado actualizado
                         dice_game.refresh_from_db()
                         current_round.refresh_from_db()
+                        
+                        # Evitar doble pago: verificar si el juego ya está FINISHED
+                        if dice_game.status == 'FINISHED':
+                            print(f"⚠️ [ATOMICITY] Juego {dice_game.room_code} ya está FINISHED, evitando procesamiento duplicado")
+                            return None
+                        
                         active_players = list(DicePlayer.objects.filter(
                             game=dice_game,
                             is_eliminated=False
@@ -1230,8 +1236,14 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         
                         if len(active_players) <= 1:
                             # Solo queda 1 jugador, es el ganador
+                            # Evitar doble pago: verificar nuevamente antes de crear transacción
+                            if dice_game.status == 'FINISHED':
+                                print(f"⚠️ [ATOMICITY] Juego {dice_game.room_code} ya está FINISHED antes de crear transacción, evitando doble pago")
+                                return None
+                            
                             winner = active_players[0]
                             dice_game.winner = winner.user
+                            # Cambiar estado a FINISHED ANTES de crear la transacción para evitar procesos paralelos
                             dice_game.status = 'FINISHED'
                             dice_game.finished_at = timezone.now()
                             dice_game.save()
@@ -1373,8 +1385,14 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                         
                         if remaining_players.count() == 1:
                             # Hay un ganador - Finalizar juego
+                            # Evitar doble pago: verificar nuevamente antes de crear transacción
+                            if dice_game.status == 'FINISHED':
+                                print(f"⚠️ [ATOMICITY] Juego {dice_game.room_code} ya está FINISHED antes de crear transacción, evitando doble pago")
+                                return None
+                            
                             winner = remaining_players.first()
                             dice_game.winner = winner.user
+                            # Cambiar estado a FINISHED ANTES de crear la transacción para evitar procesos paralelos
                             dice_game.status = 'FINISHED'
                             dice_game.finished_at = timezone.now()
                             dice_game.save()
@@ -1514,9 +1532,9 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                             'tie_total': round_result.get('tie_total'),
                         }
                     )
-                    # Ralentizar el loop del servidor: dar tiempo a que los navegadores completen las animaciones
+                    # Sincronización de animación y estado: delay obligatorio de 3 segundos
                     import asyncio
-                    await asyncio.sleep(2)  # Esperar 2 segundos antes de procesar la siguiente ronda
+                    await asyncio.sleep(3)  # Esperar 3 segundos para que los navegadores terminen de mostrar los dados
         except Exception as e:
             import traceback
             print(f"Error en handle_roll_dice: {e}")
