@@ -11,6 +11,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function rollDice() {
+    // Audio Resumer: Activar contexto de audio cuando el jugador hace clic
+    if (window.AudioContext || window.webkitAudioContext) {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        if (context.state === 'suspended') {
+            context.resume();
+        }
+    }
+    
     console.log('🎲 Función rollDice() llamada');
     const rollBtn = document.getElementById('roll-dice-btn');
     
