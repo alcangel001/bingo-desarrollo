@@ -711,18 +711,27 @@ function updateRoundResults(results, eliminated) {
 
     // 1. Actualizar barras de vida visualmente
     Object.entries(results).forEach(([playerId, resultData]) => {
-        // En los logs: resultData = [dado1, dado2, vidas_restantes]
+        // El servidor envía: resultData = [dado1, dado2, vidas_restantes]
+        // El índice [2] contiene las vidas reales, NO la suma de los dados
         const seatNum = playerIdToSeatMap[String(playerId)];
         if (seatNum) {
-            // El índice 2 son las vidas restantes
-            const currentLives = Array.isArray(resultData) ? resultData[2] : 3;
-            const maxLives = 3; 
+            // CRÍTICO: Usar el índice [2] que contiene las vidas restantes
+            let currentLives = 3; // Valor por defecto
+            if (Array.isArray(resultData) && resultData.length >= 3) {
+                currentLives = resultData[2]; // Índice 2 es la vida real enviada por el servidor
+            } else {
+                console.warn(`⚠️ resultData no es un array válido para jugador ${playerId}:`, resultData);
+            }
+            
+            const maxLives = 3;
             // Asegurar que el porcentaje esté entre 0 y 100
             const percentage = Math.max(0, Math.min(100, (currentLives / maxLives) * 100));
 
             const healthBar = document.getElementById(`health-bar-${seatNum}`);
             if (healthBar) {
+                // Verificación de animación: Si currentLives llega a 0, la barra se anima hasta el 0%
                 healthBar.style.width = percentage + "%";
+                
                 // Colores dinámicos (sin gradientes para mejor rendimiento)
                 if (percentage <= 33) {
                     healthBar.style.background = "#ff4d4d";
@@ -733,6 +742,8 @@ function updateRoundResults(results, eliminated) {
                 }
                 
                 console.log(`💚 Actualizando barra de vida para jugador ${playerId} (asiento ${seatNum}): ${currentLives} vidas (${percentage.toFixed(1)}%)`);
+            } else {
+                console.warn(`⚠️ No se encontró la barra de vida para asiento ${seatNum}`);
             }
         }
     });
@@ -960,23 +971,30 @@ function updateGameState(data) {
                 playerSeat.setAttribute('data-player-id', player.user_id);
             }
             
-            // Inicializar barra de vida si existe
+            // Reset: Al iniciar una nueva partida (game_state), todas las barras deben volver forzosamente al 100%
             const bar = document.getElementById(`health-bar-${seatNum}`);
-            if (bar && player.lives !== undefined) {
-                const lives = player.lives || 3;
-                const percent = (lives / 3) * 100;
-                bar.style.width = percent + "%";
+            if (bar) {
+                // Forzar reset al 100% al recibir game_state
+                bar.style.width = "100%";
+                bar.style.background = "#2ecc71"; // Verde por defecto (3 vidas)
                 
-                // Cambiar color según las vidas restantes
-                if (lives <= 1) {
-                    bar.style.background = "linear-gradient(90deg, #e74c3c, #c0392b)"; // Rojo
-                } else if (lives === 2) {
-                    bar.style.background = "linear-gradient(90deg, #f39c12, #e67e22)"; // Naranja
-                } else {
-                    bar.style.background = "linear-gradient(90deg, #2ecc71, #27ae60)"; // Verde
+                // Si el jugador tiene vidas definidas, usar ese valor, sino asumir 3
+                const lives = (player.lives !== undefined) ? player.lives : 3;
+                if (lives !== 3) {
+                    const percent = (lives / 3) * 100;
+                    bar.style.width = percent + "%";
+                    
+                    // Cambiar color según las vidas restantes
+                    if (lives <= 1) {
+                        bar.style.background = "#ff4d4d"; // Rojo
+                    } else if (lives === 2) {
+                        bar.style.background = "#ffa502"; // Naranja
+                    } else {
+                        bar.style.background = "#2ecc71"; // Verde
+                    }
                 }
                 
-                console.log(`💚 Inicializando barra de vida para jugador ${player.username} (asiento ${seatNum}): ${lives} vidas`);
+                console.log(`💚 Inicializando/reseteando barra de vida para jugador ${player.username} (asiento ${seatNum}): ${lives} vidas (${bar.style.width})`);
             }
         });
     }
