@@ -1412,66 +1412,65 @@
                 });
             }
         }
+        
+        // Manejar el evento de instalación de la PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', function(e) {
+            // Prevenir que el navegador muestre el prompt automáticamente
+            e.preventDefault();
+            deferredPrompt = e;
             
-            // Manejar el evento de instalación de la PWA
-            let deferredPrompt;
-            window.addEventListener('beforeinstallprompt', function(e) {
-                // Prevenir que el navegador muestre el prompt automáticamente
-                e.preventDefault();
-                deferredPrompt = e;
-                
-                // Mostrar botón personalizado para instalar (opcional)
-                // Puedes crear un botón en el HTML y mostrarlo aquí
-                console.log('PWA lista para instalar');
-                
-                // Opcional: Mostrar un botón de instalación personalizado
-                showInstallButton();
-            });
+            // Mostrar botón personalizado para instalar (opcional)
+            // Puedes crear un botón en el HTML y mostrarlo aquí
+            console.log('PWA lista para instalar');
             
-            // Función para mostrar botón de instalación (opcional)
-            function showInstallButton() {
-                // Crear botón flotante para instalar la app
-                const installButton = document.createElement('button');
-                installButton.innerHTML = '<i class="fas fa-download"></i> Instalar App';
-                installButton.className = 'btn btn-primary';
-                installButton.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
-                installButton.onclick = function() {
-                    if (deferredPrompt) {
-                        deferredPrompt.prompt();
-                        deferredPrompt.userChoice.then(function(choiceResult) {
-                            if (choiceResult.outcome === 'accepted') {
-                                console.log('Usuario aceptó instalar la app');
-                            } else {
-                                console.log('Usuario rechazó instalar la app');
-                            }
-                            deferredPrompt = null;
-                            installButton.remove();
-                        });
-                    }
-                };
-                
-                // Solo mostrar si no está ya instalada
-                if (window.matchMedia('(display-mode: standalone)').matches) {
-                    // Ya está instalada, no mostrar botón
-                    return;
+            // Opcional: Mostrar un botón de instalación personalizado
+            showInstallButton();
+        });
+        
+        // Función para mostrar botón de instalación (opcional)
+        function showInstallButton() {
+            // Crear botón flotante para instalar la app
+            const installButton = document.createElement('button');
+            installButton.innerHTML = '<i class="fas fa-download"></i> Instalar App';
+            installButton.className = 'btn btn-primary';
+            installButton.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
+            installButton.onclick = function() {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(function(choiceResult) {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('Usuario aceptó instalar la app');
+                        } else {
+                            console.log('Usuario rechazó instalar la app');
+                        }
+                        deferredPrompt = null;
+                        installButton.remove();
+                    });
                 }
-                
-                // Verificar si ya existe el botón
-                if (!document.getElementById('pwa-install-button')) {
-                    installButton.id = 'pwa-install-button';
-                    document.body.appendChild(installButton);
-                }
+            };
+            
+            // Solo mostrar si no está ya instalada
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                // Ya está instalada, no mostrar botón
+                return;
             }
             
-            // Detectar si la app ya está instalada
-            window.addEventListener('appinstalled', function() {
-                console.log('PWA instalada exitosamente');
-                const installButton = document.getElementById('pwa-install-button');
-                if (installButton) {
-                    installButton.remove();
-                }
-            });
+            // Verificar si ya existe el botón
+            if (!document.getElementById('pwa-install-button')) {
+                installButton.id = 'pwa-install-button';
+                document.body.appendChild(installButton);
+            }
         }
+        
+        // Detectar si la app ya está instalada
+        window.addEventListener('appinstalled', function() {
+            console.log('PWA instalada exitosamente');
+            const installButton = document.getElementById('pwa-install-button');
+            if (installButton) {
+                installButton.remove();
+            }
+        });
     </script>
     
     {% block extra_js %}{% endblock %}
