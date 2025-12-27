@@ -681,7 +681,7 @@ function updateDiceRoll(data) {
 }
 
 function updateRoundResults(results, eliminated) {
-    console.log("🔄 Procesando vidas para resultados:", results);
+    if (!results) return;
 
     // Usar el estado del juego guardado si está disponible, sino usar INITIAL_PLAYERS
     const players = (window.currentGameState && window.currentGameState.players) 
@@ -710,68 +710,36 @@ function updateRoundResults(results, eliminated) {
     console.log('🔄 Mapa de jugadores a asientos:', playerIdToSeatMap);
 
     // 1. Actualizar barras de vida visualmente
-    if (results) {
-        Object.entries(results).forEach(([playerId, resultData]) => {
-            // Buscamos el asiento usando el mapa existente
-            const seatNum = playerIdToSeatMap[String(playerId)];
-            
-            if (seatNum) {
-                const healthBar = document.getElementById(`health-bar-${seatNum}`);
-                if (healthBar) {
-                    // Según los logs del servidor, el array es [dado1, dado2, total]
-                    // Pero el usuario indica que es [dado1, dado2, vidas]
-                    // Intentamos obtener vidas del índice 2, si no está disponible, usamos el estado del juego
-                    let currentLives = 3; // Valor por defecto
-                    if (Array.isArray(resultData) && resultData.length >= 3) {
-                        // Si el array tiene 3 elementos, asumimos que el índice 2 son las vidas
-                        currentLives = resultData[2];
-                    } else if (typeof resultData === 'object' && resultData.lives !== undefined) {
-                        currentLives = resultData.lives;
-                    } else {
-                        // Si no está en resultData, buscar en el estado del juego
-                        if (window.currentGameState && window.currentGameState.players) {
-                            const player = window.currentGameState.players.find(p => 
-                                String(p.user_id) === String(playerId)
-                            );
-                            if (player && player.lives !== undefined) {
-                                currentLives = player.lives;
-                            }
-                        }
-                    }
-                    const maxLives = 3; 
-                    const percentage = (currentLives / maxLives) * 100;
+    Object.entries(results).forEach(([playerId, resultData]) => {
+        // En los logs: resultData = [dado1, dado2, vidas_restantes]
+        const seatNum = playerIdToSeatMap[String(playerId)];
+        if (seatNum) {
+            // El índice 2 son las vidas restantes
+            const currentLives = Array.isArray(resultData) ? resultData[2] : 3;
+            const maxLives = 3; 
+            // Asegurar que el porcentaje esté entre 0 y 100
+            const percentage = Math.max(0, Math.min(100, (currentLives / maxLives) * 100));
 
-                    // Actualizar visualmente
-                    healthBar.style.width = percentage + "%";
-
-                    // Cambiar colores dinámicos
-                    if (percentage <= 33) {
-                        healthBar.style.background = "linear-gradient(90deg, #ff4d4d, #b30000)"; // Rojo
-                    } else if (percentage <= 66) {
-                        healthBar.style.background = "linear-gradient(90deg, #ffa502, #e67e22)"; // Naranja
-                    } else {
-                        healthBar.style.background = "linear-gradient(90deg, #2ecc71, #27ae60)"; // Verde
-                    }
-
-                    // Efecto de sacudida si perdió vida
-                    const previousWidth = parseFloat(healthBar.style.width) || 100;
-                    if (percentage < previousWidth) {
-                        const container = healthBar.parentElement;
-                        if (container) {
-                            container.classList.add('shake-screen');
-                            setTimeout(() => container.classList.remove('shake-screen'), 400);
-                        }
-                    }
-                    
-                    console.log(`💚 Actualizando barra de vida para jugador ${playerId} (asiento ${seatNum}): ${currentLives} vidas (${percentage.toFixed(1)}%)`);
+            const healthBar = document.getElementById(`health-bar-${seatNum}`);
+            if (healthBar) {
+                healthBar.style.width = percentage + "%";
+                // Colores dinámicos (sin gradientes para mejor rendimiento)
+                if (percentage <= 33) {
+                    healthBar.style.background = "#ff4d4d";
+                } else if (percentage <= 66) {
+                    healthBar.style.background = "#ffa502";
+                } else {
+                    healthBar.style.background = "#2ecc71";
                 }
+                
+                console.log(`💚 Actualizando barra de vida para jugador ${playerId} (asiento ${seatNum}): ${currentLives} vidas (${percentage.toFixed(1)}%)`);
             }
-        });
-    }
+        }
+    });
 
     // 2. Lógica para marcar al eliminado visualmente
     if (eliminated) {
-        // Buscamos el nombre en los contenedores de jugadores
+        // Marcar visualmente al eliminado
         const playerBoxes = document.querySelectorAll('.player-info');
         playerBoxes.forEach(box => {
             if (box.innerText.includes(eliminated)) {
