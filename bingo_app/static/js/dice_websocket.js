@@ -100,6 +100,18 @@ sndHit.preload = 'auto';
 sndWin.preload = 'auto';
 
 function connectDiceWebSocket(roomCode) {
+    // Añadir esto al principio de connectDiceWebSocket
+    // Esto "despierta" los audios en Chrome/Mobile para evitar errores de AudioContext
+    document.addEventListener('click', () => {
+        // Esto "despierta" los audios en Chrome/Mobile
+        [sndShake, sndHit, sndWin].forEach(audio => {
+            audio.play().then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+            }).catch(() => {});
+        });
+    }, { once: true });
+    
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/dice/game/${roomCode}/`;
     
