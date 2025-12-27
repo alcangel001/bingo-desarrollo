@@ -2831,7 +2831,8 @@ class DiceGame(models.Model):
     def spin_prize(self):
         """
         Determina el premio basado en probabilidades realistas y el pozo acumulado.
-        Sistema rentable: 60% premio fijo $0.20, 30% premio fijo $0.30, 10% porcentaje del pozo.
+        GARANTIZA que el premio mínimo sea el 80% del total recaudado (Entry Fee × 3 jugadores).
+        El pozo solo se usa para dar premios adicionales, sumándose al mínimo, no sustituyéndolo.
         """
         import random
         from django.db import transaction
@@ -2842,68 +2843,80 @@ class DiceGame(models.Model):
         settings.refresh_from_db()
         accumulated_pool = settings.accumulated_pool
         
+        # CALCULAR PREMIO MÍNIMO: 80% del total recaudado (Entry Fee × 3 jugadores)
+        total_collected = self.entry_price * Decimal('3')  # Total recaudado
+        minimum_prize = total_collected * Decimal('0.80')  # 80% del total recaudado
+        
         # Generar número aleatorio entre 0 y 1
         rand = random.random()
         
-        # Determinar premio según probabilidades
-        # 60% de probabilidad: Premio Fijo de $0.20 (para entrada de $0.10)
-        # 30% de probabilidad: Premio Fijo de $0.30
-        # 10% de probabilidad: Un porcentaje del accumulated_pool (10%, 25% o Jackpot)
+        # Determinar premio base según probabilidades
+        # 60% de probabilidad: Premio Base (mínimo)
+        # 30% de probabilidad: Premio Base + 10% del pozo
+        # 10% de probabilidad: Premio Base + porcentaje mayor del pozo (25% o Jackpot)
+        
+        base_prize = minimum_prize  # Premio base garantizado
+        pool_bonus = Decimal('0.00')  # Bono adicional del pozo
         
         if rand < 0.60:
-            # 60% - Premio fijo $0.20
-            self.final_prize = Decimal('0.20')
-            self.multiplier = '2x'  # Para compatibilidad con el frontend
-            prize_type = 'Fijo $0.20'
+            # 60% - Premio Base (solo el mínimo garantizado)
+            self.final_prize = base_prize
+            self.multiplier = 'Premio Base'  # Mostrar "Premio Base" en lugar de "10% Pool"
+            prize_type = f'Premio Base (${base_prize})'
         elif rand < 0.90:
-            # 30% - Premio fijo $0.30
-            self.final_prize = Decimal('0.30')
-            self.multiplier = '3x'  # Para compatibilidad con el frontend
-            prize_type = 'Fijo $0.30'
-        else:
-            # 10% - Porcentaje del pozo acumulado
-            if accumulated_pool <= Decimal('0.00'):
-                # Si no hay fondos en el pozo, usar premio por defecto
-                self.final_prize = Decimal('0.20')
-                self.multiplier = '2x'
-                prize_type = 'Por defecto (pozo vacío)'
+            # 30% - Premio Base + 10% del pozo (si hay pozo disponible)
+            if accumulated_pool > Decimal('0.00'):
+                pool_bonus = accumulated_pool * Decimal('0.10')
+                self.final_prize = base_prize + pool_bonus
+                self.multiplier = 'Base + 10% Pool'
+                prize_type = f'Base + 10% Pool (${base_prize} + ${pool_bonus} = ${self.final_prize})'
             else:
-                # Elegir qué porcentaje del pozo (10%, 25% o Jackpot)
+                # Si no hay pozo, usar solo el premio base
+                self.final_prize = base_prize
+                self.multiplier = 'Premio Base'
+                prize_type = f'Premio Base (${base_prize}) - Pozo vacío'
+        else:
+            # 10% - Premio Base + porcentaje mayor del pozo (25% o Jackpot)
+            if accumulated_pool <= Decimal('0.00'):
+                # Si no hay fondos en el pozo, usar solo el premio base
+                self.final_prize = base_prize
+                self.multiplier = 'Premio Base'
+                prize_type = f'Premio Base (${base_prize}) - Pozo vacío'
+            else:
+                # Elegir qué porcentaje del pozo (25% o Jackpot)
                 pool_rand = random.random()
-                if pool_rand < 0.50:
-                    # 50% de probabilidad: 10% del pozo
-                    pool_percentage = Decimal('0.10')
-                    self.multiplier = '10% Pool'
-                elif pool_rand < 0.85:
-                    # 35% de probabilidad: 25% del pozo
+                if pool_rand < 0.70:
+                    # 70% de probabilidad: 25% del pozo
                     pool_percentage = Decimal('0.25')
-                    self.multiplier = '25% Pool'
+                    pool_bonus = accumulated_pool * pool_percentage
+                    self.multiplier = 'Base + 25% Pool'
+                    prize_type = f'Base + 25% Pool (${base_prize} + ${pool_bonus} = ${base_prize + pool_bonus})'
                 else:
-                    # 15% de probabilidad: Jackpot (100% del pozo)
+                    # 30% de probabilidad: Jackpot (100% del pozo)
                     pool_percentage = Decimal('1.00')
+                    pool_bonus = accumulated_pool
                     self.multiplier = 'JACKPOT'
+                    prize_type = f'JACKPOT (${base_prize} + ${pool_bonus} = ${base_prize + pool_bonus})'
                 
-                # Calcular premio del pozo
-                pool_prize = accumulated_pool * pool_percentage
-                
-                # SEGURIDAD: El premio NUNCA puede ser mayor al saldo del pozo
-                if pool_prize > accumulated_pool:
-                    pool_prize = accumulated_pool
-                
-                self.final_prize = pool_prize.quantize(Decimal('0.01'))
-                prize_type = f'{self.multiplier} (${self.final_prize})'
+                # Calcular premio final (base + bono del pozo)
+                self.final_prize = (base_prize + pool_bonus).quantize(Decimal('0.01'))
         
-        # SEGURIDAD FINAL: Si el premio es mayor al pozo disponible, usar premio por defecto
-        if self.final_prize > accumulated_pool:
-            print(f"⚠️ [SPIN_PRIZE] Premio calculado (${self.final_prize}) excede el pozo (${accumulated_pool}). Usando premio por defecto.")
-            self.final_prize = Decimal('0.20')
-            self.multiplier = '2x'
-            prize_type = 'Por defecto (seguridad)'
+        # GARANTÍA FINAL: El premio NUNCA puede ser menor al mínimo (80% del total recaudado)
+        if self.final_prize < minimum_prize:
+            print(f"⚠️ [SPIN_PRIZE] Premio calculado (${self.final_prize}) es menor al mínimo (${minimum_prize}). Ajustando al mínimo.")
+            self.final_prize = minimum_prize
+            self.multiplier = 'Premio Base'
+            prize_type = f'Premio Base (mínimo garantizado: ${minimum_prize})'
         
         self.status = 'SPINNING'
         self.save()
         
-        print(f"🎰 [SPIN_PRIZE] Premio determinado: {prize_type}, Monto: ${self.final_prize}, Pozo disponible: ${accumulated_pool}")
+        print(f"🎰 [SPIN_PRIZE] Premio determinado: {prize_type}")
+        print(f"   Total recaudado: ${total_collected} (${self.entry_price} × 3 jugadores)")
+        print(f"   Premio mínimo (80%): ${minimum_prize}")
+        print(f"   Premio final: ${self.final_prize}")
+        print(f"   Multiplicador: {self.multiplier}")
+        print(f"   Pozo disponible: ${accumulated_pool}")
         
         return self.multiplier, self.final_prize
 
