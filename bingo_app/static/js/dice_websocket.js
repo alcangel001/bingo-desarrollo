@@ -83,6 +83,16 @@ function createDiceHitSound() {
 
 // Los sonidos se generan dinámicamente usando Web Audio API
 
+// Sonidos adicionales para efectos visuales
+const sndShake = new Audio('https://www.zapsplat.com/wp-content/uploads/2015/sound-effects-61905/zapsplat_leisure_games_dice_shake_in_hand_001_62657.mp3');
+const sndHit = new Audio('https://assets.mixkit.co/active_storage/sfx/1017/1017-preview.mp3');
+const sndWin = new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3');
+
+// Configurar volúmenes de los sonidos
+sndShake.volume = 0.5;
+sndHit.volume = 0.6;
+sndWin.volume = 0.7;
+
 function connectDiceWebSocket(roomCode) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/dice/game/${roomCode}/`;
@@ -216,6 +226,22 @@ function handleDiceMessage(data) {
         case 'game_finished':
             // Juego terminado
             console.log('🏆 Juego terminado:', data);
+            
+            // Reproducir sonido de victoria
+            try {
+                sndWin.play().catch(e => {
+                    console.log('⚠️ Error al reproducir sonido de victoria:', e);
+                });
+            } catch (e) {
+                console.log('⚠️ Error al reproducir sonido de victoria:', e);
+            }
+            
+            // Agregar efecto de sacudida de pantalla
+            document.body.classList.add('shake-screen');
+            setTimeout(() => {
+                document.body.classList.remove('shake-screen');
+            }, 500);
+            
             if (data.winner && data.prize) {
                 showWinnerAnimation(data.winner, data.prize, data.multiplier || 'N/A');
             } else {
@@ -534,6 +560,15 @@ function updateDiceRoll(data) {
             // Reproducir sonido de giro cuando el cubo empieza a girar
             playDiceSound();
             
+            // Reproducir sonido de shake adicional
+            try {
+                sndShake.play().catch(e => {
+                    console.log('⚠️ Error al reproducir sonido de shake:', e);
+                });
+            } catch (e) {
+                console.log('⚠️ Error al reproducir sonido de shake:', e);
+            }
+            
             // Mostrar contenedor de dados 3D
             dice3dContainer.style.display = 'flex';
             
@@ -560,6 +595,15 @@ function updateDiceRoll(data) {
                 // Aplicar rotación final para mostrar el número correcto
                 cube1.style.transform = `rotateX(${rotation1.rotateX}deg) rotateY(${rotation1.rotateY}deg)`;
                 cube2.style.transform = `rotateX(${rotation2.rotateX}deg) rotateY(${rotation2.rotateY}deg)`;
+                
+                // Reproducir sonido de impacto cuando los dados caen
+                try {
+                    sndHit.play().catch(e => {
+                        console.log('⚠️ Error al reproducir sonido de impacto:', e);
+                    });
+                } catch (e) {
+                    console.log('⚠️ Error al reproducir sonido de impacto:', e);
+                }
                 
                 console.log(`✅ Dados 3D animados y rotados para mostrar ${data.die1} y ${data.die2}`);
                 
@@ -643,6 +687,65 @@ function updateRoundResults(results, eliminated) {
     }
     
     console.log('🔄 Mapa de jugadores a asientos:', playerIdToSeatMap);
+    
+    // 1. Actualizar barras de vida visualmente
+    if (results) {
+        Object.entries(results).forEach(([playerId, resultData]) => {
+            // Buscar el asiento del jugador
+            const seatNum = playerIdToSeatMap[String(playerId)];
+            if (seatNum) {
+                const bar = document.getElementById(`health-bar-${seatNum}`);
+                if (bar) {
+                    // Asumiendo que el máximo de vidas es 3
+                    // resultData es un array: [die1, die2, total, lives]
+                    let lives = 3; // Valor por defecto
+                    if (Array.isArray(resultData) && resultData.length >= 4) {
+                        lives = resultData[3]; // El cuarto valor son las vidas
+                    } else if (Array.isArray(resultData) && resultData.length >= 3) {
+                        // Si solo hay 3 elementos, intentar obtener las vidas del estado del juego
+                        const player = players.find(p => String(p.user_id) === String(playerId));
+                        if (player && player.lives !== undefined) {
+                            lives = player.lives;
+                        }
+                    } else if (typeof resultData === 'object' && resultData.lives !== undefined) {
+                        lives = resultData.lives;
+                    }
+                    
+                    const percent = (lives / 3) * 100;
+                    bar.style.width = percent + "%";
+                    
+                    // Cambiar color según las vidas restantes
+                    if (lives <= 1) {
+                        bar.style.background = "linear-gradient(90deg, #e74c3c, #c0392b)"; // Rojo
+                    } else if (lives === 2) {
+                        bar.style.background = "linear-gradient(90deg, #f39c12, #e67e22)"; // Naranja
+                    } else {
+                        bar.style.background = "linear-gradient(90deg, #2ecc71, #27ae60)"; // Verde
+                    }
+                }
+            }
+        });
+    }
+    
+    // 2. Si alguien fue eliminado, aplicar efecto visual
+    if (eliminated) {
+        // Buscar el asiento del jugador eliminado
+        const eliminatedPlayer = players.find(p => 
+            p.user_id === parseInt(eliminated) || 
+            p.username === eliminated ||
+            String(p.user_id) === String(eliminated)
+        );
+        
+        if (eliminatedPlayer) {
+            const seatNum = playerIdToSeatMap[String(eliminatedPlayer.user_id)];
+            if (seatNum) {
+                const playerSeat = document.getElementById(`player-${seatNum}`);
+                if (playerSeat) {
+                    playerSeat.classList.add('player-eliminated');
+                }
+            }
+        }
+    }
     
     // Actualizar todos los asientos (1, 2, 3) con los resultados disponibles
     for (let seatNum = 1; seatNum <= 3; seatNum++) {
