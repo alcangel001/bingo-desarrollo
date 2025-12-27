@@ -103,6 +103,16 @@ sndHit.preload = 'auto';
 sndWin.preload = 'auto';
 
 function connectDiceWebSocket(roomCode) {
+    // Limpieza de conexiones: Cerrar WebSocket del lobby si existe
+    if (window.wsNotificationHandler && window.wsNotificationHandler.socket) {
+        try {
+            window.wsNotificationHandler.socket.close();
+            console.log('🔌 WebSocket del lobby cerrado al conectar al juego de dados');
+        } catch (e) {
+            console.log('Error al cerrar WebSocket del lobby:', e);
+        }
+    }
+    
     // Añadir esto al principio de connectDiceWebSocket
     // Esto "despierta" los audios en Chrome/Mobile para evitar errores de AudioContext
     document.addEventListener('click', () => {
