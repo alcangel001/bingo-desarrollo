@@ -810,10 +810,6 @@ function updateRoundResults(results, eliminated) {
                     console.log(`💀 Jugador ${playerId} eliminado (0 vidas) - marcado inmediatamente`);
                 }
                 
-                // Verificación de animación: Si currentLives llega a 0, la barra se anima hasta el 0%
-                // Asegúrate de que currentLives = resultData[2] se aplique correctamente a healthBar.style.width
-                healthBar.style.width = percentage + "%";
-                
                 // Colores dinámicos (sin gradientes para mejor rendimiento)
                 if (percentage <= 33) {
                     healthBar.style.background = "#ff4d4d";
