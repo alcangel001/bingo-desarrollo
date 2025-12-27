@@ -1299,16 +1299,24 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 else:
                                     print(f"⚠️ [GAME_END] Advertencia: {player.user.username} tiene menos blocked_credits ({player.user.blocked_credits}) de lo esperado (${dice_game.entry_price})")
                             
-                            # Asegurar que los resultados incluyan TODOS los jugadores (incluso eliminados)
+                            # Normalización de vidas: Asegurar que los resultados incluyan TODOS los jugadores (incluso eliminados)
+                            # El servidor debe enviar un entero (3, 2, 1, 0) en el índice [2], no el total de los dados
                             complete_round_results = {}
                             all_players_in_game = DicePlayer.objects.filter(game=dice_game)
                             for player in all_players_in_game:
                                 player_id_str = str(player.user.id)
                                 if player_id_str in current_round.player_results:
-                                    complete_round_results[player_id_str] = current_round.player_results[player_id_str]
+                                    # Obtener el resultado original [die1, die2, total]
+                                    original_result = current_round.player_results[player_id_str]
+                                    # Normalizar: reemplazar el total con las vidas actuales del jugador
+                                    die1 = original_result[0] if len(original_result) > 0 else 0
+                                    die2 = original_result[1] if len(original_result) > 1 else 0
+                                    lives = int(player.lives)  # Asegurar que sea un entero (3, 2, 1, 0)
+                                    complete_round_results[player_id_str] = [die1, die2, lives]
                                 else:
-                                    # Si no tiene resultado, usar valores por defecto
-                                    complete_round_results[player_id_str] = [0, 0, 0]
+                                    # Si no tiene resultado, usar valores por defecto con vidas actuales
+                                    lives = int(player.lives)  # Asegurar que sea un entero
+                                    complete_round_results[player_id_str] = [0, 0, lives]
                             
                             return {
                                 'round_complete': True,
@@ -1448,15 +1456,24 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 else:
                                     print(f"⚠️ [GAME_END] Advertencia: {player.user.username} tiene menos blocked_credits ({player.user.blocked_credits}) de lo esperado (${dice_game.entry_price})")
                             
-                            # Asegurar que los resultados incluyan TODOS los jugadores
+                            # Normalización de vidas: Asegurar que los resultados incluyan TODOS los jugadores
+                            # El servidor debe enviar un entero (3, 2, 1, 0) en el índice [2], no el total de los dados
                             complete_round_results = {}
                             all_players_in_game = DicePlayer.objects.filter(game=dice_game)
                             for player in all_players_in_game:
                                 player_id_str = str(player.user.id)
                                 if player_id_str in current_round.player_results:
-                                    complete_round_results[player_id_str] = current_round.player_results[player_id_str]
+                                    # Obtener el resultado original [die1, die2, total]
+                                    original_result = current_round.player_results[player_id_str]
+                                    # Normalizar: reemplazar el total con las vidas actuales del jugador
+                                    die1 = original_result[0] if len(original_result) > 0 else 0
+                                    die2 = original_result[1] if len(original_result) > 1 else 0
+                                    lives = int(player.lives)  # Asegurar que sea un entero (3, 2, 1, 0)
+                                    complete_round_results[player_id_str] = [die1, die2, lives]
                                 else:
-                                    complete_round_results[player_id_str] = [0, 0, 0]
+                                    # Si no tiene resultado, usar valores por defecto con vidas actuales
+                                    lives = int(player.lives)  # Asegurar que sea un entero
+                                    complete_round_results[player_id_str] = [0, 0, lives]
                             
                             return {
                                 'round_complete': True,
@@ -1469,15 +1486,24 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
                                 'multiplier': dice_game.multiplier
                             }
                         
-                        # Asegurar que los resultados incluyan TODOS los jugadores activos
+                        # Normalización de vidas: Asegurar que los resultados incluyan TODOS los jugadores activos
+                        # El servidor debe enviar un entero (3, 2, 1, 0) en el índice [2], no el total de los dados
                         complete_round_results = {}
                         for player in active_players:
                             player_id_str = str(player.user.id)
                             if player_id_str in current_round.player_results:
-                                complete_round_results[player_id_str] = current_round.player_results[player_id_str]
+                                # Obtener el resultado original [die1, die2, total]
+                                original_result = current_round.player_results[player_id_str]
+                                # Normalizar: reemplazar el total con las vidas actuales del jugador
+                                # Formato: [dado1, dado2, vidas_restantes]
+                                die1 = original_result[0] if len(original_result) > 0 else 0
+                                die2 = original_result[1] if len(original_result) > 1 else 0
+                                lives = int(player.lives)  # Asegurar que sea un entero (3, 2, 1, 0)
+                                complete_round_results[player_id_str] = [die1, die2, lives]
                             else:
-                                # Si no tiene resultado (no debería pasar), usar valores por defecto
-                                complete_round_results[player_id_str] = [0, 0, 0]
+                                # Si no tiene resultado, usar valores por defecto con vidas actuales
+                                lives = int(player.lives)  # Asegurar que sea un entero
+                                complete_round_results[player_id_str] = [0, 0, lives]
                         
                         # Verificar si hubo empate
                         is_tie_round = current_round.player_results.get('_tie', False)
@@ -1504,6 +1530,10 @@ class DiceGameConsumer(AsyncWebsocketConsumer):
             round_result = await database_sync_to_async(check_and_process_round)(result['current_round_id'])
             
             if round_result:
+                # Delay entre rondas: dar tiempo al frontend para terminar la animación de los dados
+                import asyncio
+                await asyncio.sleep(2)  # Esperar 2 segundos antes de enviar round_result
+                
                 # Ronda completa, notificar resultados
                 if round_result.get('game_finished'):
                     # Juego terminado

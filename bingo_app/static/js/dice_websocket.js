@@ -338,26 +338,30 @@ function handleDiceMessage(data) {
             // Juego terminado
             console.log('🏆 Juego terminado:', data);
             
-            // Reproducir sonido de victoria
-            try {
-                sndWin.play().catch(e => {
-                    console.log('⚠️ Error al reproducir sonido de victoria:', e);
-                });
-            } catch (e) {
-                console.log('⚠️ Error al reproducir sonido de victoria:', e);
-            }
-            
-            // Agregar efecto de sacudida de pantalla
-            document.body.classList.add('shake-screen');
+            // Animación de ganador: Esperar al menos 2 segundos después del último round_result
+            // para que el jugador vea los dados finales antes del anuncio de victoria
             setTimeout(() => {
-                document.body.classList.remove('shake-screen');
-            }, 500);
-            
-            if (data.winner && data.prize) {
-                showWinnerAnimation(data.winner, data.prize, data.multiplier || 'N/A');
-            } else {
-                console.error('⚠️ Datos incompletos en game_finished:', data);
-            }
+                // Reproducir sonido de victoria
+                try {
+                    sndWin.play().catch(e => {
+                        console.log('⚠️ Error al reproducir sonido de victoria:', e);
+                    });
+                } catch (e) {
+                    console.log('⚠️ Error al reproducir sonido de victoria:', e);
+                }
+                
+                // Agregar efecto de sacudida de pantalla
+                document.body.classList.add('shake-screen');
+                setTimeout(() => {
+                    document.body.classList.remove('shake-screen');
+                }, 500);
+                
+                if (data.winner && data.prize) {
+                    showWinnerAnimation(data.winner, data.prize, data.multiplier || 'N/A');
+                } else {
+                    console.error('⚠️ Datos incompletos en game_finished:', data);
+                }
+            }, 2000); // Esperar 2 segundos antes de mostrar la animación de victoria
             break;
             
         case 'player_joined':
