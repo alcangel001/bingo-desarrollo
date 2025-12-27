@@ -84,14 +84,20 @@ function createDiceHitSound() {
 // Los sonidos se generan dinámicamente usando Web Audio API
 
 // Sonidos adicionales para efectos visuales
-const sndShake = new Audio('https://www.zapsplat.com/wp-content/uploads/2015/sound-effects-61905/zapsplat_leisure_games_dice_shake_in_hand_001_62657.mp3');
-const sndHit = new Audio('https://assets.mixkit.co/active_storage/sfx/1017/1017-preview.mp3');
-const sndWin = new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3');
+// Usar URLs de Mixkit que son más confiables
+const sndShake = new Audio('https://assets.mixkit.co/active_storage/sfx/2410/2410-preview.mp3'); // Sonido de dados rodando
+const sndHit = new Audio('https://assets.mixkit.co/active_storage/sfx/1017/1017-preview.mp3'); // Sonido de impacto
+const sndWin = new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3'); // Sonido de victoria
 
 // Configurar volúmenes de los sonidos
-sndShake.volume = 0.5;
+sndShake.volume = 0.4;
 sndHit.volume = 0.6;
 sndWin.volume = 0.7;
+
+// Precargar los sonidos
+sndShake.preload = 'auto';
+sndHit.preload = 'auto';
+sndWin.preload = 'auto';
 
 function connectDiceWebSocket(roomCode) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -560,11 +566,14 @@ function updateDiceRoll(data) {
             // Reproducir sonido de giro cuando el cubo empieza a girar
             playDiceSound();
             
-            // Reproducir sonido de shake adicional
+            // Reproducir sonido de shake adicional (solo si no está ya reproduciéndose)
             try {
-                sndShake.play().catch(e => {
-                    console.log('⚠️ Error al reproducir sonido de shake:', e);
-                });
+                if (sndShake.paused || sndShake.currentTime === 0) {
+                    sndShake.currentTime = 0;
+                    sndShake.play().catch(e => {
+                        console.log('⚠️ Error al reproducir sonido de shake:', e);
+                    });
+                }
             } catch (e) {
                 console.log('⚠️ Error al reproducir sonido de shake:', e);
             }
@@ -596,11 +605,14 @@ function updateDiceRoll(data) {
                 cube1.style.transform = `rotateX(${rotation1.rotateX}deg) rotateY(${rotation1.rotateY}deg)`;
                 cube2.style.transform = `rotateX(${rotation2.rotateX}deg) rotateY(${rotation2.rotateY}deg)`;
                 
-                // Reproducir sonido de impacto cuando los dados caen
+                // Reproducir sonido de impacto cuando los dados caen (solo si no está ya reproduciéndose)
                 try {
-                    sndHit.play().catch(e => {
-                        console.log('⚠️ Error al reproducir sonido de impacto:', e);
-                    });
+                    if (sndHit.paused || sndHit.currentTime === 0) {
+                        sndHit.currentTime = 0;
+                        sndHit.play().catch(e => {
+                            console.log('⚠️ Error al reproducir sonido de impacto:', e);
+                        });
+                    }
                 } catch (e) {
                     console.log('⚠️ Error al reproducir sonido de impacto:', e);
                 }
@@ -689,6 +701,7 @@ function updateRoundResults(results, eliminated) {
     console.log('🔄 Mapa de jugadores a asientos:', playerIdToSeatMap);
     
     // 1. Actualizar barras de vida visualmente
+    // Las vidas se obtienen del estado del juego, no del array de resultados
     if (results) {
         Object.entries(results).forEach(([playerId, resultData]) => {
             // Buscar el asiento del jugador
@@ -696,20 +709,28 @@ function updateRoundResults(results, eliminated) {
             if (seatNum) {
                 const bar = document.getElementById(`health-bar-${seatNum}`);
                 if (bar) {
-                    // Asumiendo que el máximo de vidas es 3
-                    // resultData es un array: [die1, die2, total, lives]
+                    // Obtener las vidas del estado del juego (window.currentGameState.players)
                     let lives = 3; // Valor por defecto
-                    if (Array.isArray(resultData) && resultData.length >= 4) {
-                        lives = resultData[3]; // El cuarto valor son las vidas
-                    } else if (Array.isArray(resultData) && resultData.length >= 3) {
-                        // Si solo hay 3 elementos, intentar obtener las vidas del estado del juego
+                    
+                    // Buscar el jugador en el estado del juego
+                    if (window.currentGameState && window.currentGameState.players) {
+                        const player = window.currentGameState.players.find(p => 
+                            String(p.user_id) === String(playerId)
+                        );
+                        if (player && player.lives !== undefined) {
+                            lives = player.lives;
+                        }
+                    }
+                    
+                    // Si no está en currentGameState, buscar en players local
+                    if (lives === 3) {
                         const player = players.find(p => String(p.user_id) === String(playerId));
                         if (player && player.lives !== undefined) {
                             lives = player.lives;
                         }
-                    } else if (typeof resultData === 'object' && resultData.lives !== undefined) {
-                        lives = resultData.lives;
                     }
+                    
+                    console.log(`💚 Actualizando barra de vida para jugador ${playerId} (asiento ${seatNum}): ${lives} vidas`);
                     
                     const percent = (lives / 3) * 100;
                     bar.style.width = percent + "%";
@@ -722,6 +743,8 @@ function updateRoundResults(results, eliminated) {
                     } else {
                         bar.style.background = "linear-gradient(90deg, #2ecc71, #27ae60)"; // Verde
                     }
+                } else {
+                    console.warn(`⚠️ No se encontró la barra de vida para asiento ${seatNum}`);
                 }
             }
         });
