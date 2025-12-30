@@ -14,8 +14,8 @@
     .raffle-header {
         background: var(--primary-gradient);
         color: white;
-        padding: 3rem 0;
-        margin-bottom: 2rem;
+        padding: 1.5rem 0;
+        margin-bottom: 1.5rem;
         border-radius: 0 0 20px 20px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.15);
         position: relative;
@@ -51,7 +51,17 @@
     }
     
     .card-body {
-        padding: 2.5rem;
+        padding: 1.5rem;
+    }
+    
+    .info-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-section h4 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        color: #000;
     }
     
     .card-footer {
@@ -63,8 +73,18 @@
     .ticket-grid {
         display: grid;
         grid-template-columns: repeat(10, 1fr);
-        gap: 12px;
-        margin: 2rem 0;
+        gap: 8px;
+        margin: 1rem 0;
+    }
+    
+    .numbers-section {
+        margin-top: 1.5rem;
+    }
+    
+    .numbers-section h4 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        color: #000;
     }
     
     .ticket-number {
@@ -126,7 +146,7 @@
     
     .progress-container {
         height: 30px;
-        margin: 2rem 0;
+        margin: 1.5rem 0;
         border-radius: 15px;
         overflow: hidden;
         background-color: #f8f9fa;
@@ -199,8 +219,8 @@
     .user-tickets {
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
-        margin: 2rem 0;
+        gap: 8px;
+        margin: 1rem 0;
     }
     
     .user-ticket {
@@ -234,12 +254,13 @@
     }
     
     .info-item {
-        padding: 1rem 0;
+        padding: 0.75rem 0;
         border-bottom: 1px solid rgba(0,0,0,0.05);
         display: flex;
         justify-content: space-between;
         align-items: center;
         color: #000;
+        font-size: 0.95rem;
     }
     
     .info-item:last-child {
@@ -394,29 +415,46 @@
         }
     }
     
+    @media (max-width: 992px) {
+        .ticket-grid {
+            grid-template-columns: repeat(5, 1fr);
+        }
+    }
+    
     @media (max-width: 768px) {
         .raffle-header {
-            padding: 2rem 0;
+            padding: 1rem 0;
         }
         
         .card-body {
-            padding: 1.5rem;
+            padding: 1rem;
         }
         
         .ticket-number {
-            padding: 0.8rem 0.3rem;
-            font-size: 0.9rem;
+            padding: 0.6rem 0.3rem;
+            font-size: 0.85rem;
         }
         
         .info-item {
             flex-direction: column;
             align-items: flex-start;
+            font-size: 0.9rem;
+        }
+        
+        .info-section h4,
+        .numbers-section h4 {
+            font-size: 1rem;
         }
         
         .icon-circle {
             width: 40px;
             height: 40px;
             margin-right: 1rem;
+        }
+        
+        .ticket-grid {
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
         }
     }
 
@@ -762,194 +800,103 @@
     <div class="raffle-card">
         <div class="card-body">
             <div class="row">
-                <div class="col-lg-6">
-                    <div class="mb-4">
-                        <h4 class="mb-4"><i class="fas fa-info-circle me-2"></i>Información de la Rifa</h4>
-                        
+                <!-- Columna izquierda: Información compacta -->
+                <div class="col-lg-4">
+                    <div class="info-section">
+                        <h4><i class="fas fa-info-circle me-2"></i>Información</h4>
                         <div class="info-item">
                             <span><i class="fas fa-user me-2"></i>Organizador</span>
                             <strong>{{ raffle.organizer.username }}</strong>
                         </div>
-                        
                         <div class="info-item">
-                            <span><i class="fas fa-tag me-2"></i>Precio por ticket</span>
+                            <span><i class="fas fa-tag me-2"></i>Precio</span>
                             <strong>{{ raffle.ticket_price }} <i class="fas fa-coins"></i></strong>
                         </div>
-                        
                         <div class="info-item">
-                            <span><i class="fas fa-trophy me-2"></i>Premio principal</span>
+                            <span><i class="fas fa-trophy me-2"></i>Premio</span>
                             <strong class="prize-highlight">{{ raffle.prize }} <i class="fas fa-coins"></i></strong>
+                        </div>
+                        <div class="info-item">
+                            <span><i class="fas fa-ticket-alt me-2"></i>Vendidos</span>
+                            <strong data-sold-counter data-total-tickets="{{ raffle.total_tickets }}">{{ raffle.tickets.count }}/{{ raffle.total_tickets }}</strong>
+                        </div>
+                        <div class="info-item">
+                            <span><i class="fas fa-calendar-alt me-2"></i>Fecha</span>
+                            <strong>{{ raffle.draw_date|date:"d M Y H:i" }}</strong>
+                        </div>
+                        {% if raffle.whatsapp_number %}
+                        <div class="info-item">
+                            <span><i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>WhatsApp</span>
+                            {% if 'http' in raffle.whatsapp_number or 'chat.whatsapp.com' in raffle.whatsapp_number %}
+                            <a href="{{ raffle.whatsapp_number }}" target="_blank" class="btn btn-success btn-sm whatsapp-btn" style="background-color: #25D366; border-color: #25D366; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                <i class="fab fa-whatsapp me-1"></i>Grupo
+                            </a>
+                            {% else %}
+                            <a href="https://wa.me/{{ raffle.whatsapp_number|default:'' }}" target="_blank" class="btn btn-success btn-sm whatsapp-btn" style="background-color: #25D366; border-color: #25D366; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                <i class="fab fa-whatsapp me-1"></i>Contactar
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="progress-container">
+                        <div class="progress-bar" 
+                             style="width: {{ raffle.progress_percentage }}%" 
+                             aria-valuenow="{{ raffle.progress_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {{ raffle.progress_percentage|floatformat:0 }}% completado
+                        </div>
+                    </div>
+                    
+                    <!-- User Tickets Section -->
+                    <div class="info-section">
+                        <h4><i class="fas fa-ticket-alt me-2"></i>Tus Tickets</h4>
+                        <div id="userTicketsContainer">
+                            {% if user_tickets %}
+                            <div class="user-tickets">
+                                {% for ticket in user_tickets %}
+                                <span class="user-ticket {% if raffle.status == 'FINISHED' %}{% if raffle.multiple_winners_enabled and raffle.winning_numbers and ticket.number in raffle.winning_numbers %}user-ticket-winning{% elif not raffle.multiple_winners_enabled and ticket.number == raffle.winning_number %}user-ticket-winning{% else %}user-ticket-normal{% endif %}{% else %}user-ticket-normal{% endif %}" data-user-ticket="{{ ticket.number }}">
+                                    #{{ ticket.number }}
+                                    {% if raffle.status == 'FINISHED' %}
+                                        {% if raffle.multiple_winners_enabled and raffle.winning_numbers and ticket.number in raffle.winning_numbers %}
+                                        <i class="fas fa-trophy ms-2"></i>
+                                        {% elif not raffle.multiple_winners_enabled and ticket.number == raffle.winning_number %}
+                                        <i class="fas fa-trophy ms-2"></i>
+                                        {% endif %}
+                                    {% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info user-tickets-empty" data-user-tickets-empty="true" style="padding: 0.75rem; font-size: 0.9rem;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span>No tienes tickets.</span>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-lg-6">
-                    <div class="mb-4">
-                        <h4 class="mb-4"><i class="fas fa-chart-bar me-2"></i>Estadísticas</h4>
+                <!-- Columna derecha: Números disponibles (PRINCIPAL) -->
+                <div class="col-lg-8">
+                    <div class="numbers-section">
+                        <h4><i class="fas fa-grid me-2"></i>Números Disponibles</h4>
                         
-                        <div class="info-item">
-                            <span><i class="fas fa-hashtag me-2"></i>Rango de números</span>
-                            <strong>{{ raffle.start_number }} - {{ raffle.end_number }}</strong>
-                        </div>
-                        
-                        <div class="info-item">
-                            <span><i class="fas fa-ticket-alt me-2"></i>Tickets vendidos</span>
-                            <strong data-sold-counter data-total-tickets="{{ raffle.total_tickets }}">{{ raffle.tickets.count }}/{{ raffle.total_tickets }}</strong>
-                        </div>
-                        
-                        <div class="info-item">
-                            <span><i class="fas fa-calendar-alt me-2"></i>Fecha del sorteo</span>
-                            <strong>{{ raffle.draw_date|date:"d M Y H:i" }}</strong>
-                        </div>
-                        
-                        {% if raffle.whatsapp_number %}
-                        <div class="info-item">
-                            <span><i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>Contacto WhatsApp</span>
-                            {% if 'http' in raffle.whatsapp_number or 'chat.whatsapp.com' in raffle.whatsapp_number %}
-                            <a href="{{ raffle.whatsapp_number }}" 
-                               target="_blank" 
-                               class="btn btn-success btn-sm whatsapp-btn"
-                               style="background-color: #25D366; border-color: #25D366;">
-                                <i class="fab fa-whatsapp me-1"></i>Unirse al Grupo
-                            </a>
-                            {% else %}
-                            <a href="https://wa.me/{{ raffle.whatsapp_number|default:'' }}" 
-                               target="_blank" 
-                               class="btn btn-success btn-sm whatsapp-btn"
-                               style="background-color: #25D366; border-color: #25D366;">
-                                <i class="fab fa-whatsapp me-1"></i>Contactar por WhatsApp
-                            </a>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        </div>
-                </div>
-            </div>
-            
-            <!-- Progress Bar -->
-            <div class="progress-container">
-                <div class="progress-bar" 
-                     style="width: {{ raffle.progress_percentage }}%" 
-                     aria-valuenow="{{ raffle.progress_percentage }}" 
-                     aria-valuemin="0" 
-                     aria-valuemax="100">
-                    {{ raffle.progress_percentage|floatformat:0 }}% completado
-                </div>
-            </div>
-            
-            <!-- Winner Announcement -->
-            {% if raffle.status == 'FINISHED' %}
-                {% if raffle.multiple_winners_enabled and raffle.winners %}
-                <!-- Multiple Winners Display -->
-                <div class="alert-winner alert mb-5">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="icon-circle">
-                            <i class="fas fa-trophy text-warning"></i>
-                        </div>
-                        <div>
-                            <h4 class="mb-2">¡Tenemos múltiples ganadores!</h4>
-                        </div>
-                    </div>
-                    <div class="row">
-                        {% for winner_info in raffle.winners %}
-                        <div class="col-md-6 mb-3">
-                            <div class="card border-warning">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h5 class="mb-1">
-                                                <span class="badge bg-warning text-dark me-2">{{ winner_info.position }}° Lugar</span>
-                                                <strong>{{ winner_info.username }}</strong>
-                                            </h5>
-                                            <p class="mb-0 text-muted">
-                                                <i class="fas fa-ticket-alt me-1"></i>Ticket #{{ winner_info.ticket_number }}
-                                            </p>
-                                        </div>
-                                        <div class="text-end">
-                                            <div class="prize-highlight">
-                                                {{ winner_info.prize|floatformat:2 }} <i class="fas fa-coins"></i>
-                                            </div>
-                                            {% if winner_info.user_id == request.user.id %}
-                                            <span class="badge bg-success mt-2">
-                                                <i class="fas fa-crown me-1"></i> ¡Tú ganaste!
-                                            </span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
+                        {% if raffle.status == 'FINISHED' %}
+                        <div class="alert alert-warning" style="padding: 0.75rem; font-size: 0.9rem; margin-bottom: 1rem;">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <span>Esta rifa ha terminado. No se pueden comprar más tickets.</span>
                             </div>
                         </div>
-                        {% endfor %}
-                    </div>
-                    <div class="mt-3">
-                        <strong>Total de Premios Distribuidos: {{ raffle.final_prize|floatformat:2 }} <i class="fas fa-coins"></i></strong>
-                    </div>
-                </div>
-                {% elif raffle.winner %}
-                <!-- Single Winner Display -->
-                <div class="alert-winner alert mb-5">
-                    <div class="d-flex align-items-center">
-                        <div class="icon-circle">
-                            <i class="fas fa-trophy text-warning"></i>
-                        </div>
-                        <div>
-                            <h4 class="mb-2">¡Tenemos un ganador!</h4>
-                            <p class="mb-1">
-                                <strong>{{ raffle.winner.username }}</strong> con el ticket #{{ raffle.winning_number }}
-                                <span class="prize-highlight ms-3">{{ raffle.prize }} <i class="fas fa-coins"></i></span>
-                            </p>
-                            {% if raffle.winner == request.user %}
-                            <span class="badge bg-warning text-dark mt-2 p-2">
-                                <i class="fas fa-crown me-1"></i> ¡Tú ganaste!
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-            {% endif %}
-            
-            <!-- User Tickets Section -->
-            <h4 class="mb-4"><i class="fas fa-ticket-alt me-2"></i>Tus Tickets</h4>
-            <div id="userTicketsContainer">
-                {% if user_tickets %}
-                <div class="user-tickets">
-                    {% for ticket in user_tickets %}
-                    <span class="user-ticket {% if raffle.status == 'FINISHED' %}{% if raffle.multiple_winners_enabled and raffle.winning_numbers and ticket.number in raffle.winning_numbers %}user-ticket-winning{% elif not raffle.multiple_winners_enabled and ticket.number == raffle.winning_number %}user-ticket-winning{% else %}user-ticket-normal{% endif %}{% else %}user-ticket-normal{% endif %}" data-user-ticket="{{ ticket.number }}">
-                        #{{ ticket.number }}
-                        {% if raffle.status == 'FINISHED' %}
-                            {% if raffle.multiple_winners_enabled and raffle.winning_numbers and ticket.number in raffle.winning_numbers %}
-                            <i class="fas fa-trophy ms-2"></i>
-                            {% elif not raffle.multiple_winners_enabled and ticket.number == raffle.winning_number %}
-                            <i class="fas fa-trophy ms-2"></i>
-                            {% endif %}
                         {% endif %}
-                    </span>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="alert alert-info user-tickets-empty" data-user-tickets-empty="true">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-info-circle me-3 fa-lg"></i>
-                        <span>No tienes tickets en esta rifa.</span>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-            
-            <!-- Available Numbers Section -->
-            <h4 class="mb-4 mt-5"><i class="fas fa-grid me-2"></i>Números Disponibles</h4>
-            
-            {% if raffle.status == 'FINISHED' %}
-            <div class="alert alert-warning">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-info-circle me-3 fa-lg"></i>
-                    <span>Esta rifa ha terminado. No se pueden comprar más tickets.</span>
-                </div>
-            </div>
-            {% endif %}
-            
-            <div class="ticket-grid">
+                        
+                        <div class="ticket-grid">
                 {% for number in available_numbers %}
                     {% if number in sold_numbers %}
                         {% for ticket in raffle.tickets.all %}
@@ -978,6 +925,81 @@
                         {% endif %}
                     {% endif %}
                 {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Winner Announcement -->
+                    {% if raffle.status == 'FINISHED' %}
+                        {% if raffle.multiple_winners_enabled and raffle.winners %}
+                        <!-- Multiple Winners Display -->
+                        <div class="alert-winner alert mt-3">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="icon-circle">
+                                    <i class="fas fa-trophy text-warning"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-2">¡Tenemos múltiples ganadores!</h4>
+                                </div>
+                            </div>
+                            <div class="row">
+                                {% for winner_info in raffle.winners %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-warning">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h5 class="mb-1">
+                                                        <span class="badge bg-warning text-dark me-2">{{ winner_info.position }}° Lugar</span>
+                                                        <strong>{{ winner_info.username }}</strong>
+                                                    </h5>
+                                                    <p class="mb-0 text-muted">
+                                                        <i class="fas fa-ticket-alt me-1"></i>Ticket #{{ winner_info.ticket_number }}
+                                                    </p>
+                                                </div>
+                                                <div class="text-end">
+                                                    <div class="prize-highlight">
+                                                        {{ winner_info.prize|floatformat:2 }} <i class="fas fa-coins"></i>
+                                                    </div>
+                                                    {% if winner_info.user_id == request.user.id %}
+                                                    <span class="badge bg-success mt-2">
+                                                        <i class="fas fa-crown me-1"></i> ¡Tú ganaste!
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="mt-3">
+                                <strong>Total de Premios Distribuidos: {{ raffle.final_prize|floatformat:2 }} <i class="fas fa-coins"></i></strong>
+                            </div>
+                        </div>
+                        {% elif raffle.winner %}
+                        <!-- Single Winner Display -->
+                        <div class="alert-winner alert mt-3">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle">
+                                    <i class="fas fa-trophy text-warning"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-2">¡Tenemos un ganador!</h4>
+                                    <p class="mb-1">
+                                        <strong>{{ raffle.winner.username }}</strong> con el ticket #{{ raffle.winning_number }}
+                                        <span class="prize-highlight ms-3">{{ raffle.prize }} <i class="fas fa-coins"></i></span>
+                                    </p>
+                                    {% if raffle.winner == request.user %}
+                                    <span class="badge bg-warning text-dark mt-2 p-2">
+                                        <i class="fas fa-crown me-1"></i> ¡Tú ganaste!
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
         

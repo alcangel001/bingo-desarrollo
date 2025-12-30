@@ -135,14 +135,25 @@
         font-family: 'Poppins', sans-serif;
     }
     
+    .lobby-container {
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-top: 2rem;
+    }
+
     .raffle-header {
-        background: rgba(0, 0, 0, 0.3); /* Translucent background */
-        color: white; /* White text */
-        text-shadow: 0 0 5px rgba(255, 255, 255, 0.7); /* Intense white text */
-        padding: 2rem 0;
-        margin-bottom: 2rem;
-        border-radius: 0 0 20px 20px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 2.5rem;
+        background: linear-gradient(135deg, #2C3E50 0%, #1A252F 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        color: white;
     }
     
     .raffle-card {
@@ -387,8 +398,30 @@
         transform: translateY(-2px);
     }
     
+    /* Responsive header */
+    @media (max-width: 991.98px) {
+        .raffle-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .raffle-header > div:last-child {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
+        .lobby-container {
+            padding: 1rem;
+        }
+        
+        .raffle-header {
+            padding: 1rem !important;
+        }
+        
         .raffle-card {
             margin-bottom: 2rem;
         }
@@ -407,23 +440,20 @@
 {% endblock %}
 
 {% block content %}
-<div class="raffle-header">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="mb-2"><i class="fas fa-ticket-alt me-3"></i>Lobby de Rifas Premium</h1>
-                <p class="mb-0 opacity-75">Participa en emocionantes rifas y gana fabulosos premios</p>
-            </div>
-            {% if user.is_organizer %}
-            <a href="{% url 'create_raffle' %}" class="btn btn-create-raffle text-white">
-                <i class="fas fa-plus me-2"></i>Crear Nueva Rifa
-            </a>
-            {% endif %}
+<div class="lobby-container">
+    <div class="raffle-header">
+        <div>
+            <h1 class="mb-2"><i class="fas fa-ticket-alt me-2"></i>Lobby de Rifas Premium</h1>
+            <p class="mb-0">Participa en emocionantes rifas y gana fabulosos premios</p>
         </div>
+        {% if user.is_organizer %}
+        <a href="{% url 'create_raffle' %}" class="btn btn-create-raffle text-white">
+            <i class="fas fa-plus me-2"></i>Crear Nueva Rifa
+        </a>
+        {% endif %}
     </div>
-</div>
 
-<div class="container mb-5">
+    <div class="container-fluid px-0 mb-5">
     <div class="row">
         <div class="col-lg-8">
             <div class="row row-cols-1 row-cols-md-2 g-4" id="raffles-list">
@@ -544,6 +574,7 @@
             {% endif %}
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 
