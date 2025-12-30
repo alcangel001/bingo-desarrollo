@@ -64,6 +64,126 @@
         color: #000;
     }
     
+    /* Tarjetas de información estilo casino - Horizontal */
+    .info-cards-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .info-card {
+        flex: 1;
+        min-width: 150px;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .info-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        transition: left 0.5s;
+    }
+    
+    .info-card:hover::before {
+        left: 100%;
+    }
+    
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    }
+    
+    .info-card.organizer {
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .info-card.price {
+        border-color: #28a745;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+    }
+    
+    .info-card.prize {
+        border-color: #ffc107;
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.5);
+        background: linear-gradient(135deg, #2d1b1b 0%, #3d2a1b 100%);
+    }
+    
+    .info-card.sold {
+        border-color: #17a2b8;
+        box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
+    }
+    
+    .info-card.date {
+        border-color: #e83e8c;
+        box-shadow: 0 4px 15px rgba(232, 62, 140, 0.4);
+    }
+    
+    .info-card-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .info-card.organizer .info-card-icon {
+        color: #667eea;
+        text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+    }
+    
+    .info-card.price .info-card-icon {
+        color: #28a745;
+        text-shadow: 0 0 10px rgba(40, 167, 69, 0.8);
+    }
+    
+    .info-card.prize .info-card-icon {
+        color: #ffc107;
+        text-shadow: 0 0 15px rgba(255, 193, 7, 1);
+    }
+    
+    .info-card.sold .info-card-icon {
+        color: #17a2b8;
+        text-shadow: 0 0 10px rgba(23, 162, 184, 0.8);
+    }
+    
+    .info-card.date .info-card-icon {
+        color: #e83e8c;
+        text-shadow: 0 0 10px rgba(232, 62, 140, 0.8);
+    }
+    
+    .info-card-label {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.7);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .info-card-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .info-card.prize .info-card-value {
+        color: #ffc107;
+        text-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
+    }
+    
     .card-footer {
         background: var(--light-color);
         border-top: none !important;
@@ -104,36 +224,50 @@
     }
     
     .ticket-available {
-        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        background: linear-gradient(135deg, #28a745, #20c997);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        color: white;
+        font-weight: 600;
+        border: 2px solid rgba(255,255,255,0.3);
     }
     
     .ticket-available:hover {
-        background: linear-gradient(135deg, #e9ecef, #dee2e6);
+        background: linear-gradient(135deg, #20c997, #17a2b8);
         transform: translateY(-5px) scale(1.1);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        box-shadow: 0 8px 25px rgba(40, 167, 69, 0.6);
         z-index: 1;
+        border-color: rgba(255,255,255,0.5);
     }
 
     .ticket-available.selected {
-        background: var(--accent-gradient);
-        color: var(--dark-color);
+        background: linear-gradient(135deg, #e83e8c, #d63384);
+        color: white;
         transform: translateY(-5px) scale(1.1);
-        box-shadow: 0 8px 25px rgba(255, 193, 7, 0.4);
+        box-shadow: 0 8px 25px rgba(232, 62, 140, 0.7);
+        border-color: rgba(255,255,255,0.6);
+        animation: pulse-selected 1.5s infinite;
+    }
+    
+    @keyframes pulse-selected {
+        0%, 100% { box-shadow: 0 8px 25px rgba(232, 62, 140, 0.7); }
+        50% { box-shadow: 0 8px 35px rgba(232, 62, 140, 1); }
     }
     
     .ticket-sold {
-        background: linear-gradient(135deg, #d1e7dd, #a3cfbb);
+        background: linear-gradient(135deg, #6c757d, #5a6268);
         cursor: not-allowed;
-        color: #0f5132;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        color: rgba(255,255,255,0.6);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        border: 2px solid rgba(255,255,255,0.1);
     }
     
     .ticket-mine {
-        background: var(--primary-gradient);
-        color: white;
+        background: linear-gradient(135deg, #ffc107, #ffca2c);
+        color: #000;
         font-weight: bold;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 5px 20px rgba(255, 193, 7, 0.6);
+        border: 2px solid rgba(255,255,255,0.4);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
     
     .ticket-winning {
@@ -145,26 +279,30 @@
     }
     
     .progress-container {
-        height: 30px;
+        height: 35px;
         margin: 1.5rem 0;
-        border-radius: 15px;
+        border-radius: 18px;
         overflow: hidden;
-        background-color: #f8f9fa;
-        box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        box-shadow: inset 0 3px 8px rgba(0,0,0,0.4), 0 4px 15px rgba(0,0,0,0.2);
         position: relative;
+        border: 2px solid rgba(255,255,255,0.1);
     }
     
     .progress-bar {
         height: 100%;
-        background: var(--secondary-gradient);
+        background: linear-gradient(135deg, #28a745 0%, #20c997 50%, #17a2b8 100%);
         transition: width 0.8s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 0.95rem;
         position: relative;
         overflow: hidden;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        box-shadow: 0 0 20px rgba(40, 167, 69, 0.6);
     }
     
     .progress-bar::after {
@@ -390,22 +528,50 @@
         bottom: -100px;
         left: 50%;
         transform: translateX(-50%);
-        width: 90%;
-        max-width: 600px;
-        background: var(--dark-color);
+        width: 95%;
+        max-width: 700px;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         color: white;
-        border-radius: 15px 15px 0 0;
-        padding: 1rem 1.5rem;
-        box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
+        border-radius: 20px 20px 0 0;
+        padding: 1.25rem 2rem;
+        box-shadow: 0 -8px 30px rgba(0,0,0,0.5), 0 0 20px rgba(40, 167, 69, 0.3);
         display: flex;
         justify-content: space-between;
         align-items: center;
         z-index: 1000;
         transition: bottom 0.4s ease-in-out;
+        border: 2px solid rgba(255,255,255,0.1);
+        border-bottom: none;
     }
 
     .multi-buy-bar.show {
         bottom: 0;
+        box-shadow: 0 -8px 40px rgba(0,0,0,0.6), 0 0 30px rgba(40, 167, 69, 0.5);
+    }
+    
+    .multi-buy-bar .btn-primary {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.5);
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .multi-buy-bar .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.7);
+        background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+    }
+    
+    .multi-buy-bar strong {
+        color: #ffc107;
+        text-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
+        font-size: 1.1rem;
     }
     
     /* Responsive */
@@ -419,9 +585,34 @@
         .ticket-grid {
             grid-template-columns: repeat(5, 1fr);
         }
+        
+        .info-cards-row {
+            gap: 0.75rem;
+        }
+        
+        .info-card {
+            min-width: 120px;
+            padding: 0.75rem;
+        }
+        
+        .info-card-icon {
+            font-size: 1.5rem;
+        }
+        
+        .info-card-value {
+            font-size: 0.95rem;
+        }
     }
     
     @media (max-width: 768px) {
+        .info-cards-row {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .info-card {
+            min-width: 100%;
+        }
         .raffle-header {
             padding: 1rem 0;
         }
@@ -799,57 +990,49 @@
 <div class="container">
     <div class="raffle-card">
         <div class="card-body">
+            <!-- Tarjetas de información estilo casino - Horizontal -->
+            <div class="info-cards-row">
+                <div class="info-card organizer">
+                    <i class="fas fa-user info-card-icon"></i>
+                    <span class="info-card-label">Organizador</span>
+                    <div class="info-card-value">{{ raffle.organizer.username }}</div>
+                </div>
+                <div class="info-card price">
+                    <i class="fas fa-tag info-card-icon"></i>
+                    <span class="info-card-label">Precio</span>
+                    <div class="info-card-value">{{ raffle.ticket_price }} <i class="fas fa-coins"></i></div>
+                </div>
+                <div class="info-card prize">
+                    <i class="fas fa-trophy info-card-icon"></i>
+                    <span class="info-card-label">Premio</span>
+                    <div class="info-card-value">{{ raffle.prize }} <i class="fas fa-coins"></i></div>
+                </div>
+                <div class="info-card sold">
+                    <i class="fas fa-ticket-alt info-card-icon"></i>
+                    <span class="info-card-label">Vendidos</span>
+                    <div class="info-card-value" data-sold-counter data-total-tickets="{{ raffle.total_tickets }}">{{ raffle.tickets.count }}/{{ raffle.total_tickets }}</div>
+                </div>
+                <div class="info-card date">
+                    <i class="fas fa-calendar-alt info-card-icon"></i>
+                    <span class="info-card-label">Fecha Sorteo</span>
+                    <div class="info-card-value">{{ raffle.draw_date|date:"d M Y" }}</div>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar" 
+                     style="width: {{ raffle.progress_percentage }}%" 
+                     aria-valuenow="{{ raffle.progress_percentage }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                    {{ raffle.progress_percentage|floatformat:0 }}% completado
+                </div>
+            </div>
+            
             <div class="row">
-                <!-- Columna izquierda: Información compacta -->
+                <!-- Columna izquierda: Tus Tickets -->
                 <div class="col-lg-4">
-                    <div class="info-section">
-                        <h4><i class="fas fa-info-circle me-2"></i>Información</h4>
-                        <div class="info-item">
-                            <span><i class="fas fa-user me-2"></i>Organizador</span>
-                            <strong>{{ raffle.organizer.username }}</strong>
-                        </div>
-                        <div class="info-item">
-                            <span><i class="fas fa-tag me-2"></i>Precio</span>
-                            <strong>{{ raffle.ticket_price }} <i class="fas fa-coins"></i></strong>
-                        </div>
-                        <div class="info-item">
-                            <span><i class="fas fa-trophy me-2"></i>Premio</span>
-                            <strong class="prize-highlight">{{ raffle.prize }} <i class="fas fa-coins"></i></strong>
-                        </div>
-                        <div class="info-item">
-                            <span><i class="fas fa-ticket-alt me-2"></i>Vendidos</span>
-                            <strong data-sold-counter data-total-tickets="{{ raffle.total_tickets }}">{{ raffle.tickets.count }}/{{ raffle.total_tickets }}</strong>
-                        </div>
-                        <div class="info-item">
-                            <span><i class="fas fa-calendar-alt me-2"></i>Fecha</span>
-                            <strong>{{ raffle.draw_date|date:"d M Y H:i" }}</strong>
-                        </div>
-                        {% if raffle.whatsapp_number %}
-                        <div class="info-item">
-                            <span><i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>WhatsApp</span>
-                            {% if 'http' in raffle.whatsapp_number or 'chat.whatsapp.com' in raffle.whatsapp_number %}
-                            <a href="{{ raffle.whatsapp_number }}" target="_blank" class="btn btn-success btn-sm whatsapp-btn" style="background-color: #25D366; border-color: #25D366; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-                                <i class="fab fa-whatsapp me-1"></i>Grupo
-                            </a>
-                            {% else %}
-                            <a href="https://wa.me/{{ raffle.whatsapp_number|default:'' }}" target="_blank" class="btn btn-success btn-sm whatsapp-btn" style="background-color: #25D366; border-color: #25D366; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-                                <i class="fab fa-whatsapp me-1"></i>Contactar
-                            </a>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Progress Bar -->
-                    <div class="progress-container">
-                        <div class="progress-bar" 
-                             style="width: {{ raffle.progress_percentage }}%" 
-                             aria-valuenow="{{ raffle.progress_percentage }}" 
-                             aria-valuemin="0" 
-                             aria-valuemax="100">
-                            {{ raffle.progress_percentage|floatformat:0 }}% completado
-                        </div>
-                    </div>
                     
                     <!-- User Tickets Section -->
                     <div class="info-section">
